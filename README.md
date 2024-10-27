@@ -26,7 +26,7 @@ Docker is required to easily coordinate and run multiple services at once.
 
 1. Install [Docker Engine](https://docs.docker.com/engine/install/)
 2. Install [Docker Compose](https://docs.docker.com/compose/install/)
-3. Clone this repo's `main` (the default) branch - `git clone https://github.com/synzen/MonitoRSS.git`
+3. Clone this repo's `main` (the default) branch - `git clone -b dev --single-branch https://github.com/slord399/MonitoRSS.git`
 4. Create a Discord application through [Discord's developer portal](https://discord.com/developers/applications) if you do not already have one
 5. Create a copy of the existing `.env.example` file and rename it to `.env.prod`
 6. Replace all relevant values in the `.env.prod` file with your own values
