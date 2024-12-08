@@ -4,9 +4,9 @@ Delivers highly-customized news feeds to Discord!
 
 - [MonitoRSS (formerly Discord.RSS)](#monitorss-formerly-discordrss)
   - [Get Started](#get-started)
-    - [Use Public Instance](#use-public-instance)
     - [Self Host](#self-host)
       - [Customize Site Domain](#customize-site-domain)
+      - [Install Portainer (Optional)](#install-portainer)
       - [Enable Email Notifications](#enable-email-notifications)
       - [Enable Reddit Authorizations](#enable-reddit-authorizations)
       - [Updating](#updating)
@@ -14,10 +14,6 @@ Delivers highly-customized news feeds to Discord!
 
 
 ## Get Started
-
-### Use Public Instance
-To use the publicly hosted instance for free, visit https://monitorss.xyz!
-
 ### Self Host
 
 Docker is required to easily coordinate and run multiple services at once.
@@ -25,18 +21,41 @@ Docker is required to easily coordinate and run multiple services at once.
 > [!NOTE]  
 >  General knowledge of how Docker, Docker volumes, and docker compose works is highly recommended to avoid accidental data loss
 
-1. Install [Docker Engine](https://docs.docker.com/engine/install/)
-2. Install [Docker Compose](https://docs.docker.com/compose/install/)
-3. Clone this repo's `main` (the default) branch - `git clone https://github.com/synzen/MonitoRSS.git`
-4. Create a Discord application through [Discord's developer portal](https://discord.com/developers/applications) if you do not already have one
+1. Setup Docket apt repo
+```
+# Add Docker's official GPG key:
+sudo apt-get update
+sudo apt-get install ca-certificates curl
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+# Add the repository to Apt sources:
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+```
+2. Install Docker
+```
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+```
+3. Clone this repo's `dev` (the default) branch
+```
+git clone -b dev https://github.com/slord399/MonitoRSS.git
+```
+4. Create a Discord application through [Discord's developer portal](https://discord.com/developers/applications).
+    1. Select `Scope (bot) / Bot Permissions (Manage Webhooks, View Channels, Send Messages, Embed Links)` on OAuth2 page.
+    2. Invite bot using Generated URL at bottom of page.
 5. Create a copy of the existing `.env.example` file and rename it to `.env.prod`
 6. Replace all relevant values in the `.env.prod` file with your own values
    1. If you have your own MongoDB instance, set `BACKEND_API_MONGODB_URI` to your MongoDB URI
-   2. Replace all instances of "BOT_TOKEN_HERE" with your Discord bot application token
-   3. Replace all instances of "BOT_CLIENT_ID_HERE" with your Discord bot application ID
-   4. Replace all instances of "BOT_CLIENT_SECRET_HERE" with your Discord bot application secret
-   5. Set `BACKEND_API_SESSION_SECRET` to a random 64-character string
-   6.  Set `BACKEND_API_SESSION_SALT` to a random 16-character string
+   2. Replace all `4` instances of "BOT_TOKEN_HERE" with your Discord bot application token
+   3. Replace all `3` instances of "BOT_CLIENT_ID_HERE" with your Discord bot application ID
+   4. Replace all `1` instances of "BOT_CLIENT_SECRET_HERE" with your Discord bot application secret
+   5. Set `BACKEND_API_SESSION_SECRET` to a random 64-character string with alphabet/number, no symbol.
+   6.  Set `BACKEND_API_SESSION_SALT` to a random 16-character string with alphabet/number, no symbol.
    7.  Add `http://localhost:8000/api/v1/discord/callback-v2` to the list of redirect URIs in your Discord application in the OAuth2 page
 7.  Run `docker compose up -d`
     -  If you run into issues with network timeouts, pass the parallel flag to only build 1 container at once: `docker compose --parallel 1 up -d`
@@ -48,6 +67,19 @@ Docker is required to easily coordinate and run multiple services at once.
 1. Set up your domain to point to the server running the control panel on localhost
 2. Update all references to `http://localhost:8000` in your `.env.prod` to your desired domain. For example, `https://mynewdomain.com`.
 3. Add `{DOMAIN_HERE}/api/v1/discord/callback-v2` to the list of redirect URIs in your Discord application in the OAuth2 page, replacing `{DOMAIN_HERE}` with the value you set in step 1
+
+#### Install Portainer
+For Docker Container Management (Optional)
+1. Run
+```
+docker volume create portainer_data
+```
+2. Run
+```
+docker run -d -p 8500:8500 -p 9443:9443 --name portainer --restart=always -v /var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data portainer/portainer-ce:2.21.4
+```
+3. Portainer v2.21.4 been installed which is current LTS build of Portainer.
+
 
 #### Enable Email Notifications
 
