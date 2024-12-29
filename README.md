@@ -41,9 +41,9 @@ sudo apt-get update
 ```
 sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 ```
-3. Clone this repo's `dev` (the default) branch
+3. Clone this repo's `dev2` (the default) branch
 ```
-git clone -b dev https://github.com/slord399/MonitoRSS.git
+git clone -b dev2 https://github.com/slord399/MonitoRSS.git
 ```
 4. Create a Discord application through [Discord's developer portal](https://discord.com/developers/applications).
     1. Select `Scope (bot) / Bot Permissions (Manage Webhooks, View Channels, Send Messages, Embed Links)` on OAuth2 page.
