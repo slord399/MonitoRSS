@@ -30,24 +30,32 @@ const convertHeaderValue = (val?: string | string[] | null) => {
   return val || '';
 };
 
-const trimHeadersForStorage = (obj?: HeadersInit) => {
+const trimHeadersForStorage = (
+  obj?: Record<string, string | undefined>,
+): Record<string, string> => {
+  const trimmed = Object.entries(obj || {}).reduce((acc, [key, val]) => {
+    if (val) {
+      acc[key] = val;
+    }
+
+    return acc;
+  }, {} as Record<string, string>);
+
   if (!obj) {
-    return obj;
+    return trimmed;
   }
 
-  const newObj: HeadersInit = {};
-
-  for (const key in obj) {
-    if (obj[key]) {
-      newObj[key.toLowerCase()] = obj[key];
+  for (const key in trimmed) {
+    if (trimmed[key]) {
+      trimmed[key.toLowerCase()] = trimmed[key];
     }
   }
 
-  if (newObj.authorization) {
-    newObj.authorization = 'SECRET';
+  if (trimmed.authorization) {
+    trimmed.authorization = 'SECRET';
   }
 
-  return newObj;
+  return trimmed;
 };
 
 interface FetchOptions {
@@ -60,7 +68,6 @@ interface FetchResponse {
   status: number;
   headers: Map<'etag' | 'last-modified' | 'server' | 'content-type', string>;
   text: () => Promise<string>;
-  arrayBuffer: () => Promise<ArrayBuffer>;
 }
 
 @Injectable()
@@ -135,19 +142,12 @@ export class FeedFetcherService {
     request: Request;
     decodedResponseText: string | null | undefined;
   } | null> {
-    const logDebug =
-      url ===
-      'https://www.clanaod.net/forums/external.php?type=RSS2&forumids=102';
-
-    const request = await this.partitionedRequestsStore.getLatestRequest(
-      lookupKey || url,
-    );
+    const request =
+      await this.partitionedRequestsStore.getLatestRequestWithResponseBody(
+        lookupKey || url,
+      );
 
     if (!request) {
-      if (logDebug) {
-        logger.warn(`Running debug on schedule: no request was found`);
-      }
-
       return null;
     }
 
@@ -161,13 +161,6 @@ export class FeedFetcherService {
             await inflatePromise(Buffer.from(compressedText, 'base64'))
           ).toString()
         : '';
-
-      if (logDebug) {
-        logger.warn(
-          `Running debug on schedule: got cache key ${request.response.redisCacheKey}`,
-          { text },
-        );
-      }
 
       return {
         request,
@@ -188,7 +181,7 @@ export class FeedFetcherService {
         | undefined;
       flushEntities?: boolean;
       saveResponseToObjectStorage?: boolean;
-      headers?: Record<string, string>;
+      headers?: Record<string, string | undefined>;
       source: RequestSource | undefined;
     },
   ): Promise<{
@@ -232,29 +225,21 @@ export class FeedFetcherService {
         request.status = RequestStatus.BAD_STATUS_CODE;
       }
 
-      const etag = res.headers.get('etag');
-      const lastModified = res.headers.get('last-modified');
-
       const response = new Response();
       response.createdAt = request.createdAt;
       response.statusCode = res.status;
-      response.headers = {};
+      const headersToStore: Record<string, string> = {};
 
-      if (etag) {
-        response.headers.etag = etag;
-      }
+      res.headers.forEach((val, key) => {
+        headersToStore[key] = val;
+      });
 
-      if (lastModified) {
-        response.headers.lastModified = lastModified;
-      }
+      response.headers = headersToStore;
 
       let text: string | null = null;
 
       try {
-        text =
-          res.status === HttpStatus.NOT_MODIFIED
-            ? ''
-            : await this.maybeDecodeResponse(res);
+        text = res.status === HttpStatus.NOT_MODIFIED ? '' : await res.text();
 
         if (request.status !== RequestStatus.OK) {
           logger.debug(`Bad status code ${res.status} for url ${url}`, {
@@ -290,7 +275,10 @@ export class FeedFetcherService {
             }
           }
 
-          response.redisCacheKey = sha1.copy().update(url).digest('hex');
+          const hashKey =
+            url + JSON.stringify(request.fetchOptions) + res.status.toString();
+
+          response.redisCacheKey = sha1.copy().update(hashKey).digest('hex');
           response.textHash = text
             ? sha1.copy().update(text).digest('hex')
             : '';
@@ -413,10 +401,19 @@ export class FeedFetcherService {
       controller.abort();
     }, this.feedRequestTimeoutMs);
 
+    // Necessary since passing If-None-Match header with empty string may cause a 200 when expecting 304
+    const withoutEmptyHeaderVals = Object.entries(
+      options?.headers || {},
+    ).reduce((acc, [key, val]) => {
+      if (val) {
+        acc[key] = val;
+      }
+
+      return acc;
+    }, {});
+
     const useOptions = {
-      headers: {
-        ...options?.headers,
-      },
+      headers: withoutEmptyHeaderVals,
       redirect: 'follow' as const,
       signal: controller.signal,
     };
@@ -433,6 +430,11 @@ export class FeedFetcherService {
       signal: useOptions.signal,
       maxRedirections: 10,
     });
+
+    const contentTypes =
+      typeof r.headers['content-type'] === 'string'
+        ? r.headers['content-type'].split(';')
+        : r.headers['content-type'] || [];
 
     const normalizedHeaders = Object.entries(r.headers).reduce(
       (acc, [key, val]) => {
@@ -464,28 +466,23 @@ export class FeedFetcherService {
       headers,
       ok: r.statusCode >= 200 && r.statusCode < 300,
       status: r.statusCode,
-      text: () => r.body.text(),
-      arrayBuffer: () => r.body.arrayBuffer(),
+      text: async () => {
+        const charset = contentTypes
+          .find((s) => s.includes('charset'))
+          ?.split('=')[1]
+          .trim();
+
+        if (!charset || /utf-*8/i.test(charset)) {
+          return r.body.text();
+        }
+
+        const arrBuffer = await r.body.arrayBuffer();
+        const decoded = iconv
+          .decode(Buffer.from(arrBuffer), charset)
+          .toString();
+
+        return decoded;
+      },
     };
-  }
-
-  private async maybeDecodeResponse(
-    res: Awaited<FetchResponse>,
-  ): Promise<string> {
-    const charset = res.headers
-      .get('content-type')
-      ?.split(';')
-      .find((s) => s.includes('charset'))
-      ?.split('=')[1]
-      .trim();
-
-    if (!charset || /utf-*8/i.test(charset)) {
-      return res.text();
-    }
-
-    const arrBuffer = await res.arrayBuffer();
-    const decoded = iconv.decode(Buffer.from(arrBuffer), charset).toString();
-
-    return decoded;
   }
 }
