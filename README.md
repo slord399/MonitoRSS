@@ -76,9 +76,9 @@ docker volume create portainer_data
 ```
 2. Run
 ```
-docker run -d -p 8500:8500 -p 9443:9443 --name portainer --restart=always -v /var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data portainer/portainer-ce:2.21.4
+docker run -d -p 8500:8500 -p 9443:9443 --name portainer --restart=always -v /var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data portainer/portainer-ce:2.21.5
 ```
-3. Portainer v2.21.4 been installed which is current LTS build of Portainer.
+3. Portainer v2.21.5 been installed which is current LTS build of Portainer.
 
 
 #### Enable Email Notifications
@@ -107,9 +107,15 @@ Make sure to opt into email notifications in the control panel's user settings p
 Images are automatically built and pushed to Docker Hub on every commit to the `main` branch, so there is technically no need to pull the latest files in. To update your local instance:
 
 1. Make a backup of your MongoDB data just in case since data migrations may occur
-2. Stop containers with `docker compose rm --stop -f`
-3. Pull latest images with `docker compose pull`
-4. Start containers with `docker compose up -d`
+2. Set restart policy of following containers to "None" and restart machine.   
+*monitorss-prod-monolith-1  
+      *monitorss-prod-user-feeds-service-1  
+      *monitorss-bot-presence  
+      *monitorss-discord-rest-listener  
+      *monitorss-feed-requests
+3. Stop containers with `docker compose rm --stop -f`
+4. Pull latest images with `docker compose pull`
+5. Start containers with `docker compose up -d`
 
 ## Migrating from v6
 
