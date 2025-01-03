@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import logger from '../utils/logger';
 import { RequestStatus } from './constants';
 import { Request, Response } from './entities';
-import { deflate, inflate } from 'zlib';
+import { deflate, inflate, gunzip } from 'zlib';
 import { promisify } from 'util';
 import { ObjectFileStorageService } from '../object-file-storage/object-file-storage.service';
 import { createHash, randomUUID } from 'crypto';
@@ -19,6 +19,7 @@ import { GetFeedRequestsInputDto } from './dto';
 
 const deflatePromise = promisify(deflate);
 const inflatePromise = promisify(inflate);
+const gunzipPromise = promisify(gunzip);
 
 const sha1 = createHash('sha1');
 
@@ -151,10 +152,16 @@ export class FeedFetcherService {
       return null;
     }
 
-    if (request.response?.redisCacheKey) {
-      const compressedText = await this.cacheStorageService.getFeedHtmlContent({
-        key: request.response.redisCacheKey,
-      });
+    if (request.response?.redisCacheKey || request.response?.content) {
+      let compressedText: string | null = null;
+
+      if (request.response.content) {
+        compressedText = request.response.content;
+      } else if (request.response.redisCacheKey) {
+        compressedText = await this.cacheStorageService.getFeedHtmlContent({
+          key: request.response.redisCacheKey,
+        });
+      }
 
       const text = compressedText
         ? (
@@ -194,6 +201,7 @@ export class FeedFetcherService {
           this.configService.get<string>('feedUserAgent') ||
           this.defaultUserAgent,
         accept: 'text/html,text/xml,application/xml,application/rss+xml',
+        'accept-encoding': 'gzip',
         /**
          * Currently required for https://developer.oculus.com/blog/rss/ that returns 400 otherwise
          * Appears to be temporary error given that the page says they're working on fixing it
@@ -275,18 +283,14 @@ export class FeedFetcherService {
             }
           }
 
-          const hashKey =
+          const key =
             url + JSON.stringify(request.fetchOptions) + res.status.toString();
 
-          response.redisCacheKey = sha1.copy().update(hashKey).digest('hex');
-          response.textHash = text
-            ? sha1.copy().update(text).digest('hex')
-            : '';
+          if (text.length) {
+            response.responseHashKey = sha1.copy().update(key).digest('hex');
 
-          await this.cacheStorageService.setFeedHtmlContent({
-            key: response.redisCacheKey,
-            body: compressedText,
-          });
+            response.content = compressedText;
+          }
         } catch (err) {
           if (err instanceof FeedTooLargeException) {
             throw err;
@@ -332,6 +336,13 @@ export class FeedFetcherService {
           s3ObjectKey: response.s3ObjectKey || null,
           redisCacheKey: response.redisCacheKey || null,
           headers: response.headers,
+          body:
+            response.responseHashKey && response.content
+              ? {
+                  hashKey: response.responseHashKey,
+                  contents: response.content,
+                }
+              : null,
         },
       };
 
@@ -472,14 +483,20 @@ export class FeedFetcherService {
           ?.split('=')[1]
           .trim();
 
-        if (!charset || /utf-*8/i.test(charset)) {
-          return r.body.text();
+        let responseBuffer: Buffer;
+
+        // handle gzip
+        if (r.headers['content-encoding']?.includes('gzip')) {
+          responseBuffer = await gunzipPromise(await r.body.arrayBuffer());
+        } else {
+          responseBuffer = Buffer.from(await r.body.arrayBuffer());
         }
 
-        const arrBuffer = await r.body.arrayBuffer();
-        const decoded = iconv
-          .decode(Buffer.from(arrBuffer), charset)
-          .toString();
+        if (!charset || /utf-*8/i.test(charset)) {
+          return responseBuffer.toString();
+        }
+
+        const decoded = iconv.decode(responseBuffer, charset).toString();
 
         return decoded;
       },
