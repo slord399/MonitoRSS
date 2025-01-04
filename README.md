@@ -114,11 +114,11 @@ Images are automatically built and pushed to Docker Hub on every commit to the `
       *monitorss-prod-discord-rest-listener-service-1  
       *monitorss-prod-monolith-1  
       *monitorss-prod-legacy-feed-bulk-converter-service-1  
-      *monitorss-prod-schedule-emitter-service-1
-      *monitorss-prod-user-feeds-service-1
-      *monitorss-prod-mongo-1
-      *monitorss-prod-feed-requests-postgres-db-1
-      *monitorss-prod-user-feeds-postgres-db-1
+      *monitorss-prod-schedule-emitter-service-1  
+      *monitorss-prod-user-feeds-service-1  
+      *monitorss-prod-mongo-1  
+      *monitorss-prod-feed-requests-postgres-db-1  
+      *monitorss-prod-user-feeds-postgres-db-1  
       *monitorss-prod-feed-requests-service-1
 4. Stop containers with `docker compose rm --stop -f`
 5. Pull latest images with `docker compose pull`
