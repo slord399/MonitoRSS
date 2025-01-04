@@ -107,22 +107,24 @@ Make sure to opt into email notifications in the control panel's user settings p
 Images are automatically built and pushed to Docker Hub on every commit to the `main` branch, so there is technically no need to pull the latest files in. To update your local instance:
 
 1. Make a backup of your MongoDB data just in case since data migrations may occur
-2. Set restart policy of following containers to "None" and restart machine.   
-*monitorss-prod-monolith-1  
-      *monitorss-prod-bot-presence-service-1  
-      *monitorss-prod-feed-requests-redis-cache-1  
-      *monitorss-prod-discord-rest-listener-service-1  
-      *monitorss-prod-monolith-1  
-      *monitorss-prod-legacy-feed-bulk-converter-service-1  
-      *monitorss-prod-schedule-emitter-service-1  
-      *monitorss-prod-user-feeds-service-1  
-      *monitorss-prod-mongo-1  
-      *monitorss-prod-feed-requests-postgres-db-1  
-      *monitorss-prod-user-feeds-postgres-db-1  
-      *monitorss-prod-feed-requests-service-1
-4. Stop containers with `docker compose rm --stop -f`
-5. Pull latest images with `docker compose pull`
-6. Start containers with `docker compose up -d`
+2. Set restart policy of following containers to "no" and restart machine.   
+```
+docker update --restart=no monitorss-prod-monolith-1
+docker update --restart=no monitorss-prod-bot-presence-service-1
+docker update --restart=no monitorss-prod-feed-requests-redis-cache-1
+docker update --restart=no monitorss-prod-discord-rest-listener-service-1
+docker update --restart=no monitorss-prod-monolith-1
+docker update --restart=no monitorss-prod-legacy-feed-bulk-converter-service-1
+docker update --restart=no monitorss-prod-schedule-emitter-service-1
+docker update --restart=no monitorss-prod-user-feeds-service-1
+docker update --restart=no monitorss-prod-mongo-1
+docker update --restart=no monitorss-prod-feed-requests-postgres-db-1
+docker update --restart=no monitorss-prod-user-feeds-postgres-db-1
+docker update --restart=no monitorss-prod-feed-requests-service-1
+```
+3. Stop containers with `docker compose rm --stop -f`
+4. Pull latest images with `docker compose pull`
+5. Start containers with `docker compose up -d`
 
 ## Migrating from v6
 
