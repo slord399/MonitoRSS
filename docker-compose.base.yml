@@ -82,7 +82,7 @@ services:
       mongo:
         condition: service_started
     environment:
-      - BOT_PRESENCE_RABBITMQ_URL=amqp://localhost
+      - BOT_PRESENCE_RABBITMQ_URL=amqp://rabbitmq-broker
     networks:
       - monitorss-default
 
@@ -98,7 +98,7 @@ services:
       mongo:
         condition: service_started
     environment:
-      - DISCORD_REST_LISTENER_RABBITMQ_URI=amqp://localhost
+      - DISCORD_REST_LISTENER_RABBITMQ_URI=amqp://rabbitmq-broker
       - DISCORD_REST_LISTENER_MONGO_URI=mongodb://mongo:27017/rss
       - DISCORD_REST_LISTENER_MAX_REQ_PER_SEC=40
     networks:
@@ -119,7 +119,7 @@ services:
       - FEED_REQUESTS_FEEDS_MONGODB_URI=mongodb://mongo:27017/rss
       - FEED_REQUESTS_API_KEY=feed-requests-api-key
       - FEED_REQUESTS_API_PORT=5000
-      - FEED_REQUESTS_RABBITMQ_BROKER_URL=amqp://rabbitmq-broker:5672
+      - FEED_REQUESTS_RABBITMQ_BROKER_URL=amqp://rabbitmq-broker
       - FEED_REQUESTS_FAILED_REQUEST_DURATION_THRESHOLD_HOURS=48
       - FEED_REQUESTS_START_TARGET=service
       - FEED_REQUESTS_S3_API_KEY_ID=1
@@ -150,7 +150,7 @@ services:
       - FEED_REQUESTS_FEEDS_MONGODB_URI=mongodb://mongo:27017/rss
       - FEED_REQUESTS_API_KEY=feed-requests-api-key
       - FEED_REQUESTS_API_PORT=5000
-      - FEED_REQUESTS_RABBITMQ_BROKER_URL=amqp://rabbitmq-broker:5672
+      - FEED_REQUESTS_RABBITMQ_BROKER_URL=amqp://rabbitmq-broker
       - FEED_REQUESTS_FAILED_REQUEST_DURATION_THRESHOLD_HOURS=48
       - FEED_REQUESTS_REDIS_URI=redis://feed-requests-redis-cache:6379
       - FEED_REQUESTS_REDIS_DISABLE_CLUSTER=true
@@ -174,10 +174,10 @@ services:
       retries: 3
     environment:
       - USER_FEEDS_POSTGRES_URI=postgres://postgres:postgres@user-feeds-postgres-db:5432
-      - USER_FEEDS_DISCORD_RABBITMQ_URI=amqp://rabbitmq-broker:5672
+      - USER_FEEDS_DISCORD_RABBITMQ_URI=amqp://rabbitmq-broker
       - USER_FEEDS_POSTGRES_DATABASE=userfeeds
       - USER_FEEDS_API_PORT=5000
-      - USER_FEEDS_RABBITMQ_BROKER_URL=amqp://guest:guest@rabbitmq-broker:5672
+      - USER_FEEDS_RABBITMQ_BROKER_URL=amqp://guest:guest@rabbitmq-broker
       - USER_FEEDS_FEED_REQUESTS_API_URL=http://feed-requests-service:5000/v1/feed-requests
       - USER_FEEDS_FEED_REQUESTS_GRPC_URL=dns:///feed-requests-service:4999
       - USER_FEEDS_FEED_REQUESTS_GRPC_USE_TLS=false
@@ -199,10 +199,10 @@ services:
       - user-feeds-postgres-db
     environment:
       - USER_FEEDS_POSTGRES_URI=postgres://postgres:postgres@user-feeds-postgres-db:5432
-      - USER_FEEDS_DISCORD_RABBITMQ_URI=amqp://rabbitmq-broker:5672
+      - USER_FEEDS_DISCORD_RABBITMQ_URI=amqp://rabbitmq-broker
       - USER_FEEDS_POSTGRES_DATABASE=userfeeds
       - USER_FEEDS_API_PORT=5000
-      - USER_FEEDS_RABBITMQ_BROKER_URL=amqp://guest:guest@rabbitmq-broker:5672
+      - USER_FEEDS_RABBITMQ_BROKER_URL=amqp://guest:guest@rabbitmq-broker
       - USER_FEEDS_FEED_REQUESTS_API_URL=http://feed-requests-service:5000/v1/feed-requests
       - USER_FEEDS_FEED_REQUESTS_GRPC_URL=dns:///feed-requests-service:4999
       - USER_FEEDS_FEED_REQUESTS_GRPC_USE_TLS=false
@@ -231,7 +231,7 @@ services:
       - BACKEND_API_DISCORD_REDIRECT_URI=----IRRELEVANT----
       - BACKEND_API_DEFAULT_MAX_FEEDS=10
       - BACKEND_API_FEED_USER_AGENT=----IRRELEVANT----
-      - BACKEND_API_RABBITMQ_BROKER_URL=amqp://guest:guest@rabbitmq-broker:5672/
+      - BACKEND_API_RABBITMQ_BROKER_URL=amqp://guest:guest@rabbitmq-broker/
     networks:
       - monitorss-default
     command: npm run start:schedule-emitter:local
@@ -255,7 +255,7 @@ services:
       - BACKEND_API_DISCORD_REDIRECT_URI=----IRRELEVANT----
       - BACKEND_API_DEFAULT_MAX_FEEDS=10
       - BACKEND_API_FEED_USER_AGENT=----IRRELEVANT----
-      - BACKEND_API_RABBITMQ_BROKER_URL=amqp://guest:guest@rabbitmq-broker:5672/
+      - BACKEND_API_RABBITMQ_BROKER_URL=amqp://guest:guest@rabbitmq-broker/
     networks:
       - monitorss-default
     command: ["node", "dist/scripts/legacy-feed-bulk-converter.js"]
@@ -287,7 +287,7 @@ services:
       - BACKEND_API_FEED_REQUESTS_API_HOST=http://feed-requests-service:5000
       - BACKEND_API_DEFAULT_MAX_FEEDS=10
       - BACKEND_API_FEED_USER_AGENT=MonitoRSS
-      - BACKEND_API_RABBITMQ_BROKER_URL=amqp://guest:guest@rabbitmq-broker:5672/
+      - BACKEND_API_RABBITMQ_BROKER_URL=amqp://guest:guest@rabbitmq-broker/
       - BACKEND_API_USER_FEEDS_API_KEY=user-feeds-api-key
       - BACKEND_API_FEED_REQUESTS_API_KEY=feed-requests-api-key
     networks:
