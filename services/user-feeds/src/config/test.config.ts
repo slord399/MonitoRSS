@@ -16,9 +16,9 @@ export function testConfig(): EnvironmentVariables {
     USER_FEEDS_DISCORD_CLIENT_ID: "discord-client-id",
     USER_FEEDS_DISCORD_API_TOKEN: "discord-token",
     USER_FEEDS_DISCORD_RABBITMQ_URI:
-      process.env.USER_FEEDS_DISCORD_RABBITMQ_URI || "amqp://localhost:5672",
+      process.env.USER_FEEDS_DISCORD_RABBITMQ_URI || "amqp://localhost",
     USER_FEEDS_RABBITMQ_BROKER_URL:
-      process.env.USER_FEEDS_RABBITMQ_BROKER_URL || "amqp://localhost:5672",
+      process.env.USER_FEEDS_RABBITMQ_BROKER_URL || "amqp://localhost",
     USER_FEEDS_FEED_REQUESTS_GRPC_URL: "dns:///localhost:4999",
     USER_FEEDS_FEED_REQUESTS_GRPC_USE_TLS: "",
     USER_FEEDS_REDIS_DISABLE_CLUSTER: true,

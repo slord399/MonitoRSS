@@ -82,7 +82,7 @@ services:
       mongo:
         condition: service_started
     environment:
-      - BOT_PRESENCE_RABBITMQ_URL=amqp://rabbitmq-broker:5672
+      - BOT_PRESENCE_RABBITMQ_URL=amqp://localhost
     networks:
       - monitorss-default
 
@@ -98,7 +98,7 @@ services:
       mongo:
         condition: service_started
     environment:
-      - DISCORD_REST_LISTENER_RABBITMQ_URI=amqp://rabbitmq-broker:5672
+      - DISCORD_REST_LISTENER_RABBITMQ_URI=amqp://localhost
       - DISCORD_REST_LISTENER_MONGO_URI=mongodb://mongo:27017/rss
       - DISCORD_REST_LISTENER_MAX_REQ_PER_SEC=40
     networks:
