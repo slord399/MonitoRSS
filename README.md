@@ -107,7 +107,7 @@ Make sure to opt into email notifications in the control panel's user settings p
 Images are automatically built and pushed to Docker Hub on every commit to the `main` branch, so there is technically no need to pull the latest files in. To update your local instance:
 
 1. Make a backup of your MongoDB data just in case since data migrations may occur
-2. Set restart policy of following containers to "no" and restart machine.   
+2. Set restart policy of following containers to "no".   
 ```
 docker update --restart=no monitorss-prod-monolith-1
 docker update --restart=no monitorss-prod-bot-presence-service-1
@@ -122,19 +122,7 @@ docker update --restart=no monitorss-prod-feed-requests-postgres-db-1
 docker update --restart=no monitorss-prod-user-feeds-postgres-db-1
 docker update --restart=no monitorss-prod-feed-requests-service-1
 ```
-3. Stop containers with `docker compose rm --stop -f`
-4. Pull latest images with `docker compose pull`
-5. Start containers with `docker compose up -d`
-
-## Migrating from v6
-
-If you've been using MonitoRSS v6 (used by the repo https://github.com/synzen/MonitoRSS-Clone), then these are instructions to migrate off of that repo to use the latest changes.
-
-It's recommended that you don't delete your v6 files until you've confirmed that all your feeds are working as expected post-migration.
-
-1. Follow the instructions above to self host. Be sure to clone this repo - the [clone repo](https://github.com/synzen/MonitoRSS-Clone) is no longer used or maintained.
-2. In your `.env.prod` file, set `BACKEND_API_MONGODB_URI` to your MongoDB URI
-3. Run `docker compose --parallel 1 up -d --build`
-    - If you run into issues with network timeouts, pass the parallel flag to only build 1 container at once: `docker compose --parallel 1 up -d`
-5. Access the control panel via http://localhost:8000/servers and convert all your legacy feeds to personal feeds. Legacy feed articles will not be fetched/delivered until they are converted to personal feeds.
-6. After verifying that all is working as expected, you may delete your v6 files.
+3. Restart machine.
+4. Stop containers with `docker compose rm --stop -f`
+5. Pull latest images with `docker compose pull`
+6. Start containers with `docker compose up -d`
