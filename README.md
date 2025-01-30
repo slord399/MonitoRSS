@@ -9,8 +9,9 @@ Delivers highly-customized news feeds to Discord!
       - [Install Portainer (Optional)](#install-portainer)
       - [Enable Email Notifications](#enable-email-notifications)
       - [Enable Reddit Authorizations](#enable-reddit-authorizations)
+      - [Rebuild](#rebuild)
       - [Updating](#updating)
-  - [Migrating from v6](#migrating-from-v6)
+  
 
 
 ## Get Started
@@ -102,6 +103,29 @@ Make sure to opt into email notifications in the control panel's user settings p
 6. Generate a random 64-digit hexadecimal string and set it as `BACKEND_API_ENCRYPTION_KEY_HEX` in your `.env.prod` file. One option is to use an online generator such as [this one](https://www.browserling.com/tools/random-hex).
 
 
+#### Rebuild
+
+1. Set restart policy of following containers to "no".   
+```
+docker update --restart=no monitorss-prod-monolith-1
+docker update --restart=no monitorss-prod-bot-presence-service-1
+docker update --restart=no monitorss-prod-feed-requests-redis-cache-1
+docker update --restart=no monitorss-prod-discord-rest-listener-service-1
+docker update --restart=no monitorss-prod-monolith-1
+docker update --restart=no monitorss-prod-legacy-feed-bulk-converter-service-1
+docker update --restart=no monitorss-prod-schedule-emitter-service-1
+docker update --restart=no monitorss-prod-user-feeds-service-1
+docker update --restart=no monitorss-prod-mongo-1
+docker update --restart=no monitorss-prod-feed-requests-postgres-db-1
+docker update --restart=no monitorss-prod-user-feeds-postgres-db-1
+docker update --restart=no monitorss-prod-feed-requests-service-1
+```
+2. Restart machine.
+3. Moved to MonitoRSS directory.
+4. Stop containers with `docker compose rm --stop -f`.
+5. Start containers with `docker compose up -d`
+
+
 #### Updating
 
 Images are automatically built and pushed to Docker Hub on every commit to the `main` branch, so there is technically no need to pull the latest files in. To update your local instance:
@@ -122,7 +146,11 @@ docker update --restart=no monitorss-prod-feed-requests-postgres-db-1
 docker update --restart=no monitorss-prod-user-feeds-postgres-db-1
 docker update --restart=no monitorss-prod-feed-requests-service-1
 ```
-3. Restart machine.
-4. Stop containers with `docker compose rm --stop -f`
-5. Pull latest images with `docker compose pull`
-6. Start containers with `docker compose up -d`
+3. Backup `.env.prod` for later.
+4. Restart machine.
+5. Move to MonitoRSS directory.
+6. Stop containers with `docker compose rm --stop -f`.
+7. Delete existing copy by `rm -f MonitoRSS` at upper directory.
+8. Pull latest images with `git clone -b dev2 https://github.com/slord399/MonitoRSS.git`
+9. Copy over `.env.prod` to MonitoRSS folder.
+10. Start containers with `docker compose up -d`
