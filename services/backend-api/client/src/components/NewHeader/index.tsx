@@ -61,7 +61,7 @@ export const NewHeader = ({ invertBackground }: Props) => {
                   overflow="hidden"
                   as="a"
                   href="/"
-                  aria-label="SLORD RSS Feeder Service Home"
+                  aria-label="MonitoRSS Home"
                 >
                   <Avatar
                     src={discordBotData.result.avatar || undefined}
@@ -76,7 +76,7 @@ export const NewHeader = ({ invertBackground }: Props) => {
                     whiteSpace="nowrap"
                     overflow="hidden"
                     textOverflow="ellipsis"
-                    title="SLORD RSS Feeder Service"
+                    title="MonitoRSS"
                     // title={discordBotData.result.username}
                   >
                     MonitoRSS
