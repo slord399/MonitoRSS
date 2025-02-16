@@ -150,7 +150,7 @@ docker update --restart=no monitorss-prod-feed-requests-service-1
 4. Restart machine.
 5. Move to MonitoRSS directory.
 6. Stop containers with `docker compose rm --stop -f`.
-7. Delete existing copy by `rm -f MonitoRSS` at upper directory.
+7. Delete existing copy by `rm -r MonitoRSS` at upper directory.
 8. Pull latest images with `git clone -b dev2 https://github.com/slord399/MonitoRSS.git`
 9. Copy over `.env.prod` to MonitoRSS folder.
 10. Start containers with `docker compose up -d`
