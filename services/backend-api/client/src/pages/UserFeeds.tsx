@@ -88,7 +88,7 @@ export const UserFeeds: React.FC = () => {
 
   return (
     <BoxConstrained.Wrapper justifyContent="flex-start" height="100%" overflow="visible">
-      <BoxConstrained.Container paddingTop={6} spacing={6} height="100%">
+      <BoxConstrained.Container paddingTop={6} spacing={6} height="100%" paddingX={4}>
         <Stack spacing={4}>
           <Box>
             {!userMeData?.result.migratedToPersonalFeeds && (
@@ -151,7 +151,7 @@ export const UserFeeds: React.FC = () => {
           )}
           <Flex justifyContent="space-between" alignItems="center" gap="4" flexWrap="wrap">
             <Flex alignItems="center" gap={4}>
-              <Heading as="h1" size="lg">
+              <Heading as="h1" size="lg" tabIndex={-1}>
                 {t("pages.userFeeds.title")}
               </Heading>
             </Flex>

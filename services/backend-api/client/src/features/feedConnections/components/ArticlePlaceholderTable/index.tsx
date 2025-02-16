@@ -1,8 +1,6 @@
 import {
   Box,
-  Code,
   HStack,
-  IconButton,
   Spinner,
   Stack,
   Table,
@@ -13,12 +11,9 @@ import {
   Th,
   Thead,
   Tr,
-  useClipboard,
 } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { CopyIcon } from "@chakra-ui/icons";
-import { useEffect } from "react";
-import { notifyInfo } from "../../../../utils/notifyInfo";
+import MessagePlaceholderText from "../../../../components/MessagePlaceholderText";
 
 interface Props {
   article: Record<string, string>;
@@ -32,25 +27,14 @@ interface Props {
 const PlaceholderRow = ({
   placeholderKey,
   value,
+  withBrackets,
   withoutCopy,
 }: {
   placeholderKey: string;
   value: string;
+  withBrackets?: boolean;
   withoutCopy?: boolean;
 }) => {
-  const { onCopy, setValue, value: copiedVal } = useClipboard("");
-
-  const onClickCopy = (val: string) => {
-    notifyInfo("Copied to clipboard!");
-    setValue(val);
-  };
-
-  useEffect(() => {
-    if (copiedVal) {
-      onCopy();
-    }
-  }, [copiedVal]);
-
   return (
     <Tr
       _hover={{
@@ -61,21 +45,13 @@ const PlaceholderRow = ({
     >
       <Td>
         <HStack width="auto">
-          <Code>{placeholderKey}</Code>
-          <IconButton
-            display={withoutCopy ? "none" : "block"}
-            opacity={0}
-            className="copy-button"
-            onClick={() => onClickCopy(placeholderKey)}
-            icon={<CopyIcon />}
-            size="xs"
-            variant="link"
-            aria-label="Copy to clipboard"
-          />
+          <MessagePlaceholderText withoutCopy={withoutCopy} withBrackets={withBrackets}>
+            {placeholderKey}
+          </MessagePlaceholderText>
         </HStack>
       </Td>
       <Td whiteSpace="normal">
-        <Box maxHeight={150} overflow="auto">
+        <Box maxHeight={150} overflow="auto" tabIndex={0}>
           {value.split("\n").map((line, idx) => (
             // eslint-disable-next-line react/no-array-index-key
             <span key={idx}>
@@ -99,16 +75,7 @@ export const ArticlePlaceholderTable = ({
   const { t } = useTranslation();
 
   return (
-    <Stack
-      position="relative"
-      // border="solid 1px"
-      borderColor="gray.700"
-      borderRadius="md"
-      overflow="auto"
-      // flex={1}
-      // bg="whiteAlpha.100"
-      // boxShadow="dark-lg"
-    >
+    <Stack position="relative" borderColor="gray.700" borderRadius="md" overflow="auto">
       <Box>
         {isFetching && (
           <Stack alignItems="center">
@@ -144,7 +111,7 @@ export const ArticlePlaceholderTable = ({
               </Thead>
               <Tbody>
                 {Object.entries(article).map(([key, value]) => {
-                  const placeholderKey = asPlaceholders ? `{{${key}}}` : key;
+                  const placeholderKey = key;
 
                   if (hideEmptyPlaceholders && !value) {
                     return null;
@@ -161,10 +128,11 @@ export const ArticlePlaceholderTable = ({
 
                   return (
                     <PlaceholderRow
-                      withoutCopy={withoutCopy}
                       key={key}
                       placeholderKey={placeholderKey}
                       value={value}
+                      withBrackets={asPlaceholders}
+                      withoutCopy={withoutCopy}
                     />
                   );
                 })}

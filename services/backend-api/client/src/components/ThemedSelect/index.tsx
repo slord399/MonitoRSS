@@ -1,6 +1,6 @@
 /* eslint-disable react/no-unstable-nested-components */
 import { Avatar, HStack, Text, useColorModeValue } from "@chakra-ui/react";
-import Select, { GroupBase, StylesConfig, components } from "react-select";
+import Select, { AriaOnFocusProps, GroupBase, StylesConfig, components } from "react-select";
 import { ChevronDownIcon } from "@chakra-ui/icons";
 import StateManagedSelect from "react-select/dist/declarations/src/stateManager";
 import { REACT_SELECT_STYLES } from "@/constants/reactSelectStyles";
@@ -29,6 +29,7 @@ interface Props<T> {
   placeholder?: string | React.ReactNode;
   selectProps?: React.ComponentProps<typeof StateManagedSelect>;
   inputRef?: React.ComponentProps<typeof Select>["ref"];
+  isInvalid: boolean;
 }
 
 export const ThemedSelect = <T,>({
@@ -45,11 +46,17 @@ export const ThemedSelect = <T,>({
   onInputChange,
   selectProps,
   inputRef,
+  isInvalid,
 }: Props<T>) => {
   // @ts-ignore
   const styles = useColorModeValue<SelectStyles, SelectStyles>({}, REACT_SELECT_STYLES);
-
   const selectedOption = options.find((option) => option.value === value);
+
+  const onFocus = ({ focused }: AriaOnFocusProps<SelectOption<T>, GroupBase<SelectOption<T>>>) => {
+    const msg = `You are currently focused on option ${focused.label}`;
+
+    return msg;
+  };
 
   return (
     <Select
@@ -59,6 +66,8 @@ export const ThemedSelect = <T,>({
       options={options}
       onBlur={onBlur}
       name={name}
+      aria-invalid={isInvalid}
+      ariaLiveMessages={{ onFocus: onFocus as never }}
       placeholder={placeholder}
       isClearable={isClearable}
       ref={inputRef}
@@ -66,19 +75,19 @@ export const ThemedSelect = <T,>({
       // @ts-ignore
       styles={styles}
       value={selectedOption || ""}
-      onChange={(option) => {
+      onChange={(option: any) => {
         onChange((option as SelectOption<T>)?.value || "", (option as SelectOption<T>)?.data);
       }}
       components={{
         Option: IconOption as never,
-        NoOptionsMessage: (props) => (
+        NoOptionsMessage: (props: any) => (
           <components.NoOptionsMessage {...props}>
             <span>No results found</span>
           </components.NoOptionsMessage>
         ),
         DropdownIndicator: ChakraDropdownIndicator as never,
       }}
-      onInputChange={(input) => onInputChange?.(input)}
+      onInputChange={(input: any) => onInputChange?.(input)}
       {...selectProps}
     />
   );
@@ -96,7 +105,7 @@ const IconOption = <T,>(props: IconOptionProps) => {
     <Option {...props}>
       <HStack alignItems="center">
         {typeof castedData.icon === "string" && (
-          <Avatar src={castedData.icon} name={castedData.value} size="xs" />
+          <Avatar aria-hidden src={castedData.icon} name={castedData.value} size="xs" />
         )}
         {typeof castedData.icon === "object" && castedData.icon}
         <Text>{castedData.label}</Text>

@@ -1,3 +1,4 @@
+/* eslint-disable max-len */
 import {
   Body,
   Controller,
@@ -27,6 +28,7 @@ import { validateSync } from 'class-validator';
 import { Metadata } from '@grpc/grpc-js';
 import { ConfigService } from '@nestjs/config';
 import { HostRateLimiterService } from '../host-rate-limiter/host-rate-limiter.service';
+import calculateResponseFreshnessLifetime from '../shared/utils/calculate-response-freshness-lifetime';
 
 @Controller({
   version: '1',
@@ -77,7 +79,11 @@ export class FeedFetcherController {
           headers: r.fetchOptions?.headers,
           response: {
             statusCode: r.response?.statusCode,
+            headers: r.response?.headers,
           },
+          freshnessLifetimeMs: calculateResponseFreshnessLifetime({
+            headers: r.response?.headers || {},
+          }).capped,
         })),
         // unix timestamp in seconds
         nextRetryTimestamp: nextRetryDate ? dayjs(nextRetryDate).unix() : null,
@@ -124,17 +130,7 @@ export class FeedFetcherController {
   private async getLatestRequest(
     data: FetchFeedDto,
   ): Promise<FetchFeedDetailsDto> {
-    const logDebug =
-      data.url ===
-      'https://www.clanaod.net/forums/external.php?type=RSS2&forumids=102';
-
     if (data.executeFetch) {
-      if (logDebug) {
-        logger.warn(`Running debug on schedule: execute fetch`, {
-          data,
-        });
-      }
-
       try {
         await this.feedFetcherService.fetchAndSaveResponse(data.url, {
           saveResponseToObjectStorage: data.debug,
@@ -160,6 +156,7 @@ export class FeedFetcherController {
           redisCacheKey?: string | null;
         } | null;
         status: RequestStatus;
+        createdAt: Date;
       };
       decodedResponseText?: string | null;
     } | null = await this.feedFetcherService.getLatestRequest({
@@ -167,10 +164,17 @@ export class FeedFetcherController {
       lookupKey: data.lookupDetails?.key,
     });
 
-    if (logDebug) {
-      logger.warn(`Running debug on schedule: after get latest request`, {
-        data,
-        latestRequest,
+    const isFetchedOver30MinutesAgo =
+      latestRequest &&
+      dayjs().diff(latestRequest.request.createdAt, 'minute') > 30;
+
+    if (data.executeFetchIfStale && isFetchedOver30MinutesAgo) {
+      await this.feedFetcherService.fetchAndSaveResponse(data.url, {
+        saveResponseToObjectStorage: data.debug,
+        lookupDetails: data.lookupDetails ? data.lookupDetails : undefined,
+        source: undefined,
+        headers: data.lookupDetails?.headers,
+        flushEntities: true,
       });
     }
 
@@ -192,24 +196,11 @@ export class FeedFetcherController {
           },
         );
 
-        if (logDebug) {
-          logger.warn(
-            `Running debug on schedule: execute fetch if not exists`,
-            {
-              savedData,
-            },
-          );
-        }
-
         latestRequest = {
           request: { ...savedData.request },
           decodedResponseText: savedData.responseText,
         };
       } else {
-        if (logDebug) {
-          logger.warn(`Running debug on schedule: is pending status`);
-        }
-
         return {
           requestStatus: 'PENDING' as const,
         };
@@ -218,12 +209,6 @@ export class FeedFetcherController {
 
     const latestRequestStatus = latestRequest.request.status;
     const latestRequestResponse = latestRequest.request.response;
-
-    if (logDebug) {
-      logger.warn(`Running debug on schedule: response`, {
-        latestRequest,
-      });
-    }
 
     if (
       data.hashToCompare &&

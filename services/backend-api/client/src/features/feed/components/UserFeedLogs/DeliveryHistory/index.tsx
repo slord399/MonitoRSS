@@ -29,6 +29,7 @@ import {
   ModalFooter,
   chakra,
   Tooltip,
+  Divider,
 } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { Link } from "react-router-dom";
@@ -100,7 +101,7 @@ const createStatusLabel = ({ status }: { status: UserFeedDeliveryLogStatus }) =>
 export const DeliveryHistory = () => {
   const [detailsData, setDetailsData] = useState("");
   const { articleFormatOptions, userFeed } = useUserFeedContext();
-  const { data, status, error, skip, nextPage, prevPage, fetchStatus } =
+  const { data, status, error, skip, nextPage, prevPage, fetchStatus, limit } =
     useUserFeedDeliveryLogsWithPagination({
       feedId: userFeed.id,
       data: {},
@@ -131,7 +132,7 @@ export const DeliveryHistory = () => {
   const hasNoData = data?.result.logs.length === 0 && skip === 0;
 
   return (
-    <Stack spacing={4} mb={16}>
+    <Stack spacing={4} mb={16} border="solid 1px" borderColor="gray.700" borderRadius="md">
       <Modal isOpen={!!detailsData} onClose={onCloseDetailsModal} size="6xl">
         <ModalOverlay />
         <ModalContent>
@@ -147,156 +148,191 @@ export const DeliveryHistory = () => {
           </ModalFooter>
         </ModalContent>
       </Modal>
-      <Heading size="md">Article Delivery History</Heading>
-      {status === "loading" && (
-        <Center>
-          <Spinner />
-        </Center>
-      )}
-      {error && (
-        <InlineErrorAlert title="Failed to get delivery logs" description={error.message} />
-      )}
-      {hasNoData && (
-        <Text color="whiteAlpha.700">
-          There have been no delivery attempts. Attempts will be logged as soon as new articles are
-          found on the feed for delivery to enabled connections.
-        </Text>
-      )}
-      {data?.result && !hasNoData && (
-        <Stack>
-          <Box border="solid 1px" borderColor="gray.600" borderRadius="md">
-            <TableContainer>
-              <Table size="sm">
-                <Thead>
-                  <Tr>
-                    <Th>Date</Th>
-                    <Th>Connection</Th>
-                    <Th>Article</Th>
-                    <Th>Status</Th>
-                    <Th>Details</Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {data.result.logs.map((item) => {
-                    const connection = userFeed.connections.find((c) => c.id === item.mediumId);
-                    const matchedArticle = articles?.result.articles.find(
-                      (a) => a.idHash === item.articleIdHash
-                    );
-
-                    return (
-                      <Tr key={item.id}>
-                        <Td>
-                          <Skeleton isLoaded={fetchStatus === "idle"}>
-                            {dayjs(item.createdAt).format("DD MMM YYYY, HH:mm:ss")}
-                          </Skeleton>
-                        </Td>
-                        <Td>
-                          <Skeleton isLoaded={fetchStatus === "idle"}>
-                            {!connection && (
-                              <Text color="whiteAlpha.700" fontStyle="italic">
-                                (deleted connection)
-                              </Text>
-                            )}
-                            {connection && (
-                              <ChakraLink
-                                as={Link}
-                                fontWeight="semibold"
-                                to={pages.userFeedConnection({
-                                  feedId: userFeed.id,
-                                  connectionType: connection?.key as FeedConnectionType,
-                                  connectionId: item.mediumId,
-                                })}
-                                color="blue.300"
-                              >
-                                {connection?.name || item.mediumId}
-                              </ChakraLink>
-                            )}
-                          </Skeleton>
-                        </Td>
-                        <Td maxWidth="300px">
-                          <Skeleton
-                            overflow="hidden"
-                            textOverflow="ellipsis"
-                            isLoaded={
-                              fetchStatus === "idle" &&
-                              !!(
-                                matchedArticle ||
-                                articlesError ||
-                                (articlesFetchStatus === "idle" && !matchedArticle)
-                              )
-                            }
-                          >
-                            {!matchedArticle && (
-                              <Tooltip label="The referenced article either no longer exists on the feed or has no title">
-                                <Text color="whiteAlpha.700" fontStyle="italic">
-                                  (unknown article)
-                                </Text>
-                              </Tooltip>
-                            )}
-                            {matchedArticle &&
-                              // @ts-ignore
-                              matchedArticle?.["title"] &&
-                              // @ts-ignore
-                              matchedArticle?.["title"]}
-                            {/* @ts-ignore */}
-                            {matchedArticle && !matchedArticle?.["title"] && (
-                              <Text color="whiteAlpha.700" fontStyle="italic">
-                                (no title)
-                              </Text>
-                            )}
-                          </Skeleton>
-                        </Td>
-                        <Td>
-                          <Skeleton isLoaded={fetchStatus === "idle"}>
-                            {createStatusLabel({ status: item.status })}
-                          </Skeleton>
-                        </Td>
-                        <Td>
-                          <Skeleton isLoaded={fetchStatus === "idle"}>
-                            {item.details?.message}
-                            {item.details?.data && (
-                              <IconButton
-                                aria-label="View details"
-                                ml={1}
-                                icon={<Search2Icon />}
-                                size="xs"
-                                variant="link"
-                                onClick={() =>
-                                  setDetailsData(JSON.stringify(item.details?.data, null, 2))
-                                }
-                              />
-                            )}
-                          </Skeleton>
-                        </Td>
-                      </Tr>
-                    );
-                  })}
-                </Tbody>
-              </Table>
-            </TableContainer>
-          </Box>
-          <Flex justifyContent="flex-end">
-            <HStack>
-              <Button
-                width="min-content"
-                size="sm"
-                onClick={prevPage}
-                isDisabled={onFirstPage || fetchStatus === "fetching"}
-              >
-                <span>Previous</span>
-              </Button>
-              <Button
-                width="min-content"
-                size="sm"
-                onClick={nextPage}
-                isDisabled={fetchStatus === "fetching" || data?.result.logs.length === 0}
-              >
-                <span>Next</span>
-              </Button>
-            </HStack>
-          </Flex>
+      <Box>
+        <Stack px={4} py={4}>
+          <Heading as="h3" size="sm" m={0} id="delivery-history-table-title">
+            Article Delivery History
+          </Heading>
+          <Text>Delivery attempts for articles across all connections.</Text>
         </Stack>
-      )}
+        <Box px={4}>
+          <Divider />
+        </Box>
+      </Box>
+      <Box px={4} pb={4}>
+        <Box srOnly aria-live="polite">
+          {status === "loading" &&
+            `Loading article delivery history rows ${skip + 1} through ${skip + limit}`}
+          {status === "success" &&
+            `Finished loading article delivery history rows ${skip + 1} through ${skip + limit}`}
+          {status === "success" &&
+            fetchStatus === "fetching" &&
+            `Loading article delivery history rows ${skip + 1} through ${skip + limit}`}
+        </Box>
+        {status === "loading" && (
+          <Center>
+            <Spinner />
+          </Center>
+        )}
+        {error && (
+          <InlineErrorAlert title="Failed to get delivery logs" description={error.message} />
+        )}
+        {hasNoData && (
+          <Box>
+            <Text color="whiteAlpha.700">
+              There have been no delivery attempts. Attempts will be logged as soon as new articles
+              are found on the feed for delivery to enabled connections.
+            </Text>
+          </Box>
+        )}
+        {data?.result && !hasNoData && (
+          <Stack>
+            <Box>
+              <TableContainer>
+                <Table size="sm" variant="simple" aria-labelledby="delivery-history-table-title">
+                  <Thead>
+                    <Tr>
+                      <Th>Date</Th>
+                      <Th>Connection</Th>
+                      <Th>Article Title</Th>
+                      <Th>Status</Th>
+                      <Th>Details</Th>
+                    </Tr>
+                  </Thead>
+                  <Tbody>
+                    {data.result.logs.map((item) => {
+                      const connection = userFeed.connections.find((c) => c.id === item.mediumId);
+                      const matchedArticle = articles?.result.articles.find(
+                        (a) => a.idHash === item.articleIdHash
+                      );
+
+                      return (
+                        <Tr key={item.id}>
+                          <Td>
+                            <Skeleton isLoaded={fetchStatus === "idle"}>
+                              {dayjs(item.createdAt).format("DD MMM YYYY, HH:mm:ss")}
+                            </Skeleton>
+                          </Td>
+                          <Td>
+                            <Skeleton isLoaded={fetchStatus === "idle"}>
+                              {!connection && (
+                                <Text color="whiteAlpha.700" fontStyle="italic">
+                                  (deleted connection)
+                                </Text>
+                              )}
+                              {connection && (
+                                <ChakraLink
+                                  as={Link}
+                                  fontWeight="semibold"
+                                  to={pages.userFeedConnection({
+                                    feedId: userFeed.id,
+                                    connectionType: connection?.key as FeedConnectionType,
+                                    connectionId: item.mediumId,
+                                  })}
+                                  color="blue.300"
+                                >
+                                  {connection?.name || item.mediumId}
+                                </ChakraLink>
+                              )}
+                            </Skeleton>
+                          </Td>
+                          <Td maxWidth="300px">
+                            <Skeleton
+                              overflow="hidden"
+                              textOverflow="ellipsis"
+                              isLoaded={
+                                fetchStatus === "idle" &&
+                                !!(
+                                  matchedArticle ||
+                                  articlesError ||
+                                  (articlesFetchStatus === "idle" && !matchedArticle)
+                                )
+                              }
+                            >
+                              {!matchedArticle && (
+                                <Tooltip label="The referenced article either no longer exists on the feed or has no title">
+                                  <Text color="whiteAlpha.700" fontStyle="italic">
+                                    (unknown article title)
+                                  </Text>
+                                </Tooltip>
+                              )}
+                              {matchedArticle &&
+                                // @ts-ignore
+                                matchedArticle?.["title"] &&
+                                // @ts-ignore
+                                matchedArticle?.["title"]}
+                              {/* @ts-ignore */}
+                              {matchedArticle && !matchedArticle?.["title"] && (
+                                <Text color="whiteAlpha.700" fontStyle="italic">
+                                  (no title)
+                                </Text>
+                              )}
+                            </Skeleton>
+                          </Td>
+                          <Td>
+                            <Skeleton isLoaded={fetchStatus === "idle"}>
+                              {createStatusLabel({ status: item.status })}
+                            </Skeleton>
+                          </Td>
+                          <Td>
+                            <Skeleton isLoaded={fetchStatus === "idle"}>
+                              {item.details?.message}
+                              {item.details?.data && (
+                                <IconButton
+                                  aria-label="View details"
+                                  ml={1}
+                                  icon={<Search2Icon />}
+                                  size="xs"
+                                  variant="link"
+                                  onClick={() =>
+                                    setDetailsData(JSON.stringify(item.details?.data, null, 2))
+                                  }
+                                />
+                              )}
+                            </Skeleton>
+                          </Td>
+                        </Tr>
+                      );
+                    })}
+                  </Tbody>
+                </Table>
+              </TableContainer>
+            </Box>
+            <Flex pt={4}>
+              <HStack>
+                <Button
+                  width="min-content"
+                  size="sm"
+                  onClick={() => {
+                    if (onFirstPage || fetchStatus === "fetching") {
+                      return;
+                    }
+
+                    prevPage();
+                  }}
+                  aria-disabled={onFirstPage || fetchStatus === "fetching"}
+                >
+                  <span>Previous Page</span>
+                </Button>
+                <Button
+                  width="min-content"
+                  size="sm"
+                  onClick={() => {
+                    if (fetchStatus === "fetching" || data?.result.logs.length === 0) {
+                      return;
+                    }
+
+                    nextPage();
+                  }}
+                  isDisabled={fetchStatus === "fetching" || data?.result.logs.length === 0}
+                >
+                  <span>Next Page</span>
+                </Button>
+              </HStack>
+            </Flex>
+          </Stack>
+        )}
+      </Box>
     </Stack>
   );
 };

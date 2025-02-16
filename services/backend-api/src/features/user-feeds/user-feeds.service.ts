@@ -423,6 +423,7 @@ export class UserFeedsService {
       inputUrl,
       connections: {},
       feedRequestLookupKey: undefined,
+      createdAt: new Date(),
     });
 
     await this.usersService.syncLookupKeys({ feedIds: [newFeedId] });
@@ -1741,7 +1742,7 @@ export class UserFeedsService {
         limit: 1,
         skip: 0,
         findRssFromHtml: true,
-        executeFetch: true,
+        executeFetchIfStale: true,
       },
       lookupDetails
     );

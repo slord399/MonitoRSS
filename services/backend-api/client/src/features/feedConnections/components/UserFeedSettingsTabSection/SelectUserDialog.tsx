@@ -4,7 +4,6 @@ import {
   Flex,
   FormControl,
   FormErrorMessage,
-  FormHelperText,
   FormLabel,
   HStack,
   Modal,
@@ -142,22 +141,29 @@ export const SelectUserDialog = ({
             <Stack spacing={8}>
               {description}
               <Stack spacing={4}>
-                <FormControl isInvalid={isInvalidServer}>
-                  <FormLabel>Discord Server</FormLabel>
-                  <DiscordServerSearchSelectv2 onChange={(id) => setGuildId(id)} value={guildId} />
-                  {!isInvalidServer && (
-                    <FormHelperText>This is to help narrow down where the user is.</FormHelperText>
-                  )}
+                <FormControl isInvalid={isInvalidServer} isRequired>
+                  <FormLabel htmlFor="server-select" id="server-select-id">
+                    Discord Server
+                  </FormLabel>
+                  <DiscordServerSearchSelectv2
+                    onChange={(id) => setGuildId(id)}
+                    value={guildId}
+                    inputId="server-select"
+                    placeholder="Search for select the user's server"
+                    isInvalid={isInvalidServer || false}
+                    ariaLabelledBy="server-select-id"
+                  />
                   {isInvalidServer && (
                     <FormErrorMessage>The bot has no access to this server.</FormErrorMessage>
                   )}
                 </FormControl>
-                <FormControl>
-                  <FormLabel>User</FormLabel>
+                <FormControl isRequired>
+                  <FormLabel htmlFor="user-select">User</FormLabel>
                   <ThemedSelect
                     loading={isFetchingUsers}
                     onInputChange={(value) => setCurrentInput(value)}
                     options={options}
+                    isInvalid={!!usersError}
                     onChange={(id, option) =>
                       onSelected({
                         value: id,
@@ -165,9 +171,10 @@ export const SelectUserDialog = ({
                         icon: option.icon,
                       })
                     }
-                    placeholder="Search for a user..."
+                    placeholder="Search for a user"
                     selectProps={{
                       filterOption: () => true,
+                      inputId: "user-select",
                     }}
                   />
                 </FormControl>
@@ -175,7 +182,10 @@ export const SelectUserDialog = ({
                   <Flex justifyContent="center">
                     <Tag size="lg">
                       {selectedMention.icon &&
-                        React.cloneElement(selectedMention.icon, { size: "xs" })}
+                        React.cloneElement(selectedMention.icon, {
+                          size: "xs",
+                          "aria-hidden": true,
+                        })}
                       <TagLabel ml={2}>{selectedMention.name}</TagLabel>
                     </Tag>
                   </Flex>

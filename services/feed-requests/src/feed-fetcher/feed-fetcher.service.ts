@@ -34,29 +34,44 @@ const convertHeaderValue = (val?: string | string[] | null) => {
 const trimHeadersForStorage = (
   obj?: Record<string, string | undefined>,
 ): Record<string, string> => {
+  if (!obj) {
+    return {};
+  }
+
   const trimmed = Object.entries(obj || {}).reduce((acc, [key, val]) => {
     if (val) {
-      acc[key] = val;
+      acc[key.toLowerCase()] = val;
     }
 
     return acc;
   }, {} as Record<string, string>);
-
-  if (!obj) {
-    return trimmed;
-  }
-
-  for (const key in trimmed) {
-    if (trimmed[key]) {
-      trimmed[key.toLowerCase()] = trimmed[key];
-    }
-  }
 
   if (trimmed.authorization) {
     trimmed.authorization = 'SECRET';
   }
 
   return trimmed;
+};
+
+const convertFetchOptionsForHashKey = (options: FetchOptions) => {
+  const { headers, ...rest } = options;
+
+  const prunedHeaders = Object.entries(headers || {}).reduce(
+    (acc, [key, val]) => {
+      // these keys would result in a new hash every time, so ignore it to save space
+      if (key !== 'if-none-match' && key !== 'if-modified-since') {
+        acc[key] = val;
+      }
+
+      return acc;
+    },
+    {} as Record<string, string>,
+  );
+
+  return JSON.stringify({
+    ...rest,
+    headers: prunedHeaders,
+  });
 };
 
 interface FetchOptions {
@@ -67,7 +82,7 @@ interface FetchOptions {
 interface FetchResponse {
   ok: boolean;
   status: number;
-  headers: Map<'etag' | 'last-modified' | 'server' | 'content-type', string>;
+  headers: Map<string, string>;
   text: () => Promise<string>;
 }
 
@@ -106,32 +121,6 @@ export class FeedFetcherService {
   }): Promise<Date | null> {
     return this.partitionedRequestsStore.getLatestNextRetryDate(lookupKey);
   }
-
-  // async getLatestRequestHeaders({
-  //   url,
-  // }: {
-  //   url: string;
-  // }): Promise<Response['headers']> {
-  //   const request = await this.requestRepo.findOne(
-  //     {
-  //       url,
-  //       status: RequestStatus.OK,
-  //     },
-  //     {
-  //       orderBy: {
-  //         createdAt: 'DESC',
-  //       },
-  //       populate: ['response'],
-  //       fields: ['response.headers'],
-  //     },
-  //   );
-
-  //   if (!request) {
-  //     return {};
-  //   }
-
-  //   return request.response?.headers || {};
-  // }
 
   async getLatestRequest({
     url,
@@ -234,7 +223,6 @@ export class FeedFetcherService {
       }
 
       const response = new Response();
-      response.createdAt = request.createdAt;
       response.statusCode = res.status;
       const headersToStore: Record<string, string> = {};
 
@@ -284,7 +272,9 @@ export class FeedFetcherService {
           }
 
           const key =
-            url + JSON.stringify(request.fetchOptions) + res.status.toString();
+            url +
+            convertFetchOptionsForHashKey(request.fetchOptions) +
+            res.status.toString();
 
           if (text.length) {
             response.responseHashKey = sha1.copy().update(key).digest('hex');
@@ -324,7 +314,8 @@ export class FeedFetcherService {
       const partitionedRequest: PartitionedRequestInsert = {
         url: request.url,
         lookupKey: request.lookupKey,
-        createdAt: request.createdAt,
+        createdAt: response.createdAt,
+        requestInitiatedAt: request.createdAt,
         errorMessage: request.errorMessage || null,
         fetchOptions: request.fetchOptions || null,
         nextRetryDate: request.nextRetryDate,
@@ -387,6 +378,7 @@ export class FeedFetcherService {
         source: (request.source as RequestSource | null) || null,
         status: request.status,
         response: null,
+        requestInitiatedAt: request.createdAt,
       };
 
       await this.partitionedRequestsStore.markForPersistence(
@@ -462,16 +454,47 @@ export class FeedFetcherService {
 
     const headers: FetchResponse['headers'] = new Map();
 
-    headers.set('etag', convertHeaderValue(normalizedHeaders.get('etag')));
-    headers.set(
-      'content-type',
-      convertHeaderValue(normalizedHeaders.get('content-type')),
-    );
-    headers.set(
-      'last-modified',
-      convertHeaderValue(normalizedHeaders.get('last-modified')),
-    );
-    headers.set('server', convertHeaderValue(normalizedHeaders.get('server')));
+    const etag = normalizedHeaders.get('etag');
+
+    if (etag) {
+      headers.set('etag', convertHeaderValue(etag));
+    }
+
+    const contentType = normalizedHeaders.get('content-type');
+
+    if (contentType) {
+      headers.set('content-type', convertHeaderValue(contentType));
+    }
+
+    const lastModified = normalizedHeaders.get('last-modified');
+
+    if (lastModified) {
+      headers.set('last-modified', convertHeaderValue(lastModified));
+    }
+
+    const server = normalizedHeaders.get('server');
+
+    if (server) {
+      headers.set('server', convertHeaderValue(server));
+    }
+
+    const cacheControl = normalizedHeaders.get('cache-control');
+
+    if (cacheControl) {
+      headers.set('cache-control', convertHeaderValue(cacheControl));
+    }
+
+    const date = normalizedHeaders.get('date');
+
+    if (date) {
+      headers.set('date', convertHeaderValue(date));
+    }
+
+    const expires = normalizedHeaders.get('expires');
+
+    if (expires) {
+      headers.set('expires', convertHeaderValue(expires));
+    }
 
     return {
       headers,

@@ -295,6 +295,7 @@ const handlers = [
             dateLanguage: "en",
             timezone: "UTC",
           },
+          includesBot: true,
         },
       })
     )
@@ -642,7 +643,7 @@ const handlers = [
 
     return res(
       ctx.delay(500),
-      ctx.status(404),
+      ctx.status(200),
       ctx.json<UpdateUserFeedOutput>({
         result: matchingUserFeed,
       })
@@ -723,7 +724,7 @@ const handlers = [
       ctx.json<GetUserFeedRequestsOutput>({
         result: {
           requests: mockUserFeedRequests,
-          nextRetryTimestamp: Math.floor(new Date(2020).getTime() / 1000),
+          nextRetryTimestamp: null,
           feedHostGlobalRateLimit: null,
         },
       })

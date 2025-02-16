@@ -41,6 +41,7 @@ import { EntityRepository } from "@mikro-orm/postgresql";
 import { z } from "zod";
 import { CacheStorageService } from "../cache-storage/cache-storage.service";
 import { PartitionedFeedArticleFieldStoreService } from "../articles/partitioned-feed-article-field-store.service";
+import dayjs from "dayjs";
 
 @Injectable()
 export class FeedEventHandlerService {
@@ -366,8 +367,6 @@ export class FeedEventHandlerService {
 
       await this.updateFeedArticlesInCache({ event, articles: allArticles });
 
-      // START TEMPORARY - Should revisit this for a more robust retry strategy
-
       const foundRetryRecord = await this.feedRetryRecordRepo.findOne(
         {
           feed_id: event.data.feed.id,
@@ -388,8 +387,6 @@ export class FeedEventHandlerService {
           id: foundRetryRecord.id,
         });
       }
-
-      // END TEMPORARY
 
       if (!articles.length) {
         this.debugLog(
@@ -419,7 +416,7 @@ export class FeedEventHandlerService {
 
       this.debugLog(
         `Debug ${event.data.feed.id}: Storing delivery states`,
-        {},
+        { deliveryStates },
         event.debug
       );
 
@@ -484,24 +481,44 @@ export class FeedEventHandlerService {
           stack: (err as Error).stack,
         });
 
-        const retryRecord = await this.feedRetryRecordRepo.findOne(
-          {
-            feed_id: event.data.feed.id,
-          },
-          {
-            fields: ["id", "attempts_so_far"],
-          }
-        );
+        const retryRecord = await this.feedRetryRecordRepo.findOne({
+          feed_id: event.data.feed.id,
+        });
 
-        // Rudimentary retry to alleviate some pressure
-        if (retryRecord?.attempts_so_far && retryRecord.attempts_so_far >= 8) {
-          this.debugLog(
-            `Debug ${event.data.feed.id}: Exceeded retry limit for invalid feed` +
+        const createdAt = retryRecord?.created_at;
+        let disableFeed = false;
+
+        if (createdAt) {
+          const cutoffTime = dayjs(createdAt).add(1, "day");
+
+          if (dayjs().isAfter(cutoffTime)) {
+            logger.info(
+              `Feed ${event.data.feed.id} exceeded retry cutoff date for invalid feed` +
+                `, sending disable event`,
+              {
+                xml: err.feedText,
+              }
+            );
+
+            disableFeed = true;
+          }
+        } else if (
+          retryRecord?.attempts_so_far &&
+          retryRecord.attempts_so_far >= 8
+        ) {
+          logger.info(
+            `Feed ${event.data.feed.id} exceeded retry limit for invalid feed` +
               `, sending disable event`,
-            {},
-            event.debug
+            {
+              xml: err.feedText,
+            }
           );
 
+          disableFeed = true;
+        }
+
+        // Rudimentary retry to alleviate some pressure
+        if (disableFeed && retryRecord) {
           this.amqpConnection.publish(
             "",
             MessageBrokerQueue.FeedRejectedDisableFeed,
@@ -531,6 +548,7 @@ export class FeedEventHandlerService {
           await this.feedRetryRecordRepo.upsert({
             feed_id: event.data.feed.id,
             attempts_so_far: (retryRecord?.attempts_so_far || 0) + 1,
+            created_at: retryRecord?.created_at || new Date(),
           });
         }
 

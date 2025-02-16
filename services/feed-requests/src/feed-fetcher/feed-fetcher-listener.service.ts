@@ -15,6 +15,9 @@ import { HostRateLimiterService } from '../host-rate-limiter/host-rate-limiter.s
 import retryUntilTrue, {
   RetryException,
 } from '../shared/utils/retry-until-true';
+import calculateResponseFreshnessLifetime from '../shared/utils/calculate-response-freshness-lifetime';
+import calculateCurrentResponseAge from '../shared/utils/calculate-current-response-age';
+import { CacheStorageService } from '../cache-storage/cache-storage.service';
 
 interface BatchRequestMessage {
   timestamp: number;
@@ -40,6 +43,7 @@ export class FeedFetcherListenerService {
     private readonly em: EntityManager,
     private readonly partitionedRequestsStoreService: PartitionedRequestsStoreService,
     private readonly hostRateLimiterService: HostRateLimiterService,
+    private readonly cacheStorageService: CacheStorageService,
   ) {
     this.maxFailAttempts = this.configService.get(
       'FEED_REQUESTS_MAX_FAIL_ATTEMPTS',
@@ -48,6 +52,14 @@ export class FeedFetcherListenerService {
       'FEED_REQUESTS_FEED_REQUEST_DEFAULT_USER_AGENT',
     );
   }
+
+  calculateCacheKeyForMessage = (
+    event: BatchRequestMessage['data'][number],
+  ) => {
+    const lookupKey = event.lookupKey || event.url;
+
+    return `listener-service-${lookupKey}`;
+  };
 
   static BASE_FAILED_ATTEMPT_WAIT_MINUTES = 5;
 
@@ -94,6 +106,23 @@ export class FeedFetcherListenerService {
           const { url, lookupKey, saveToObjectStorage, headers } = message;
           let request: PartitionedRequestInsert | undefined = undefined;
 
+          const currentlyProcessing = await this.cacheStorageService.set({
+            key: this.calculateCacheKeyForMessage(message),
+            body: '1',
+            getOldValue: true,
+            expSeconds: rateSeconds,
+          });
+
+          if (currentlyProcessing) {
+            logger.info(
+              `Request with key ${
+                lookupKey || url
+              } with rate ${rateSeconds} is already being processed, skipping`,
+            );
+
+            return;
+          }
+
           try {
             await retryUntilTrue(
               async () => {
@@ -124,11 +153,12 @@ export class FeedFetcherListenerService {
               request = result.request;
             }
 
-            if (result.successful) {
+            if (result.emitFetchCompleted) {
               await this.emitFetchCompleted({
                 lookupKey,
                 url,
                 rateSeconds: rateSeconds,
+                debug: saveToObjectStorage,
               });
             }
           } catch (err) {
@@ -163,6 +193,10 @@ export class FeedFetcherListenerService {
                 },
               );
             }
+
+            await this.cacheStorageService.del(
+              this.calculateCacheKeyForMessage(message),
+            );
           }
         }),
       );
@@ -201,30 +235,12 @@ export class FeedFetcherListenerService {
     saveToObjectStorage?: boolean;
     headers?: Record<string, string>;
   }): Promise<{
-    successful: boolean;
+    emitFetchCompleted: boolean;
     request?: PartitionedRequestInsert;
   }> {
     const url = data.url;
     const rateSeconds = data.rateSeconds;
     const lookupKey = data.lookupKey;
-
-    const dateToCheck = dayjs()
-      .subtract(Math.round(rateSeconds * 0.75), 'seconds')
-      .toDate();
-
-    const latestRequestAfterTime =
-      await this.partitionedRequestsStoreService.getLatestStatusAfterTime(
-        lookupKey || url,
-        dateToCheck,
-      );
-
-    if (latestRequestAfterTime) {
-      logger.debug(
-        `Request ${url} with rate ${rateSeconds} has been recently processed, skipping`,
-      );
-
-      return { successful: latestRequestAfterTime.status === RequestStatus.OK };
-    }
 
     const { skip, nextRetryDate, failedAttemptsCount } =
       await this.shouldSkipAfterPreviousFailedAttempt({
@@ -238,14 +254,23 @@ export class FeedFetcherListenerService {
           `recently failed and will be skipped until ${nextRetryDate}`,
       );
 
-      return { successful: false };
+      return { emitFetchCompleted: false };
     }
 
-    const latestOkRequest =
-      await this.partitionedRequestsStoreService.getLatestRequestWithOkStatus(
-        data.lookupKey || data.url,
-        { fields: ['response_headers'] },
+    const { isCacheStillActive, latestOkRequest } =
+      await this.isLatestResponseStillFreshInCache({
+        lookupKey: lookupKey || url,
+      });
+
+    if (isCacheStillActive) {
+      logger.debug(
+        `Request with lookup key ${
+          lookupKey || url
+        } still has active cache-control, skipping`,
       );
+
+      return { emitFetchCompleted: false };
+    }
 
     const { request } = await this.feedFetcherService.fetchAndSaveResponse(
       url,
@@ -285,7 +310,7 @@ export class FeedFetcherListenerService {
 
     return {
       request,
-      successful: request.status === RequestStatus.OK,
+      emitFetchCompleted: request.status === RequestStatus.OK,
     };
   }
 
@@ -430,10 +455,12 @@ export class FeedFetcherListenerService {
     lookupKey,
     url,
     rateSeconds,
+    debug,
   }: {
     lookupKey?: string;
     url: string;
     rateSeconds: number;
+    debug?: boolean;
   }) {
     try {
       logger.debug(
@@ -448,12 +475,14 @@ export class FeedFetcherListenerService {
           lookupKey?: string;
           url: string;
           rateSeconds: number;
+          debug?: boolean;
         };
       }>('', 'url.fetch.completed', {
         data: {
           lookupKey,
           url,
           rateSeconds,
+          debug,
         },
       });
     } catch (err) {
@@ -464,42 +493,49 @@ export class FeedFetcherListenerService {
     }
   }
 
-  // async isLatestResponseStillFreshInCache({
-  //   lookupKey,
-  // }: {
-  //   lookupKey: string;
-  // }) {
-  //   const latestOkRequest =
-  //     await this.partitionedRequestsStoreService.getLatestOkRequestWithResponseBody(lookupKey);
+  async isLatestResponseStillFreshInCache({
+    lookupKey,
+  }: {
+    lookupKey: string;
+  }): Promise<{
+    isCacheStillActive: boolean;
+    latestOkRequest?: Awaited<
+      ReturnType<
+        typeof FeedFetcherListenerService.prototype.partitionedRequestsStoreService.getLatestRequestWithOkStatus
+      >
+    >;
+  }> {
+    const latestOkRequest =
+      await this.partitionedRequestsStoreService.getLatestRequestWithOkStatus(
+        lookupKey,
+        {
+          fields: ['response_headers'],
+        },
+      );
 
-  //   if (!latestOkRequest) {
-  //     return false;
-  //   }
+    if (!latestOkRequest) {
+      return {
+        isCacheStillActive: false,
+      };
+    }
 
-  //   const cacheControl = latestOkRequest.responseHeaders?.['cache-control'];
+    const { capped: freshnessLifetime } = calculateResponseFreshnessLifetime({
+      headers: latestOkRequest.responseHeaders || {},
+    });
 
-  //   if (!cacheControl) {
-  //     return false;
-  //   }
+    const currentAgeOfResponse = calculateCurrentResponseAge({
+      headers: latestOkRequest.responseHeaders || {},
+      requestTime: latestOkRequest.createdAt,
+      responseTime: latestOkRequest?.requestInitiatedAt,
+    });
 
-  //   const directives = cacheControl.split(',').map((d) => d.trim());
-  //   const maxAgeDirective = directives.find((d) => d.startsWith('max-age='));
-  //   const publicDirective = directives.includes('public');
+    const responseIsFresh = freshnessLifetime > currentAgeOfResponse;
 
-  //   if (!maxAgeDirective || !publicDirective) {
-  //     return false;
-  //   }
-
-  //   const maxAge = parseInt(maxAgeDirective.split('=')[1]);
-
-  //   const baseDate = latestOkRequest.responseHeaders?.date
-  //     ? new Date(latestOkRequest.responseHeaders?.date)
-  //     : latestOkRequest.createdAt;
-
-  //   const expirationDate = baseDate.getTime() + maxAge * 1000;
-
-  //   return expirationDate > Date.now();
-  // }
+    return {
+      latestOkRequest,
+      isCacheStillActive: freshnessLifetime ? responseIsFresh : false,
+    };
+  }
 
   async countFailedRequests({
     lookupKey,
@@ -511,9 +547,7 @@ export class FeedFetcherListenerService {
     const latestOkRequest =
       await this.partitionedRequestsStoreService.getLatestRequestWithOkStatus(
         lookupKey || url,
-        {
-          include304: true,
-        },
+        {},
       );
 
     return this.partitionedRequestsStoreService.countFailedRequests(

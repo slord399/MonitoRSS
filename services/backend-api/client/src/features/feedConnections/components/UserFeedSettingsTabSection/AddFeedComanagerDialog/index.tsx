@@ -165,19 +165,31 @@ export const AddFeedComanagerDialog = ({
             <Stack spacing={8}>
               {description}
               <Stack spacing={6}>
-                <FormControl isInvalid={isInvalidServer}>
-                  <FormLabel>Discord Server</FormLabel>
-                  <DiscordServerSearchSelectv2 onChange={(id) => setGuildId(id)} value={guildId} />
+                <FormControl isInvalid={isInvalidServer} isRequired>
+                  <FormLabel htmlFor="server-select" id="server-select-label">
+                    Discord Server
+                  </FormLabel>
+                  <DiscordServerSearchSelectv2
+                    inputId="server-select"
+                    onChange={(id) => setGuildId(id)}
+                    value={guildId}
+                    isInvalid={isInvalidServer || false}
+                    placeholder="Search or select the server user's server"
+                    ariaLabelledBy="server-select-label"
+                  />
                   {isInvalidServer && (
                     <FormErrorMessage>The bot has no access to this server.</FormErrorMessage>
                   )}
                 </FormControl>
-                <FormControl>
-                  <FormLabel>User</FormLabel>
+                <FormControl isRequired>
+                  <FormLabel htmlFor="user-select" id="user-select-label">
+                    User
+                  </FormLabel>
                   <ThemedSelect
                     loading={isFetchingUsers}
                     onInputChange={(value) => setCurrentInput(value)}
                     options={options}
+                    isInvalid={!!usersError}
                     onChange={(id, option) =>
                       onSelected({
                         value: id,
@@ -185,9 +197,11 @@ export const AddFeedComanagerDialog = ({
                         icon: option.icon,
                       })
                     }
-                    placeholder="Search for a user..."
+                    placeholder="Search for a user"
                     selectProps={{
                       filterOption: () => true,
+                      inputId: "user-select",
+                      "aria-labelledby": "user-select-label",
                     }}
                   />
                 </FormControl>
@@ -203,28 +217,30 @@ export const AddFeedComanagerDialog = ({
                 {usersError && (
                   <InlineErrorAlert title="Failed to get users" description={usersError.message} />
                 )}
-                <Stack>
-                  <Box>
-                    <FormLabel>Connections</FormLabel>
-                    <Text fontSize="sm">
-                      The connections the invitee will be able to view and have access to for
-                      management.
-                    </Text>
-                  </Box>
-                  <HStack mt={1}>
-                    <Button size="sm" onClick={onClickSelectAllConnections}>
-                      Select All
-                    </Button>
-                    <Button size="sm" onClick={onClickSelectNoneConnections}>
-                      Select None
-                    </Button>
-                  </HStack>
-                  <ConnectionsCheckboxList
-                    checkedConnectionIds={checkedConnections}
-                    onCheckConnectionChange={setCheckedConnections}
-                    feed={feed as UserFeed}
-                  />
-                </Stack>
+                <FormControl isRequired as="fieldset">
+                  <Stack>
+                    <Box>
+                      <FormLabel as="legend">Connections</FormLabel>
+                      <Text fontSize="sm">
+                        The connections the invitee will be able to view and have access to for
+                        management.
+                      </Text>
+                    </Box>
+                    <HStack mt={1}>
+                      <Button size="sm" onClick={onClickSelectAllConnections}>
+                        Select all Connections
+                      </Button>
+                      <Button size="sm" onClick={onClickSelectNoneConnections}>
+                        Unselect all Connections
+                      </Button>
+                    </HStack>
+                    <ConnectionsCheckboxList
+                      checkedConnectionIds={checkedConnections}
+                      onCheckConnectionChange={setCheckedConnections}
+                      feed={feed as UserFeed}
+                    />
+                  </Stack>
+                </FormControl>
               </Stack>
               {error && (
                 <InlineErrorAlert
@@ -246,7 +262,7 @@ export const AddFeedComanagerDialog = ({
                 isDisabled={!selectedMention || !checkedConnections.length || saving}
                 isLoading={saving}
               >
-                {okButtonText || t("common.buttons.save")}
+                <span>{okButtonText || t("common.buttons.save")}</span>
               </Button>
             </HStack>
           </ModalFooter>
