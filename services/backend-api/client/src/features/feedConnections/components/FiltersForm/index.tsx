@@ -12,6 +12,9 @@ import {
 } from "../../types";
 import { LogicalExpressionForm } from "./LogicalExpressionForm";
 import { ArticleFilterResults } from "../ArticleFilterResults";
+import NavigableTree, { NavigableTreeItem } from "../../../../components/NavigableTree";
+import { getAriaLabelForExpressionGroup } from "./utils/getAriaLabelForExpressionGroup";
+import { SavedUnsavedChangesPopupBar } from "../../../../components";
 
 interface FormData {
   expression: LogicalFilterExpression | null;
@@ -46,7 +49,6 @@ export const FiltersForm = ({
     control,
     formState: { isDirty, isSubmitting },
     setValue,
-    resetField,
     reset,
   } = formMethods;
 
@@ -55,11 +57,6 @@ export const FiltersForm = ({
     control,
     name: "expression",
   });
-
-  const onClickReset = (e?: React.MouseEvent) => {
-    e?.preventDefault();
-    resetField("expression");
-  };
 
   const onDeletedExpression = async () => {
     setValue("expression", null, {
@@ -151,26 +148,19 @@ export const FiltersForm = ({
       <form onSubmit={onSubmit}>
         <Stack spacing={12}>
           <Stack>
-            <LogicalExpressionForm
-              onDeleted={onDeletedExpression}
-              prefix="expression."
-              containerProps={formContainerProps}
-            />
-            <HStack justifyContent="flex-end">
-              {isDirty && (
-                <Button variant="ghost" onClick={onClickReset} type="reset">
-                  <span>{t("common.buttons.reset")}</span>
-                </Button>
-              )}
-              <Button
-                colorScheme="blue"
-                isLoading={isSubmitting}
-                isDisabled={!isDirty || isSubmitting}
-                type="submit"
+            <NavigableTree accessibleLabel="Filter expression">
+              <NavigableTreeItem
+                isRootItem
+                id="expression."
+                ariaLabel={getAriaLabelForExpressionGroup(watchedExpression.op)}
               >
-                <span>{t("common.buttons.save")}</span>
-              </Button>
-            </HStack>
+                <LogicalExpressionForm
+                  onDeleted={onDeletedExpression}
+                  prefix="expression."
+                  containerProps={formContainerProps}
+                />
+              </NavigableTreeItem>
+            </NavigableTree>
           </Stack>
           <ArticleFilterResults
             filters={watchedExpression}
@@ -180,6 +170,7 @@ export const FiltersForm = ({
             }}
           />
         </Stack>
+        <SavedUnsavedChangesPopupBar useDirtyFormCheck />
       </form>
     </FormProvider>
   );

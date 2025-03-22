@@ -23,12 +23,12 @@ import { array, InferType, mixed, object, string } from "yup";
 import { Controller, useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useEffect } from "react";
-import { notifySuccess } from "../../../../utils/notifySuccess";
 import { InlineErrorAlert, InlineErrorIncompleteFormAlert } from "../../../../components";
 import { useCreateUserFeedCopySettings } from "../../hooks/useCreateUserFeedCopySettings";
 import { CopyableUserFeedSettings } from "../../constants/copyableUserFeedSettings";
 import { useUserFeedContext } from "../../../../contexts/UserFeedContext";
 import { SelectableUserFeedList } from "./SelectableUserFeedList";
+import { usePageAlertContext } from "../../../../contexts/PageAlertContext";
 
 enum CopyCategory {
   Comparisons = "Comparisons",
@@ -113,6 +113,7 @@ export const CopyUserFeedSettingsDialog = ({ isOpen, onClose, onCloseRef }: Prop
       checkedUserFeeds: [],
     },
   });
+  const { createSuccessAlert } = usePageAlertContext();
   const [{ length: checkedUserFeedsLength }] = watch(["checkedUserFeeds"]);
 
   useEffect(() => {
@@ -168,7 +169,9 @@ export const CopyUserFeedSettingsDialog = ({ isOpen, onClose, onCloseRef }: Prop
         },
       });
       onClose();
-      notifySuccess(t("common.success.savedChanges"));
+      createSuccessAlert({
+        title: `Successfully copied feed settings ${checkedUserFeeds.length} other feeds`,
+      });
       reset();
     } catch (err) {}
   };
@@ -285,7 +288,7 @@ export const CopyUserFeedSettingsDialog = ({ isOpen, onClose, onCloseRef }: Prop
                 Copy settings from the source feed to another. This will overwrite the settings of
                 the target feeds.
               </Text>
-              <Stack py={4} px={4} bg="blackAlpha.300" rounded="md">
+              <Stack py={4} px={4} bg="gray.800" rounded="md">
                 <Badge bg="none" p={0}>
                   Source Feed
                 </Badge>
@@ -364,7 +367,7 @@ export const CopyUserFeedSettingsDialog = ({ isOpen, onClose, onCloseRef }: Prop
                         </legend>
                         <Box>
                           <Button size="sm" onClick={() => field.onChange([])}>
-                            Clear target feed selections
+                            Clear {checkedUserFeedsLength} target feed selections
                           </Button>
                         </Box>
                         <Stack mt={1}>

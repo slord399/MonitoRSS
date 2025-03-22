@@ -107,17 +107,14 @@ export const ArticleFilterResults = ({ title, filters, tableContainer }: Props) 
           </Heading>
         )}
         {!alertComponent && (
-          <HStack alignItems="center">
+          <HStack alignItems="center" flexWrap="wrap">
             <Text
               as="label"
               whiteSpace="nowrap"
               id="article-property-select-label"
               htmlFor="article-property-select"
             >
-              {t(
-                "features.feedConnections.components" +
-                  ".filtersTabSection.displayPropertyDropdownLabel"
-              )}
+              Display article property:
             </Text>
             <Box width={{ md: "250px", lg: "350px" }}>
               <ThemedSelect
@@ -164,7 +161,7 @@ export const ArticleFilterResults = ({ title, filters, tableContainer }: Props) 
               }
               displayPropertyName={useArticleProperty as string}
             />
-            <Flex justifyContent="space-between">
+            <Flex justifyContent="space-between" flexWrap="wrap" gap={2}>
               {t("common.table.results", {
                 start: skip + 1,
                 end: skip + limit,
@@ -174,18 +171,30 @@ export const ArticleFilterResults = ({ title, filters, tableContainer }: Props) 
                 <Button
                   size="sm"
                   width="min-content"
-                  onClick={prevPage}
-                  isDisabled={onFirstPage || fetchStatus === "fetching"}
+                  onClick={() => {
+                    if (onFirstPage || fetchStatus === "fetching") {
+                      return;
+                    }
+
+                    prevPage();
+                  }}
+                  aria-disabled={onFirstPage || fetchStatus === "fetching"}
                 >
-                  <span>{t("features.feedConnections.components.filtersTabSection.prevPage")}</span>
+                  <span>Previous Page</span>
                 </Button>
                 <Button
                   size="sm"
                   width="min-content"
-                  onClick={nextPage}
-                  isDisabled={onLastPage || fetchStatus === "fetching"}
+                  onClick={() => {
+                    if (onLastPage || fetchStatus === "fetching") {
+                      return;
+                    }
+
+                    nextPage();
+                  }}
+                  aria-disabled={onLastPage || fetchStatus === "fetching"}
                 >
-                  <span>{t("features.feedConnections.components.filtersTabSection.nextPage")}</span>
+                  <span>Next Page</span>
                 </Button>
               </HStack>
             </Flex>

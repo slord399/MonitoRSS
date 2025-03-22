@@ -5,8 +5,6 @@ import {
   AccordionIcon,
   AccordionItem,
   AccordionPanel,
-  Alert,
-  AlertIcon,
   Box,
   Button,
   Card,
@@ -40,10 +38,7 @@ import { useState } from "react";
 import { FaExpandAlt } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import { DiscordMessageFormData } from "../../../../types/discord";
-import { notifyError } from "../../../../utils/notifyError";
 import { useUserFeedArticles } from "../../../feed/hooks";
-import { UserFeedArticleRequestStatus } from "../../../feed/types";
-import { getErrorMessageForArticleRequestStatus } from "../../../feed/utils";
 import { ArticlePlaceholderTable } from "../ArticlePlaceholderTable";
 import { DiscordMessageForm } from "../DiscordMessageForm";
 import { ArticleSelectDialog } from "../../../feed/components";
@@ -52,6 +47,8 @@ import { pages } from "../../../../constants";
 import { UserFeedConnectionTabSearchParam } from "../../../../constants/userFeedConnectionTabSearchParam";
 import { UserFeedTabSearchParam } from "../../../../constants/userFeedTabSearchParam";
 import { useUserFeedConnectionContext } from "../../../../contexts/UserFeedConnectionContext";
+import { useGetUserFeedArticlesError } from "../../hooks";
+import { usePageAlertContext } from "../../../../contexts/PageAlertContext";
 
 interface Props {
   onMessageUpdated: (data: DiscordMessageFormData) => Promise<void>;
@@ -69,6 +66,7 @@ export const MessageTabSection = ({ onMessageUpdated, guildId }: Props) => {
     refetch: refetchUserFeedArticle,
     fetchStatus: userFeedArticlesFetchStatus,
     status: userFeedArticlesStatus,
+    error,
   } = useUserFeedArticles({
     feedId: userFeed.id,
     data: {
@@ -82,9 +80,15 @@ export const MessageTabSection = ({ onMessageUpdated, guildId }: Props) => {
       random: !selectedArticleId,
     },
   });
+  const { createErrorAlert } = usePageAlertContext();
+
+  const { alertComponent } = useGetUserFeedArticlesError({
+    getUserFeedArticlesStatus: userFeedArticlesStatus,
+    getUserFeedArticlesError: error,
+    getUserFeedArticlesOutput: userFeedArticles,
+  });
 
   const firstArticle = userFeedArticles?.result.articles[0];
-  const requestStatus = userFeedArticles?.result.requestStatus;
 
   const { t } = useTranslation();
 
@@ -93,44 +97,16 @@ export const MessageTabSection = ({ onMessageUpdated, guildId }: Props) => {
       setSelectedArticleId(undefined);
       await refetchUserFeedArticle();
     } catch (err) {
-      notifyError(t("common.errors.somethingWentWrong"), err as Error);
+      createErrorAlert({
+        title: "Failed to fetch random article.",
+        description: (err as Error).message,
+      });
     }
   };
 
   const onSelectedArticle = async (articleId: string) => {
     setSelectedArticleId(articleId);
   };
-
-  const fetchErrorAlert = userFeedArticlesStatus === "error" && (
-    <Alert status="error">
-      <AlertIcon />
-      {t("common.errors.somethingWentWrong")}
-    </Alert>
-  );
-
-  const alertStatus =
-    requestStatus && requestStatus !== UserFeedArticleRequestStatus.Success
-      ? getErrorMessageForArticleRequestStatus(
-          requestStatus,
-          userFeedArticles?.result?.response?.statusCode
-        )
-      : null;
-
-  const parseErrorAlert = alertStatus && (
-    <Alert status={alertStatus.status || "error"}>
-      <AlertIcon />
-      {t(alertStatus.ref)}
-    </Alert>
-  );
-
-  const noArticlesAlert = userFeedArticles?.result.articles.length === 0 && (
-    <Alert status="info">
-      <AlertIcon />
-      {t("features.feedConnections.components.articlePlaceholderTable.noArticles")}
-    </Alert>
-  );
-
-  const hasAlert = !!(fetchErrorAlert || parseErrorAlert || noArticlesAlert);
 
   const firstArticleTitle = (firstArticle as Record<string, string>)?.title;
   const firstArticleDate = (firstArticle as Record<string, string>)?.date;
@@ -176,7 +152,7 @@ export const MessageTabSection = ({ onMessageUpdated, guildId }: Props) => {
             </Text>
           </Stack>
         )}
-        {!hasAlert && firstArticle && (
+        {!alertComponent && firstArticle && (
           <ArticlePlaceholderTable
             asPlaceholders
             article={userFeedArticles.result.articles[0]}
@@ -225,14 +201,14 @@ export const MessageTabSection = ({ onMessageUpdated, guildId }: Props) => {
             corresponding article content.
           </Text>
         </Stack>
-        {fetchErrorAlert || parseErrorAlert || noArticlesAlert}
+        {alertComponent}
         {userFeedArticlesStatus === "loading" && (
           <Center mt={6}>
             <Spinner />
           </Center>
         )}
-        {!hasAlert && firstArticle && (
-          <Card size="md">
+        {!alertComponent && firstArticle && (
+          <Card size="md" overflow="auto">
             <CardHeader padding={0} margin={5}>
               <Heading size="xs" as="h4" textTransform="uppercase">
                 Selected Article

@@ -41,7 +41,6 @@ import { useUserFeedContext } from "../../../../contexts/UserFeedContext";
 import CreateExternalPropertyModal from "./CreateExternalPropertyModal";
 import { SavedUnsavedChangesPopupBar, SubscriberBlockText } from "../../../../components";
 import { useUpdateUserFeed } from "../../../feed";
-import { notifySuccess } from "../../../../utils/notifySuccess";
 import { ExternalPropertyPreview } from "./ExternalPropertyPreview";
 import { BlockableFeature, SupporterTier } from "../../../../constants";
 import { useExternalPropertiesEligibility } from "./hooks/useExternalPropertiesEligibility";
@@ -49,7 +48,7 @@ import { ExternalProperty } from "../../../../types";
 import UpdateExternalPropertyModal from "./UpdateExternalPropertyModal";
 import { REACT_SELECT_STYLES, SelectOption } from "../../../../constants/reactSelectStyles";
 import { CssSelectorFormattedOption } from "./CssSelectorFormattedOption";
-import { notifyError } from "../../../../utils/notifyError";
+import { usePageAlertContext } from "../../../../contexts/PageAlertContext";
 
 const formSchema = object({
   externalProperties: array(
@@ -298,20 +297,16 @@ const ExternalPropertyForm = ({
                 aria-invalid={!!cssSelectorError}
                 noOptionsMessage={() => null}
                 ariaLiveMessages={{
-                  onFocus: ({ focused }) => {
-                    return `You are currently focused on option ${focused.label} (${
-                      focused.description || ""
+                  onFocus: (data: any) => {
+                    return `You are currently focused on option ${data.focused.label} (${
+                      data.focused.description || ""
                     })`;
                   },
                 }}
-                onInputChange={(value, action) => {
-                  if (action.action === "input-change") {
-                    onChange(value);
-                  }
-                }}
+                onChange={(val: any) => onChange(val.value)}
                 styles={{
                   ...REACT_SELECT_STYLES,
-                  input: (provided, props) => {
+                  input: (provided: any, props: any) => {
                     return {
                       ...provided,
                       ...REACT_SELECT_STYLES?.input?.(provided, props),
@@ -322,8 +317,8 @@ const ExternalPropertyForm = ({
                     };
                   },
                 }}
-                formatCreateLabel={(input) => `Custom: ${input}`}
-                formatOptionLabel={(option) => {
+                formatCreateLabel={(input: any) => `Custom: ${input}`}
+                formatOptionLabel={(option: any) => {
                   const { label } = option as { label: string };
 
                   return CssSelectorFormattedOption({
@@ -428,6 +423,7 @@ export const ExternalPropertiesTabSection = () => {
   const { mutateAsync } = useUpdateUserFeed({
     queryKeyStringsToIgnoreValidation: fields.map((f) => `external-property-preview-page-${f.id}`),
   });
+  const { createSuccessAlert, createErrorAlert } = usePageAlertContext();
 
   const onSubmit = async (data: FormData) => {
     try {
@@ -439,9 +435,14 @@ export const ExternalPropertiesTabSection = () => {
       });
 
       reset(data);
-      notifySuccess(t("common.success.savedChanges"));
+      createSuccessAlert({
+        title: "Successfully updated external properties.",
+      });
     } catch (err) {
-      notifyError(t("common.errors.failedToSave"), (err as Error).message);
+      createErrorAlert({
+        title: "Failed to update external properties.",
+        description: (err as Error).message,
+      });
     }
   };
 

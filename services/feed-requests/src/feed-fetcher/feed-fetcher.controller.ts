@@ -5,8 +5,6 @@ import {
   Post,
   UseGuards,
   ValidationPipe,
-  BadRequestException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { Get } from '@nestjs/common/decorators';
 import dayjs from 'dayjs';
@@ -21,14 +19,11 @@ import {
   GetFeedRequestsOutputDto,
 } from './dto';
 import { FeedFetcherService } from './feed-fetcher.service';
-import { GrpcMethod } from '@nestjs/microservices';
-import { MikroORM, UseRequestContext } from '@mikro-orm/core';
-import { plainToClass } from 'class-transformer';
-import { validateSync } from 'class-validator';
-import { Metadata } from '@grpc/grpc-js';
+import { MikroORM } from '@mikro-orm/core';
 import { ConfigService } from '@nestjs/config';
 import { HostRateLimiterService } from '../host-rate-limiter/host-rate-limiter.service';
 import calculateResponseFreshnessLifetime from '../shared/utils/calculate-response-freshness-lifetime';
+import PartitionedRequestsStoreService from '../partitioned-requests-store/partitioned-requests-store.service';
 
 @Controller({
   version: '1',
@@ -40,6 +35,7 @@ export class FeedFetcherController {
     private readonly orm: MikroORM,
     private readonly configService: ConfigService,
     private readonly hostRateLimiterService: HostRateLimiterService,
+    private readonly partitionedRequestsStoreService: PartitionedRequestsStoreService,
   ) {
     this.API_KEY = this.configService.getOrThrow<string>(
       'FEED_REQUESTS_API_KEY',
@@ -73,6 +69,8 @@ export class FeedFetcherController {
       result: {
         requests: requests.map((r) => ({
           createdAt: dayjs(r.createdAt).unix(),
+          finishedAtIso: r.finishedAt?.toISOString(),
+          createdAtIso: r.createdAt.toISOString(),
           id: r.id,
           url: r.url,
           status: r.status,
@@ -105,40 +103,22 @@ export class FeedFetcherController {
     return this.getLatestRequest(data);
   }
 
-  @GrpcMethod('FeedFetcherGrpc', 'FetchFeed')
-  @UseRequestContext()
-  async fetchFeedGrpc(
-    data: FetchFeedDto,
-    metadata: Metadata,
-  ): Promise<FetchFeedDetailsDto> {
-    const classData = plainToClass(FetchFeedDto, data);
-    const results = validateSync(classData);
-
-    if (results.length > 0) {
-      throw new BadRequestException(results.join(','));
-    }
-
-    const auth = metadata.get('api-key')[0];
-
-    if (auth !== this.API_KEY) {
-      throw new UnauthorizedException('Invalid authorization');
-    }
-
-    return this.getLatestRequest(data);
-  }
-
   private async getLatestRequest(
     data: FetchFeedDto,
   ): Promise<FetchFeedDetailsDto> {
     if (data.executeFetch) {
       try {
-        await this.feedFetcherService.fetchAndSaveResponse(data.url, {
-          saveResponseToObjectStorage: data.debug,
-          lookupDetails: data.lookupDetails ? data.lookupDetails : undefined,
-          source: undefined,
-          headers: data.lookupDetails?.headers,
-          flushEntities: true,
-        });
+        const { request } = await this.feedFetcherService.fetchAndSaveResponse(
+          data.url,
+          {
+            saveResponseToObjectStorage: data.debug,
+            lookupDetails: data.lookupDetails ? data.lookupDetails : undefined,
+            source: undefined,
+            headers: data.lookupDetails?.headers,
+          },
+        );
+
+        await this.partitionedRequestsStoreService.flushInserts([request]);
       } catch (err) {
         logger.error(`Failed to fetch and save response of feed ${data.url}`, {
           stack: (err as Error).stack,
@@ -169,32 +149,35 @@ export class FeedFetcherController {
       dayjs().diff(latestRequest.request.createdAt, 'minute') > 30;
 
     if (data.executeFetchIfStale && isFetchedOver30MinutesAgo) {
-      await this.feedFetcherService.fetchAndSaveResponse(data.url, {
-        saveResponseToObjectStorage: data.debug,
-        lookupDetails: data.lookupDetails ? data.lookupDetails : undefined,
-        source: undefined,
-        headers: data.lookupDetails?.headers,
-        flushEntities: true,
-      });
+      const { request } = await this.feedFetcherService.fetchAndSaveResponse(
+        data.url,
+        {
+          saveResponseToObjectStorage: data.debug,
+          lookupDetails: data.lookupDetails ? data.lookupDetails : undefined,
+          source: undefined,
+          headers: data.lookupDetails?.headers,
+        },
+      );
+
+      await this.partitionedRequestsStoreService.flushInserts([request]);
     }
 
     // If there's no text, response must be fetched to be cached
-    if (
-      !latestRequest ||
-      (latestRequest.request.response?.redisCacheKey &&
-        latestRequest.decodedResponseText == null)
-    ) {
+    if (!latestRequest) {
       if (data.executeFetchIfNotExists) {
         const savedData = await this.feedFetcherService.fetchAndSaveResponse(
           data.url,
           {
-            flushEntities: true,
             saveResponseToObjectStorage: data.debug,
             lookupDetails: data.lookupDetails,
             source: undefined,
             headers: data.lookupDetails?.headers,
           },
         );
+
+        await this.partitionedRequestsStoreService.flushInserts([
+          savedData.request,
+        ]);
 
         latestRequest = {
           request: { ...savedData.request },

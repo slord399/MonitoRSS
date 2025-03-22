@@ -1,16 +1,18 @@
 import { Button } from "@chakra-ui/react";
 import { useContext } from "react";
 import { useTranslation } from "react-i18next";
-import { FiPlay } from "react-icons/fi";
-import { notifyError } from "../../../../utils/notifyError";
+import { FaDiscord } from "react-icons/fa";
 import { ArticleSelectDialog } from "../../../feed/components";
 import { SendTestArticleContext } from "../../../../contexts";
 import { useUserFeedConnectionContext } from "../../../../contexts/UserFeedConnectionContext";
+import getChakraColor from "../../../../utils/getChakraColor";
+import { usePageAlertContext } from "../../../../contexts/PageAlertContext";
 
 export const SendConnectionTestArticleButton = () => {
   const { userFeed, connection, articleFormatOptions } = useUserFeedConnectionContext();
   const { t } = useTranslation();
   const { sendTestArticle, isFetching } = useContext(SendTestArticleContext);
+  const { createErrorAlert, createSuccessAlert, createInfoAlert } = usePageAlertContext();
 
   const onClick = async (articleId?: string) => {
     if (!articleId) {
@@ -18,20 +20,45 @@ export const SendConnectionTestArticleButton = () => {
     }
 
     try {
-      await sendTestArticle({
-        connectionType: connection.key,
-        previewInput: {
-          feedId: userFeed.id,
-          connectionId: connection.id,
-          data: {
-            article: {
-              id: articleId,
+      const resultInfo = await sendTestArticle(
+        {
+          connectionType: connection.key,
+          previewInput: {
+            feedId: userFeed.id,
+            connectionId: connection.id,
+            data: {
+              article: {
+                id: articleId,
+              },
             },
           },
         },
-      });
+        {
+          disableToast: true,
+        }
+      );
+
+      if (resultInfo?.status === "error") {
+        createErrorAlert({
+          title: resultInfo.title,
+          description: resultInfo.description,
+        });
+      } else if (resultInfo?.status === "success") {
+        createSuccessAlert({
+          title: resultInfo.title,
+          description: resultInfo.description,
+        });
+      } else if (resultInfo?.status === "info") {
+        createInfoAlert({
+          title: resultInfo.title,
+          description: resultInfo.description,
+        });
+      }
     } catch (err) {
-      notifyError(t("common.errors.somethingWentWrong"), err as Error);
+      createErrorAlert({
+        title: "Failed to send article to Discord.",
+        description: (err as Error).message,
+      });
     }
   };
 
@@ -40,8 +67,14 @@ export const SendConnectionTestArticleButton = () => {
       articleFormatOptions={articleFormatOptions}
       feedId={userFeed.id}
       trigger={
-        <Button variant="solid" colorScheme="blue" isLoading={isFetching} leftIcon={<FiPlay />}>
-          <span>{t("features.feedConnections.components.sendTestArticleButton.text")}</span>
+        <Button
+          variant="solid"
+          colorScheme="blue"
+          isLoading={isFetching}
+          leftIcon={<FaDiscord fontSize={24} />}
+          color={getChakraColor("gray.700")}
+        >
+          <span>Send Article to Discord</span>
         </Button>
       }
       onArticleSelected={onClick}

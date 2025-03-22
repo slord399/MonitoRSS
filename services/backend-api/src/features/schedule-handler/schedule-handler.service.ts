@@ -37,11 +37,7 @@ export class ScheduleHandlerService {
     rateSeconds: number;
     data: Array<{ url: string }>;
   }) {
-    this.amqpConnection.publish<{
-      rateSeconds: number;
-      timestamp: number;
-      data: Array<{ url: string; saveToObjectStorage?: boolean }>;
-    }>(
+    this.amqpConnection.publish(
       "",
       MessageBrokerQueue.UrlFetchBatch,
       { ...data, timestamp: Date.now() },
@@ -92,6 +88,12 @@ export class ScheduleHandlerService {
       if (!url) {
         // Just in case
         continue;
+      }
+
+      if (urlsToDebug.has(url)) {
+        logger.info(
+          `DEBUG: Schedule handler pushing url ${url} for ${refreshRateSeconds}s refresh rate`
+        );
       }
 
       urlBatch.push({

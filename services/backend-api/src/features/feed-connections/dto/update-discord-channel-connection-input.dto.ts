@@ -66,6 +66,14 @@ export class UpdateDiscordChannelConnectionInputDto {
   @IsOptional()
   channelId?: string;
 
+  @IsString()
+  @IsOptional()
+  channelNewThreadTitle?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  channelNewThreadExcludesPreview?: boolean;
+
   @IsObject()
   @IsOptional()
   @ValidateNested()
@@ -159,4 +167,10 @@ export class UpdateDiscordChannelConnectionInputDto {
   @ValidateNested({ each: true })
   @Type(() => CustomRateLimitDto)
   rateLimits?: CustomRateLimitDto[];
+
+  @IsString()
+  @IsOptional()
+  @IsIn(["new-thread"])
+  @ValidateIf((v) => v !== null)
+  threadCreationMethod?: "new-thread" | null;
 }

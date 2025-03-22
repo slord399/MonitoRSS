@@ -34,7 +34,7 @@ export const ArticleFilterResultsView = ({
 
   return (
     <Box position="relative" rounded="md">
-      <Box position="relative" border="solid 1px" borderColor="gray.600" rounded="md">
+      <Box position="relative" border="solid 1px" borderColor="gray.700" rounded="md">
         <Box maxHeight="sm" overflow="auto" rounded="md">
           <TableContainer rounded="md">
             <Table size="sm" rounded="md">
@@ -46,7 +46,7 @@ export const ArticleFilterResultsView = ({
                         ".articleFilterResultsTable.columnHeaderPassedFilters"
                     )}
                   </Th>
-                  <Th width="100%">{displayPropertyName}</Th>
+                  <Th width="100%">Article {displayPropertyName}</Th>
                 </Tr>
               </Thead>
               <Tbody>

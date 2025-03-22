@@ -147,7 +147,7 @@ export class DeliveryRecordService {
     record.internal_message = internalMessage;
     record.external_detail = externalDetail;
 
-    await this.recordRepo.persistAndFlush(record);
+    await this.orm.em.persistAndFlush(record);
 
     try {
       await this.orm.em.getConnection().execute(
@@ -325,7 +325,7 @@ export class DeliveryRecordService {
       return {
         id: record.id,
         mediumId: record.medium_id,
-        createdAt: record.created_at.toISOString(),
+        createdAt: new Date(record.created_at).toISOString(),
         details,
         articleIdHash: record.article_id_hash,
         status,

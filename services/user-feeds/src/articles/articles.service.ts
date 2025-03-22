@@ -97,7 +97,17 @@ export class ArticlesService {
       await inflatePromise(Buffer.from(compressedValue, "base64"))
     ).toString();
 
-    return JSON.parse(jsonText) as XmlParsedArticlesOutput;
+    const parsed = JSON.parse(jsonText) as XmlParsedArticlesOutput;
+
+    if (!parsed.feed) {
+      /**
+       * The schema was updated to include a new "feed" property. If it doesn't exist, it's an old cache
+       * and we should invalidate it.
+       */
+      return null;
+    }
+
+    return parsed;
   }
 
   async invalidateFeedArticlesCache(data: {
@@ -113,7 +123,7 @@ export class ArticlesService {
     data: {
       url: string;
       options: FetchFeedArticleOptions;
-      data: XmlParsedArticlesOutput;
+      data: Omit<XmlParsedArticlesOutput, "feed">;
     },
     options?: { useOldTTL?: boolean }
   ) {
@@ -147,7 +157,7 @@ export class ArticlesService {
       findRssFromHtml?: boolean;
       executeFetch?: boolean;
     }
-  ) {
+  ): ReturnType<typeof this.fetchFeedArticles> {
     try {
       return await this.fetchFeedArticles(originalUrl, { ...options });
     } catch (err) {
@@ -191,7 +201,7 @@ export class ArticlesService {
       requestLookupDetails: FeedRequestLookupDetails | undefined | null;
     }
   ): Promise<{
-    output: XmlParsedArticlesOutput | null;
+    output: XmlParsedArticlesOutput;
     url: string;
     attemptedToResolveFromHtml?: boolean;
   }> {
@@ -564,12 +574,14 @@ export class ArticlesService {
         .find((v) => !!v);
 
       if (!dateValue) {
-        return false;
+        // In case of invalid dates, err on the side of caution and deliver the article
+        return true;
       }
 
       const diffMs = dayjs().diff(dateValue, "millisecond");
 
-      return diffMs <= oldArticleDateDiffMsThreshold;
+      // If less than 0, it is in the future
+      return diffMs < 0 || diffMs <= oldArticleDateDiffMsThreshold;
     });
   }
 

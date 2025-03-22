@@ -5,7 +5,6 @@ import {
   AlertTitle,
   Box,
   Button,
-  CloseButton,
   Code,
   Divider,
   Flex,
@@ -37,7 +36,6 @@ import { CustomPlaceholdersFormData } from "./constants/CustomPlaceholderFormSch
 import { AnimatedComponent, ConfirmModal } from "../../../../components";
 import { CustomPlaceholderPreview } from "./CustomPlaceholderPreview";
 import { CustomPlaceholderDateFormatStep } from "../../../../types";
-import { notifyError } from "../../../../utils/notifyError";
 import { useGetUserFeedArticlesError } from "../../hooks";
 import { AutoResizeTextarea } from "../../../../components/AutoResizeTextarea";
 import { CustomPlaceholderStepType } from "../../../../constants";
@@ -47,6 +45,8 @@ import { ArticleSelectDialog } from "../../../feed/components";
 import { useUserFeedArticles } from "../../../feed";
 import { useUserMe } from "../../../discordUser";
 import { useUserFeedConnectionContext } from "../../../../contexts/UserFeedConnectionContext";
+import { notifyInfo } from "../../../../utils/notifyInfo";
+import { usePageAlertContext } from "../../../../contexts/PageAlertContext";
 
 interface Props {
   index: number;
@@ -123,14 +123,22 @@ const RegexStep = ({ customPlaceholderIndex, stepIndex }: StepProps) => {
           {regexSearchError && <FormErrorMessage>{regexSearchError.message}</FormErrorMessage>}
         </FormControl>
         <FormControl flex={0}>
-          <FormLabel variant="inline">Flags</FormLabel>
+          <FormLabel variant="inline" whiteSpace="nowrap">
+            Regex Flags
+          </FormLabel>
           <Controller
             name={`customPlaceholders.${customPlaceholderIndex}.steps.${stepIndex}.regexSearchFlags`}
             control={control}
             render={({ field }) => {
               return (
                 <Menu closeOnSelect={false}>
-                  <MenuButton as={Button} size="sm" bg="gray.800" rightIcon={<ChevronDownIcon />}>
+                  <MenuButton
+                    as={Button}
+                    size="sm"
+                    bg="gray.800"
+                    rightIcon={<ChevronDownIcon />}
+                    aria-label="Regex Flags"
+                  >
                     {field.value || "/"}
                   </MenuButton>
                   <MenuList minWidth="240px">
@@ -342,6 +350,7 @@ export const CustomPlaceholderForm = ({ index, onDelete, isExpanded }: Props) =>
       },
     },
   });
+  const { createErrorAlert } = usePageAlertContext();
 
   const { data: userMeData } = useUserMe();
 
@@ -373,7 +382,10 @@ export const CustomPlaceholderForm = ({ index, onDelete, isExpanded }: Props) =>
       setSelectedArticleId(undefined);
       await refetchUserFeedArticles();
     } catch (err) {
-      notifyError(t("common.errors.somethingWentWrong"), err as Error);
+      createErrorAlert({
+        title: "Failed to fetch random article.",
+        description: (err as Error).message,
+      });
     }
   };
 
@@ -386,7 +398,7 @@ export const CustomPlaceholderForm = ({ index, onDelete, isExpanded }: Props) =>
 
   return (
     <Stack background="gray.700" p={4} spacing={4} rounded="lg">
-      <FormControl isInvalid={!!referenceNameError}>
+      <FormControl isInvalid={!!referenceNameError} isRequired>
         <FormLabel variant="inline">Reference Name</FormLabel>
         <Controller
           name={`customPlaceholders.${index}.referenceName`}
@@ -401,19 +413,18 @@ export const CustomPlaceholderForm = ({ index, onDelete, isExpanded }: Props) =>
               bg="gray.800"
               {...field}
               value={field.value || ""}
+              ref={null}
             />
           )}
         />
-        {!referenceNameError && (
-          <FormHelperText>
-            The reference name for this custom placeholder. For example, if the reference name is{" "}
-            <Code>mytitle</Code>, then the placeholder to use into your custom message contente will
-            be <Code>{`{{custom::mytitle}}`}</Code>.
-          </FormHelperText>
-        )}
-        {referenceNameError && <FormErrorMessage>{referenceNameError.message}</FormErrorMessage>}
+        <FormErrorMessage>{referenceNameError?.message}</FormErrorMessage>
+        <FormHelperText>
+          The reference name for this custom placeholder. For example, if the reference name is{" "}
+          <Code>mytitle</Code>, then the placeholder to use into your custom message contente will
+          be <Code>{`{{custom::mytitle}}`}</Code>.
+        </FormHelperText>
       </FormControl>
-      <FormControl isInvalid={!!sourcePlaceholderError}>
+      <FormControl isInvalid={!!sourcePlaceholderError} isRequired>
         <FormLabel
           variant="inline"
           id="source-placeholder-label"
@@ -440,25 +451,22 @@ export const CustomPlaceholderForm = ({ index, onDelete, isExpanded }: Props) =>
               customPlaceholders={[]}
               ariaLabelledBy="source-placeholder-label"
               inputId="source-placeholder-select"
+              isRequired
               isInvalid={!!sourcePlaceholderError}
             />
           )}
         />
-        {!sourcePlaceholderError && (
-          <FormHelperText>The placeholder where the content should originate from.</FormHelperText>
-        )}
-        {sourcePlaceholderError && (
-          <FormErrorMessage>{sourcePlaceholderError.message}</FormErrorMessage>
-        )}
+        <FormErrorMessage>{sourcePlaceholderError?.message}</FormErrorMessage>
+        <FormHelperText>The placeholder where the content should originate from.</FormHelperText>
       </FormControl>
       <FormControl isInvalid={!!hasStepsError}>
-        <FormLabel variant="inline">Steps</FormLabel>
+        <FormLabel variant="inline">Transformation Steps</FormLabel>
         <FormHelperText pb={2}>
           The steps to apply in sequence to the content of the source placeholder. The final result
           will be the content of the custom placeholder. At least 1 step must be defined.
         </FormHelperText>
         {isNewAndIncompletePlaceholder && (
-          <Alert>
+          <Alert role={undefined}>
             <AlertDescription>
               Input a reference name and source placeholder to start adding steps
             </AlertDescription>
@@ -538,6 +546,7 @@ export const CustomPlaceholderForm = ({ index, onDelete, isExpanded }: Props) =>
                           <HStack justifyContent="space-between" width="100%">
                             <Box>
                               <Text fontWeight={600}>
+                                Transformation Step:{" "}
                                 {!step.type ||
                                   (step.type === CustomPlaceholderStepType.Regex &&
                                     "Regex Replace")}
@@ -565,10 +574,18 @@ export const CustomPlaceholderForm = ({ index, onDelete, isExpanded }: Props) =>
                                 </Text>
                               )}
                             </Box>
-                            <CloseButton
+                            <Button
+                              colorScheme="red"
                               size="sm"
-                              isDisabled={steps.length === 1}
+                              variant="ghost"
+                              aria-disabled={steps.length === 1}
                               onClick={() => {
+                                if (steps.length === 1) {
+                                  notifyInfo("At least one transformation step is required");
+
+                                  return;
+                                }
+
                                 setValue(
                                   `customPlaceholders.${index}.steps`,
                                   steps.filter((_, i) => i !== stepIndex),
@@ -579,7 +596,9 @@ export const CustomPlaceholderForm = ({ index, onDelete, isExpanded }: Props) =>
                                   }
                                 );
                               }}
-                            />
+                            >
+                              Delete Step
+                            </Button>
                           </HStack>
                           <Divider mb={2} />
                           {!step.type ||

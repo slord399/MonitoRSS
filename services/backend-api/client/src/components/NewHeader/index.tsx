@@ -23,7 +23,6 @@ import { LogoutButton } from "../../features/auth";
 
 import { useDiscordBot, useDiscordUserMe, useUserMe } from "../../features/discordUser";
 import { Loading } from "../Loading";
-import { AddUserFeedDialog } from "../../features/feed";
 import { ReportABugDialog } from "../ReportABugDialog";
 
 interface Props {
@@ -39,7 +38,7 @@ export const NewHeader = ({ invertBackground }: Props) => {
   const { pathname } = useLocation();
 
   return (
-    <chakra.header width="full">
+    <chakra.header width="full" borderBottom="solid 1px" borderColor="gray.700">
       <Box
         width="100%"
         background={invertBackground ? "gray.700" : "none"}
@@ -94,7 +93,6 @@ export const NewHeader = ({ invertBackground }: Props) => {
                   FAQ
                 </Button>
               )}
-              <AddUserFeedDialog />
             </HStack>
           </HStack>
           <Flex alignItems="center" paddingY="4">

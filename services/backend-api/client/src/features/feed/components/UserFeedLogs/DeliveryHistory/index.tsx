@@ -19,7 +19,6 @@ import {
   Thead,
   Tr,
   Link as ChakraLink,
-  IconButton,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -161,13 +160,21 @@ export const DeliveryHistory = () => {
       </Box>
       <Box px={4} pb={4}>
         <Box srOnly aria-live="polite">
-          {status === "loading" &&
-            `Loading article delivery history rows ${skip + 1} through ${skip + limit}`}
-          {status === "success" &&
-            `Finished loading article delivery history rows ${skip + 1} through ${skip + limit}`}
-          {status === "success" &&
-            fetchStatus === "fetching" &&
-            `Loading article delivery history rows ${skip + 1} through ${skip + limit}`}
+          {status === "loading" && (
+            <span>
+              Loading article delivery history rows ${skip + 1} through ${skip + limit}
+            </span>
+          )}
+          {status === "success" && (
+            <span>
+              Finished loading article delivery history rows ${skip + 1} through ${skip + limit}
+            </span>
+          )}
+          {status === "success" && fetchStatus === "fetching" && (
+            <span>
+              Loading article delivery history rows ${skip + 1} through ${skip + limit}
+            </span>
+          )}
         </Box>
         {status === "loading" && (
           <Center>
@@ -278,16 +285,16 @@ export const DeliveryHistory = () => {
                             <Skeleton isLoaded={fetchStatus === "idle"}>
                               {item.details?.message}
                               {item.details?.data && (
-                                <IconButton
-                                  aria-label="View details"
-                                  ml={1}
-                                  icon={<Search2Icon />}
+                                <Button
+                                  leftIcon={<Search2Icon />}
                                   size="xs"
-                                  variant="link"
+                                  variant="outline"
                                   onClick={() =>
                                     setDetailsData(JSON.stringify(item.details?.data, null, 2))
                                   }
-                                />
+                                >
+                                  View Details
+                                </Button>
                               )}
                             </Skeleton>
                           </Td>

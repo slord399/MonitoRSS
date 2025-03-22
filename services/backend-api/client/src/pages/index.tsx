@@ -1,7 +1,7 @@
 import { Route, Routes, Navigate } from "react-router-dom";
 import * as Sentry from "@sentry/react";
 import { Spinner } from "@chakra-ui/react";
-import { Suspense, lazy } from "react";
+import { Suspense } from "react";
 import Feed from "./Feed";
 import FeedFilters from "./FeedFilters";
 import FeedMessage from "./FeedMessage";
@@ -28,9 +28,18 @@ import { NewHeader } from "../components";
 import { UserFeedStatusFilterProvider } from "../contexts";
 import { NotFound } from "./NotFound";
 import { SuspenseErrorBoundary } from "../components/SuspenseErrorBoundary";
+import AddUserFeeds from "./AddUserFeeds";
+import { MultiSelectUserFeedProvider } from "../contexts/MultiSelectUserFeedContext";
+import { lazyWithRetries } from "../utils/lazyImportWithRetry";
 
-const UserSettings = lazy(() =>
+const UserSettings = lazyWithRetries(() =>
   import("./UserSettings").then(({ UserSettings: c }) => ({
+    default: c,
+  }))
+);
+
+const Checkout = lazyWithRetries(() =>
+  import("./Checkout").then(({ Checkout: c }) => ({
     default: c,
   }))
 );
@@ -95,10 +104,24 @@ const Pages: React.FC = () => (
       }
     />
     <Route
-      path={pages.userSettings()}
+      path={pages.checkout(":priceId")}
       element={
         <RequireAuth>
           <PageContentV2 invertBackground>
+            <SuspenseErrorBoundary>
+              <Suspense fallback={<Spinner mt={24} />}>
+                <Checkout cancelUrl={pages.userFeeds()} />
+              </Suspense>
+            </SuspenseErrorBoundary>
+          </PageContentV2>
+        </RequireAuth>
+      }
+    />
+    <Route
+      path={pages.userSettings()}
+      element={
+        <RequireAuth>
+          <PageContentV2>
             <SuspenseErrorBoundary>
               <Suspense fallback={<Spinner mt={24} />}>
                 <UserSettings />
@@ -109,15 +132,24 @@ const Pages: React.FC = () => (
       }
     />
     <Route
+      path={pages.addFeeds()}
+      element={
+        <RequireAuth waitForUserFetch>
+          <NewHeader invertBackground />
+          <AddUserFeeds />
+        </RequireAuth>
+      }
+    />
+    <Route
       path={pages.userFeeds()}
       element={
         <RequireAuth waitForUserFetch>
-          {/* <PageContentV2 invertBackground> */}
-          <NewHeader invertBackground />
-          <UserFeedStatusFilterProvider>
-            <UserFeeds />
-          </UserFeedStatusFilterProvider>
-          {/* </PageContentV2> */}
+          <NewHeader />
+          <MultiSelectUserFeedProvider>
+            <UserFeedStatusFilterProvider>
+              <UserFeeds />
+            </UserFeedStatusFilterProvider>
+          </MultiSelectUserFeedProvider>
         </RequireAuth>
       }
     />
@@ -147,7 +179,7 @@ const Pages: React.FC = () => (
       path={pages.userFeed(":feedId")}
       element={
         <RequireAuth>
-          <PageContentV2 requireFeed>
+          <PageContentV2>
             <UserFeed />
           </PageContentV2>
         </RequireAuth>

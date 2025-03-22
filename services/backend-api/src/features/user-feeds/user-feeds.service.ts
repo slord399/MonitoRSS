@@ -298,6 +298,66 @@ export class UserFeedsService {
     }
   }
 
+  async deduplicateFeedUrls(discordUserId: string, urls: string[]) {
+    const found = await this.userFeedModel
+      .find(
+        {
+          url: {
+            $in: urls,
+          },
+          "user.discordUserId": discordUserId,
+        },
+        {
+          url: 1,
+        }
+      )
+      .lean();
+
+    const foundUrls = new Set(found.map((f) => f.url));
+
+    return urls.filter((u) => !foundUrls.has(u));
+  }
+
+  async validateFeedUrl(
+    { discordUserId }: { discordUserId: string },
+    { url }: { url: string }
+  ) {
+    const [{ maxUserFeeds }, user] = await Promise.all([
+      this.supportersService.getBenefitsOfDiscordUser(discordUserId),
+      this.usersService.getOrCreateUserByDiscordId(discordUserId),
+    ]);
+
+    const feedCount = await this.calculateCurrentFeedCountOfDiscordUser(
+      discordUserId
+    );
+
+    if (feedCount >= maxUserFeeds) {
+      throw new FeedLimitReachedException("Max feeds reached");
+    }
+
+    const tempLookupDetails = getFeedRequestLookupDetails({
+      decryptionKey: this.configService.get("BACKEND_API_ENCRYPTION_KEY_HEX"),
+      feed: {
+        url,
+        feedRequestLookupKey: randomUUID(),
+      },
+      user,
+    });
+
+    const { finalUrl, feedTitle } = await this.checkUrlIsValid(
+      url,
+      tempLookupDetails
+    );
+
+    if (finalUrl !== url) {
+      return {
+        resolvedToUrl: finalUrl,
+      };
+    }
+
+    return { resolvedToUrl: null, feedTitle };
+  }
+
   async addFeed(
     {
       discordUserId,
@@ -308,7 +368,7 @@ export class UserFeedsService {
       title,
       url,
     }: {
-      title: string;
+      title?: string;
       url: string;
     }
   ) {
@@ -337,13 +397,11 @@ export class UserFeedsService {
       user,
     });
 
-    const { finalUrl, enableDateChecks } = await this.checkUrlIsValid(
-      url,
-      tempLookupDetails
-    );
+    const { finalUrl, enableDateChecks, feedTitle } =
+      await this.checkUrlIsValid(url, tempLookupDetails);
 
     const created = await this.userFeedModel.create({
-      title,
+      title: title || feedTitle || "Untitled Feed",
       url: finalUrl,
       inputUrl: url,
       user: {
@@ -584,11 +642,9 @@ export class UserFeedsService {
     for (let i = 0; i < found.length; i++) {
       const thisId = found[i]._id.toHexString();
 
-      this.amqpConnection.publish<{ data: { feed: { id: string } } }>(
-        "",
-        MessageBrokerQueue.FeedDeleted,
-        { data: { feed: { id: thisId } } }
-      );
+      this.amqpConnection.publish("", MessageBrokerQueue.FeedDeleted, {
+        data: { feed: { id: thisId } },
+      });
     }
 
     return feedIds.map((id) => ({
@@ -769,14 +825,12 @@ export class UserFeedsService {
 
   async getFeedRequests({
     feed,
-    skip,
-    limit,
     url,
+    query,
   }: {
     feed: UserFeed;
-    skip: number;
-    limit: number;
     url: string;
+    query: Record<string, string>;
   }) {
     const lookupDetails = getFeedRequestLookupDetails({
       feed,
@@ -787,8 +841,7 @@ export class UserFeedsService {
     });
 
     return this.feedFetcherApiService.getRequests({
-      limit,
-      skip,
+      query,
       url: lookupDetails?.url || url,
       requestLookupKey: lookupDetails?.key,
     });
@@ -945,11 +998,9 @@ export class UserFeedsService {
 
     if (updates.url) {
       // All stored articles of the old feed are now irrelevant
-      this.amqpConnection.publish<{ data: { feed: { id: string } } }>(
-        "",
-        MessageBrokerQueue.FeedDeleted,
-        { data: { feed: { id } } }
-      );
+      this.amqpConnection.publish("", MessageBrokerQueue.FeedDeleted, {
+        data: { feed: { id } },
+      });
     }
 
     return u;
@@ -975,11 +1026,9 @@ export class UserFeedsService {
       _id: id,
     });
 
-    this.amqpConnection.publish<{ data: { feed: { id: string } } }>(
-      "",
-      MessageBrokerQueue.FeedDeleted,
-      { data: { feed: { id } } }
-    );
+    this.amqpConnection.publish("", MessageBrokerQueue.FeedDeleted, {
+      data: { feed: { id } },
+    });
 
     return found;
   }
@@ -1724,7 +1773,11 @@ export class UserFeedsService {
   private async checkUrlIsValid(
     url: string,
     lookupDetails: FeedRequestLookupDetails | null
-  ): Promise<{ finalUrl: string; enableDateChecks: boolean }> {
+  ): Promise<{
+    finalUrl: string;
+    enableDateChecks: boolean;
+    feedTitle: string | null;
+  }> {
     const getArticlesResponse = await this.feedHandlerService.getArticles(
       {
         url,
@@ -1752,6 +1805,7 @@ export class UserFeedsService {
       url: finalUrl,
       attemptedToResolveFromHtml,
       articles,
+      feedTitle,
     } = getArticlesResponse;
 
     if (requestStatus === GetArticlesResponseRequestStatus.Success) {
@@ -1767,6 +1821,7 @@ export class UserFeedsService {
       return {
         finalUrl: finalUrl || url,
         enableDateChecks: !!articles[0]?.date,
+        feedTitle: feedTitle || null,
       };
     } else if (requestStatus === GetArticlesResponseRequestStatus.TimedOut) {
       throw new FeedFetchTimeoutException(`Feed fetch timed out`);

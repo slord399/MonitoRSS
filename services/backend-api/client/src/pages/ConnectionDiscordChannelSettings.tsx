@@ -1,5 +1,6 @@
 import { ChevronDownIcon } from "@chakra-ui/icons";
 import {
+  Box,
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbLink,
@@ -35,16 +36,24 @@ import {
   UpdateDiscordChannelConnectionInput,
 } from "../features/feedConnections";
 import { CustomPlaceholdersTabSection } from "../features/feedConnections/components/CustomPlaceholdersTabSection";
-import { FeedDiscordChannelConnection } from "../types";
 import RouteParams from "../types/RouteParams";
-import { notifyError } from "../utils/notifyError";
-import { notifySuccess } from "../utils/notifySuccess";
 import { DeliveryRateLimitsTabSection } from "../features/feedConnections/components/DeliveryRateLimitsTabSection";
 import { useDiscordWebhook } from "../features/discordWebhooks";
 import { DiscordChannelConnectionSettings } from "../features/feedConnections/components/ConnectionCard/DiscordChannelConnectionSettings";
 import { UserFeedConnectionTabSearchParam } from "../constants/userFeedConnectionTabSearchParam";
-import { UserFeedConnectionProvider } from "../contexts/UserFeedConnectionContext";
-import { UserFeedProvider } from "../contexts/UserFeedContext";
+import {
+  UserFeedConnectionProvider,
+  useUserFeedConnectionContext,
+} from "../contexts/UserFeedConnectionContext";
+import { UserFeedProvider, useUserFeedContext } from "../contexts/UserFeedContext";
+import { getPrettyConnectionName } from "../utils/getPrettyConnectionName";
+import {
+  PageAlertContextOutlet,
+  PageAlertProvider,
+  usePageAlertContext,
+} from "../contexts/PageAlertContext";
+import { TabContentContainer } from "../components/TabContentContainer";
+import { FeedDiscordChannelConnection } from "../types";
 
 const tabIndexBySearchParam = new Map<string, number>([
   [UserFeedConnectionTabSearchParam.Message, 0],
@@ -53,59 +62,44 @@ const tabIndexBySearchParam = new Map<string, number>([
   [UserFeedConnectionTabSearchParam.CustomPlaceholders, 3],
 ]);
 
-const getPrettyChannelType = (details?: FeedDiscordChannelConnection["details"]) => {
-  const { t } = useTranslation();
+export const ConnectionDiscordChannelSettings: React.FC = () => {
+  const { feedId, connectionId } = useParams<RouteParams>();
+  const { status: feedStatus, error: feedError } = useUserFeed({
+    feedId,
+  });
+  const { status: connectionStatus, error: connectionError } = useDiscordChannelConnection({
+    connectionId,
+    feedId,
+  });
 
-  if (details?.webhook) {
-    const { type } = details.webhook;
-
-    if (type === "forum") {
-      return t("pages.discordChannelConnection.channelTypeForum");
-    }
-
-    return "Discord Webhook";
-  }
-
-  if (details?.channel) {
-    const { type } = details.channel;
-
-    if (type === "thread") {
-      return t("pages.discordChannelConnection.channelTypeThread");
-    }
-
-    if (type === "forum") {
-      return t("pages.discordChannelConnection.channelTypeForum");
-    }
-
-    return t("pages.discordChannelConnection.channelTypeTextChannel");
-  }
-
-  return "";
+  return (
+    <DashboardContentV2
+      error={feedError || connectionError}
+      loading={feedStatus === "loading" || connectionStatus === "loading"}
+    >
+      <UserFeedProvider feedId={feedId}>
+        <UserFeedConnectionProvider feedId={feedId} connectionId={connectionId}>
+          <Box display="flex" flexDirection="column" pt={4} alignItems="center" isolation="isolate">
+            <PageAlertProvider>
+              <ConnectionDiscordChannelSettingsInner />
+            </PageAlertProvider>
+          </Box>
+        </UserFeedConnectionProvider>
+      </UserFeedProvider>
+    </DashboardContentV2>
+  );
 };
 
-export const ConnectionDiscordChannelSettings: React.FC = () => {
+const ConnectionDiscordChannelSettingsInner: React.FC = () => {
   const { feedId, connectionId } = useParams<RouteParams>();
   const navigate = useNavigate();
   const { search: urlSearch } = useLocation();
   const actionsButtonRef = useRef<HTMLButtonElement>(null);
-
-  const {
-    feed,
-    status: feedStatus,
-    error: feedError,
-  } = useUserFeed({
-    feedId,
-  });
-  const {
-    connection,
-    status: connectionStatus,
-    error: connectionError,
-  } = useDiscordChannelConnection({
-    connectionId,
-    feedId,
-  });
+  const { userFeed: feed } = useUserFeedContext();
+  const { connection } = useUserFeedConnectionContext<FeedDiscordChannelConnection>();
   const { t } = useTranslation();
   const { mutateAsync } = useUpdateDiscordChannelConnection();
+  const { createSuccessAlert, createErrorAlert } = usePageAlertContext();
 
   const serverId = connection?.details?.channel?.guildId || connection?.details?.webhook?.guildId;
 
@@ -115,7 +109,10 @@ export const ConnectionDiscordChannelSettings: React.FC = () => {
 
   const matchingWebhook = discordWebhookResult?.result;
 
-  const onUpdate = async (details: UpdateDiscordChannelConnectionInput["details"]) => {
+  const onUpdate = async (
+    details: UpdateDiscordChannelConnectionInput["details"],
+    updateLabel: string
+  ) => {
     if (!feedId || !connectionId) {
       return;
     }
@@ -126,9 +123,16 @@ export const ConnectionDiscordChannelSettings: React.FC = () => {
         connectionId,
         details,
       });
-      notifySuccess(t("common.success.savedChanges"));
+
+      createSuccessAlert({
+        title: `Successfully updated ${updateLabel}.`,
+      });
     } catch (err) {
-      notifyError(t("common.errors.somethingWentWrong"), err as Error);
+      createErrorAlert({
+        title: `Failed to update ${updateLabel}.`,
+        description: (err as Error).message,
+      });
+
       throw err;
     }
   };
@@ -136,69 +140,80 @@ export const ConnectionDiscordChannelSettings: React.FC = () => {
   const tabIndex = tabIndexBySearchParam.get(urlSearch);
 
   return (
-    <DashboardContentV2
-      error={feedError || connectionError}
-      loading={feedStatus === "loading" || connectionStatus === "loading"}
-    >
-      <UserFeedProvider feedId={feedId}>
-        <UserFeedConnectionProvider feedId={feedId} connectionId={connectionId}>
-          <Tabs isLazy isFitted defaultIndex={tabIndex ?? 0} index={tabIndex ?? undefined}>
-            <BoxConstrained.Wrapper paddingTop={10} background="gray.700">
-              <BoxConstrained.Container spacing={12}>
-                <Stack spacing={6}>
-                  <Stack spacing={4}>
-                    <Stack>
-                      <Breadcrumb>
-                        <BreadcrumbItem>
-                          <BreadcrumbLink as={RouterLink} to={pages.userFeeds()}>
-                            Feeds
-                          </BreadcrumbLink>
-                        </BreadcrumbItem>
-                        <BreadcrumbItem>
-                          <BreadcrumbLink as={RouterLink} to={pages.userFeed(feedId as string)}>
-                            {feed?.title}
-                          </BreadcrumbLink>
-                        </BreadcrumbItem>
-                        <BreadcrumbItem isCurrentPage>
-                          <BreadcrumbLink href="#">{connection?.name}</BreadcrumbLink>
-                        </BreadcrumbItem>
-                      </Breadcrumb>
-                      <HStack alignItems="center" justifyContent="space-between">
-                        <Heading size="lg" marginRight={4} tabIndex={-1} as="h1">
-                          {connection?.name}
-                        </Heading>
-                        {connection && (
-                          <HStack>
-                            <SendConnectionTestArticleButton />
-                            <DiscordChannelConnectionSettings
-                              connection={connection}
-                              redirectOnCloneSuccess
-                              trigger={
-                                <MenuButton
-                                  ref={actionsButtonRef}
-                                  as={Button}
-                                  variant="outline"
-                                  rightIcon={<ChevronDownIcon />}
-                                  aria-label="Connection actions"
-                                >
-                                  {t("common.buttons.actions")}
-                                </MenuButton>
-                              }
-                              feedId={feedId as string}
-                            />
-                          </HStack>
-                        )}
+    <>
+      <PageAlertContextOutlet
+        containerProps={{
+          maxW: "1400px",
+          w: "100%",
+          display: "flex",
+          justifyContent: "center",
+          paddingX: [4, 4, 8, 12],
+          pb: 4,
+          pt: 0,
+        }}
+      />
+      <Tabs isLazy isFitted defaultIndex={tabIndex ?? 0} index={tabIndex ?? undefined} width="100%">
+        <BoxConstrained.Wrapper>
+          <BoxConstrained.Container spacing={4} px={4}>
+            <Stack spacing={6}>
+              <Stack spacing={4}>
+                <Stack>
+                  <Breadcrumb>
+                    <BreadcrumbItem>
+                      <BreadcrumbLink as={RouterLink} to={pages.userFeeds()} color="blue.300">
+                        Feeds
+                      </BreadcrumbLink>
+                    </BreadcrumbItem>
+                    <BreadcrumbItem>
+                      <BreadcrumbLink
+                        as={RouterLink}
+                        to={pages.userFeed(feedId as string)}
+                        color="blue.300"
+                      >
+                        {feed?.title}
+                      </BreadcrumbLink>
+                    </BreadcrumbItem>
+                    <BreadcrumbItem isCurrentPage>
+                      <BreadcrumbLink href="#">{connection?.name}</BreadcrumbLink>
+                    </BreadcrumbItem>
+                  </Breadcrumb>
+                  <HStack
+                    alignItems="center"
+                    justifyContent="space-between"
+                    flexWrap="wrap"
+                    gap={3}
+                  >
+                    <Heading size="lg" marginRight={4} tabIndex={-1} as="h1">
+                      {connection?.name}
+                    </Heading>
+                    {connection && (
+                      <HStack flexWrap="wrap">
+                        <SendConnectionTestArticleButton />
+                        <DiscordChannelConnectionSettings
+                          connection={connection}
+                          trigger={
+                            <MenuButton
+                              ref={actionsButtonRef}
+                              as={Button}
+                              variant="outline"
+                              rightIcon={<ChevronDownIcon />}
+                            >
+                              <span>Connection Actions</span>
+                            </MenuButton>
+                          }
+                          feedId={feedId as string}
+                        />
                       </HStack>
-                    </Stack>
-                    <ConnectionDisabledAlert
-                      disabledCode={connection?.disabledCode}
-                      onEnable={() =>
-                        onUpdate({
-                          disabledCode: null,
-                        })
-                      }
-                    />
-                  </Stack>
+                    )}
+                  </HStack>
+                </Stack>
+                <ConnectionDisabledAlert />
+              </Stack>
+              <TabContentContainer>
+                <Stack spacing={6}>
+                  <Heading as="h2" size="md">
+                    Connection Overview
+                  </Heading>
                   <Grid
                     templateColumns={{
                       base: "1fr",
@@ -225,7 +240,7 @@ export const ConnectionDiscordChannelSettings: React.FC = () => {
                       title={t("pages.discordChannelConnection.channelTypeLabel")}
                       hidden={!!connection?.details.webhook}
                     >
-                      <Text>{getPrettyChannelType(connection?.details)}</Text>
+                      <Text>{connection ? getPrettyConnectionName(connection) : ""}</Text>
                     </CategoryText>
                     <CategoryText
                       title="Webhook"
@@ -271,95 +286,104 @@ export const ConnectionDiscordChannelSettings: React.FC = () => {
                     </CategoryText>
                   </Grid>
                 </Stack>
-                <TabList>
-                  <Tab
-                    fontWeight="semibold"
-                    onClick={() => {
-                      navigate({
-                        search: UserFeedConnectionTabSearchParam.Message,
-                      });
-                    }}
-                  >
-                    Message Format
-                  </Tab>
-                  <Tab
-                    fontWeight="semibold"
-                    onClick={() => {
-                      navigate({
-                        search: UserFeedConnectionTabSearchParam.Filters,
-                      });
-                    }}
-                  >
-                    Filters
-                  </Tab>
-                  <Tab
-                    fontWeight="semibold"
-                    onClick={() =>
-                      navigate({ search: UserFeedConnectionTabSearchParam.RateLimits })
-                    }
-                  >
-                    Delivery Rate Limits
-                  </Tab>
-                  <Tab
-                    fontWeight="semibold"
-                    onClick={() => {
-                      navigate({
-                        search: UserFeedConnectionTabSearchParam.CustomPlaceholders,
-                      });
-                    }}
-                  >
-                    Custom Placeholders
-                  </Tab>
-                </TabList>
+              </TabContentContainer>
+            </Stack>
+            <TabList overflow="auto">
+              <Tab
+                fontWeight={tabIndex === 0 ? "bold" : "semibold"}
+                onClick={() => {
+                  navigate({
+                    search: UserFeedConnectionTabSearchParam.Message,
+                  });
+                }}
+              >
+                Message Format
+              </Tab>
+              <Tab
+                fontWeight={tabIndex === 1 ? "bold" : "semibold"}
+                onClick={() => {
+                  navigate({
+                    search: UserFeedConnectionTabSearchParam.Filters,
+                  });
+                }}
+              >
+                Article Filters
+              </Tab>
+              <Tab
+                fontWeight={tabIndex === 2 ? "bold" : "semibold"}
+                onClick={() => navigate({ search: UserFeedConnectionTabSearchParam.RateLimits })}
+              >
+                Delivery Rate Limits
+              </Tab>
+              <Tab
+                fontWeight={tabIndex === 3 ? "bold" : "semibold"}
+                onClick={() => {
+                  navigate({
+                    search: UserFeedConnectionTabSearchParam.CustomPlaceholders,
+                  });
+                }}
+              >
+                Custom Placeholders
+              </Tab>
+            </TabList>
+          </BoxConstrained.Container>
+        </BoxConstrained.Wrapper>
+        <TabPanels width="100%" display="flex" justifyContent="center">
+          <TabPanel padding={0} py={4} width="100%">
+            <BoxConstrained.Wrapper>
+              <BoxConstrained.Container>
+                <TabContentContainer>
+                  <MessageTabSection
+                    guildId={serverId}
+                    onMessageUpdated={(data) => onUpdate(data, "message format")}
+                  />
+                </TabContentContainer>
               </BoxConstrained.Container>
             </BoxConstrained.Wrapper>
-            <TabPanels width="100%" display="flex" justifyContent="center" mt="8">
-              <TabPanel width="100%">
-                <BoxConstrained.Wrapper>
-                  <BoxConstrained.Container>
-                    <MessageTabSection
-                      guildId={serverId}
-                      onMessageUpdated={(data) => onUpdate(data)}
-                    />
-                  </BoxConstrained.Container>
-                </BoxConstrained.Wrapper>
-              </TabPanel>
-              <TabPanel width="100%">
-                <BoxConstrained.Wrapper>
-                  <BoxConstrained.Container>
-                    <FiltersTabSection
-                      onFiltersUpdated={(filters) =>
-                        onUpdate({
+          </TabPanel>
+          <TabPanel padding={0} py={4} width="100%">
+            <BoxConstrained.Wrapper>
+              <BoxConstrained.Container>
+                <TabContentContainer>
+                  <FiltersTabSection
+                    onFiltersUpdated={(filters) =>
+                      onUpdate(
+                        {
                           filters: filters
                             ? {
                                 expression: filters,
                               }
                             : null,
-                        })
-                      }
-                      filters={connection?.filters?.expression as LogicalFilterExpression}
-                    />
-                  </BoxConstrained.Container>
-                </BoxConstrained.Wrapper>
-              </TabPanel>
-              <TabPanel width="100%">
-                <BoxConstrained.Wrapper>
-                  <BoxConstrained.Container>
-                    <DeliveryRateLimitsTabSection />
-                  </BoxConstrained.Container>
-                </BoxConstrained.Wrapper>
-              </TabPanel>
-              <TabPanel width="100%">
-                <BoxConstrained.Wrapper>
-                  <BoxConstrained.Container>
-                    <CustomPlaceholdersTabSection />
-                  </BoxConstrained.Container>
-                </BoxConstrained.Wrapper>
-              </TabPanel>
-            </TabPanels>
-          </Tabs>
-        </UserFeedConnectionProvider>
-      </UserFeedProvider>
-    </DashboardContentV2>
+                        },
+                        "filters"
+                      )
+                    }
+                    filters={connection?.filters?.expression as LogicalFilterExpression}
+                  />
+                </TabContentContainer>
+              </BoxConstrained.Container>
+            </BoxConstrained.Wrapper>
+          </TabPanel>
+          <TabPanel padding={0} py={4} width="100%">
+            <BoxConstrained.Wrapper>
+              <BoxConstrained.Container>
+                <TabContentContainer>
+                  <DeliveryRateLimitsTabSection />
+                </TabContentContainer>
+              </BoxConstrained.Container>
+            </BoxConstrained.Wrapper>
+          </TabPanel>
+          <TabPanel padding={0} py={4} width="100%">
+            <BoxConstrained.Wrapper>
+              <BoxConstrained.Container>
+                <TabContentContainer>
+                  <CustomPlaceholdersTabSection />
+                </TabContentContainer>
+              </BoxConstrained.Container>
+            </BoxConstrained.Wrapper>
+          </TabPanel>
+        </TabPanels>
+      </Tabs>
+    </>
   );
 };

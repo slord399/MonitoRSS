@@ -9,6 +9,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Res,
   UseFilters,
   UseGuards,
@@ -19,7 +20,7 @@ import { NestedFieldPipe } from "../../common/pipes/nested-field.pipe";
 import { TransformValidationPipe } from "../../common/pipes/TransformValidationPipe";
 import { DiscordAccessToken } from "../discord-auth/decorators/DiscordAccessToken";
 import { DiscordOAuth2Guard } from "../discord-auth/guards/DiscordOAuth2.guard";
-import { FastifyReply } from "fastify";
+import { FastifyReply, FastifyRequest } from "fastify";
 import { SessionAccessToken } from "../discord-auth/types/SessionAccessToken.type";
 
 import { ADD_DISCORD_CHANNEL_CONNECTION_ERROR_CODES } from "../feed-connections/filters";
@@ -39,7 +40,6 @@ import {
   GetUserFeedDailyLimitOutputDto,
   GetUserFeedDeliveryLogsInputDto,
   GetUserFeedOutputDto,
-  GetUserFeedRequestsInputDto,
   GetUserFeedsInputDto,
   GetUserFeedsOutputDto,
   UpdateUserFeedInputDto,
@@ -64,6 +64,7 @@ import { GetFeedArticlePropertiesInput, GetFeedArticlesInput } from "./types";
 import { UserFeedsService } from "./user-feeds.service";
 import { CopyUserFeedSettingsInputDto } from "./dto/copy-user-feed-settings-input.dto";
 import { createMultipleExceptionsFilter } from "../../common/filters/multiple-exceptions.filter";
+import { CreateUserFeedUrlValidationInputDto } from "./dto/create-user-feed-url-validation-input.dto";
 
 @Controller("user-feeds")
 @UseGuards(DiscordOAuth2Guard)
@@ -92,6 +93,47 @@ export class UserFeedsController {
     );
 
     return this.userFeedsService.formatForHttpResponse(result, discordUserId);
+  }
+
+  @Post("deduplicate-feed-urls")
+  async deduplicateFeedUrls(
+    @Body(ValidationPipe)
+    { urls }: { urls: string[] },
+    @DiscordAccessToken()
+    { discord: { id: discordUserId } }: SessionAccessToken
+  ) {
+    const deduplicated = await this.userFeedsService.deduplicateFeedUrls(
+      discordUserId,
+      urls
+    );
+
+    return {
+      result: {
+        urls: deduplicated,
+      },
+    };
+  }
+
+  @Post("url-validation")
+  @UseFilters(FeedExceptionFilter)
+  async createFeedUrlValidation(
+    @Body(ValidationPipe)
+    { url }: CreateUserFeedUrlValidationInputDto,
+    @DiscordAccessToken()
+    { discord: { id: discordUserId } }: SessionAccessToken
+  ) {
+    const result = await this.userFeedsService.validateFeedUrl(
+      {
+        discordUserId,
+      },
+      {
+        url,
+      }
+    );
+
+    return {
+      result,
+    };
   }
 
   @Patch()
@@ -206,13 +248,11 @@ export class UserFeedsController {
   async getFeedRequests(
     @Param("feed", GetUserFeedsPipe())
     [{ feed }]: GetUserFeedsPipeOutput,
-    @NestedQuery(TransformValidationPipe)
-    { limit, skip }: GetUserFeedRequestsInputDto
+    @Query() query: FastifyRequest["query"]
   ) {
     return this.userFeedsService.getFeedRequests({
       url: feed.url,
-      limit,
-      skip,
+      query: query as Record<string, string>,
       feed,
     });
   }

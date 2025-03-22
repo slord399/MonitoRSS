@@ -105,12 +105,21 @@ export class FeedFetcherService {
     );
   }
 
-  async getRequests({ skip, limit, url, lookupKey }: GetFeedRequestsInputDto) {
+  async getRequests({
+    skip,
+    limit,
+    url,
+    lookupKey,
+    afterDate,
+    beforeDate,
+  }: GetFeedRequestsInputDto) {
     return this.partitionedRequestsStore.getRequests({
       limit,
       skip,
       url,
       lookupKey,
+      afterDate,
+      beforeDate,
     });
   }
 
@@ -175,7 +184,6 @@ export class FeedFetcherService {
             key: string;
           }
         | undefined;
-      flushEntities?: boolean;
       saveResponseToObjectStorage?: boolean;
       headers?: Record<string, string | undefined>;
       source: RequestSource | undefined;
@@ -210,6 +218,12 @@ export class FeedFetcherService {
     };
 
     try {
+      if (options?.saveResponseToObjectStorage) {
+        logger.info(
+          `DEBUG: Fetching ${url} and saving to object storage for url ${url}`,
+        );
+      }
+
       const res = await this.fetchFeedResponse(
         url,
         fetchOptions,
@@ -312,6 +326,7 @@ export class FeedFetcherService {
       request.response = response;
 
       const partitionedRequest: PartitionedRequestInsert = {
+        id: randomUUID(),
         url: request.url,
         lookupKey: request.lookupKey,
         createdAt: response.createdAt,
@@ -337,9 +352,12 @@ export class FeedFetcherService {
         },
       };
 
-      await this.partitionedRequestsStore.markForPersistence(
-        partitionedRequest,
-      );
+      if (options?.saveResponseToObjectStorage) {
+        logger.info(
+          `DEBUG: Marking ${url} for persistence`,
+          partitionedRequest,
+        );
+      }
 
       return {
         request: partitionedRequest,
@@ -369,6 +387,7 @@ export class FeedFetcherService {
       }
 
       const partitionedRequest: PartitionedRequestInsert = {
+        id: randomUUID(),
         url: request.url,
         lookupKey: request.lookupKey,
         createdAt: request.createdAt,
@@ -381,15 +400,7 @@ export class FeedFetcherService {
         requestInitiatedAt: request.createdAt,
       };
 
-      await this.partitionedRequestsStore.markForPersistence(
-        partitionedRequest,
-      );
-
       return { request: partitionedRequest };
-    } finally {
-      if (options?.flushEntities) {
-        await this.partitionedRequestsStore.flushPendingInserts();
-      }
     }
   }
 

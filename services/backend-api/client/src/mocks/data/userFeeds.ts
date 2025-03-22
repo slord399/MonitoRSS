@@ -34,10 +34,11 @@ const sampleFilters = {
 
 const mockUserFeeds: UserFeed[] = [
   {
-    id: "1",
+    id: "1f",
     title: "New York Times",
     url: "https://www.feed1.com",
     createdAt: new Date().toISOString(),
+    inputUrl: "https://www.google.com",
     updatedAt: new Date().toISOString(),
     externalProperties: [
       {
@@ -306,12 +307,12 @@ const mockUserFeeds: UserFeed[] = [
       },
     ],
     healthStatus: UserFeedHealthStatus.Ok,
-    disabledCode: undefined,
+    disabledCode: UserFeedDisabledCode.FailedRequests,
     refreshRateSeconds: 60,
     userRefreshRateSeconds: 120,
   },
   {
-    id: "2",
+    id: "2f",
     sharedAccessDetails: undefined,
     shareManageOptions: undefined,
     title: "Yahoo News",
@@ -330,7 +331,7 @@ const mockUserFeeds: UserFeed[] = [
     },
   },
   {
-    id: "3",
+    id: "3f",
     shareManageOptions: undefined,
     sharedAccessDetails: undefined,
     title: "CNN",
