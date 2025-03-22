@@ -145,6 +145,7 @@ docker update --restart=no monitorss-prod-mongo-1
 docker update --restart=no monitorss-prod-feed-requests-postgres-db-1
 docker update --restart=no monitorss-prod-user-feeds-postgres-db-1
 docker update --restart=no monitorss-prod-feed-requests-service-1
+docker update --restart=no rabbitmq-broker
 ```
 3. Backup `.env.prod` for later.
 4. Restart machine.
