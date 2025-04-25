@@ -1444,6 +1444,106 @@ export class UserFeedsService {
     return pipeline;
   }
 
+  async enforceWebhookBenefits({
+    supporterDiscordUserIds,
+  }: {
+    supporterDiscordUserIds: string[];
+  }) {
+    // Find all the user feeds that are not owned by a supporter with active webhooks
+    const feedsWithConnectionsToDisable = await this.userFeedModel
+      .find({
+        "user.discordUserId": {
+          $nin: supporterDiscordUserIds,
+        },
+        "connections.discordChannels": {
+          $elemMatch: {
+            "details.webhook.id": {
+              $exists: true,
+            },
+            disabledCode: {
+              $nin: [
+                FeedConnectionDisabledCode.NotPaidSubscriber,
+                FeedConnectionDisabledCode.Manual,
+              ],
+            },
+          },
+        },
+      })
+      .select("_id")
+      .lean();
+
+    // Disable the connections for those feeds
+    const feedIds = feedsWithConnectionsToDisable.map((feed) => feed._id);
+
+    for (const feedId of feedIds) {
+      const feed = await this.userFeedModel.findById(feedId);
+
+      if (!feed) {
+        continue;
+      }
+
+      feed.connections.discordChannels
+        .filter(
+          (c) =>
+            !!c.details.webhook?.id &&
+            c.disabledCode !== FeedConnectionDisabledCode.Manual &&
+            c.disabledCode !== FeedConnectionDisabledCode.NotPaidSubscriber
+        )
+        .forEach((c) => {
+          c.disabledCode = FeedConnectionDisabledCode.NotPaidSubscriber;
+        });
+
+      await feed.save();
+    }
+
+    const feedsWithConnectionsToEnable = await this.userFeedModel
+      .find({
+        "user.discordUserId": {
+          $in: supporterDiscordUserIds,
+        },
+        "connections.discordChannels": {
+          $elemMatch: {
+            "details.webhook.id": {
+              $exists: true,
+            },
+            disabledCode: {
+              $eq: FeedConnectionDisabledCode.NotPaidSubscriber,
+            },
+          },
+        },
+      })
+      .select("_id")
+      .lean();
+
+    // Enable the connections for those feeds
+    const feedIds2 = feedsWithConnectionsToEnable.map((feed) => feed._id);
+
+    for (const feedId of feedIds2) {
+      const feed = await this.userFeedModel.findById(feedId);
+
+      if (!feed) {
+        continue;
+      }
+
+      feed.connections.discordChannels
+        .filter(
+          (c) =>
+            !!c.details.webhook?.id &&
+            c.disabledCode === FeedConnectionDisabledCode.NotPaidSubscriber
+        )
+        .forEach((c) => {
+          c.disabledCode = undefined;
+        });
+
+      await feed.save();
+    }
+
+    return {
+      disabledCount: feedsWithConnectionsToDisable.length,
+      enabledCount: feedsWithConnectionsToEnable.length,
+    };
+  }
+
   async enforceUserFeedLimits(
     supporterLimits: Array<{
       discordUserId: string;
@@ -1454,6 +1554,9 @@ export class UserFeedsService {
     const supporterDiscordUserIds = supporterLimits.map(
       ({ discordUserId }) => discordUserId
     );
+    await this.enforceWebhookBenefits({
+      supporterDiscordUserIds,
+    });
     const defaultMaxUserFeeds = this.supportersService.defaultMaxUserFeeds;
 
     await this.enforceRefreshRates(supporterLimits);
