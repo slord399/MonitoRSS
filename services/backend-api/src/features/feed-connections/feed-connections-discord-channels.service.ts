@@ -34,7 +34,6 @@ import {
   FeedConnectionType,
 } from "../feeds/constants";
 import { DiscordChannelConnection } from "../feeds/entities/feed-connections";
-import { NoDiscordChannelPermissionOverwritesException } from "../feeds/exceptions";
 import { FeedsService } from "../feeds/feeds.service";
 import { SupportersService } from "../supporters/supporters.service";
 import { UserFeed, UserFeedModel } from "../user-feeds/entities";
@@ -200,11 +199,12 @@ export class FeedConnectionsDiscordChannelsService {
     let webhookToAdd: DiscordChannelConnection["details"]["webhook"];
 
     if (channelId) {
-      const { channel, type } = await this.assertDiscordChannelCanBeUsed(
-        userAccessToken,
-        channelId,
-        applicationWebhook ? true : false
-      );
+      const { channel, type, parentChannel } =
+        await this.assertDiscordChannelCanBeUsed(
+          userAccessToken,
+          channelId,
+          applicationWebhook ? true : false
+        );
 
       channelToAdd = {
         id: channelId,
@@ -213,6 +213,7 @@ export class FeedConnectionsDiscordChannelsService {
             ? FeedConnectionDiscordChannelType.NewThread
             : type,
         guildId: channel.guild_id,
+        parentChannelId: parentChannel?.id,
       };
     } else if (inputWebhook?.id || applicationWebhook?.channelId) {
       const benefits = await this.supportersService.getBenefitsOfDiscordUser(
@@ -264,10 +265,12 @@ export class FeedConnectionsDiscordChannelsService {
       let type: FeedConnectionDiscordWebhookType | undefined = undefined;
 
       if (threadId) {
-        const { channel: threadChannel } =
-          await this.assertDiscordChannelCanBeUsed(userAccessToken, threadId);
+        const { type: detectedType } = await this.assertDiscordChannelCanBeUsed(
+          userAccessToken,
+          threadId
+        );
 
-        if (threadChannel.type === DiscordChannelType.PUBLIC_THREAD) {
+        if (detectedType === FeedConnectionDiscordChannelType.Thread) {
           type = FeedConnectionDiscordWebhookType.Thread;
         } else {
           throw new InvalidDiscordChannelException();
@@ -344,7 +347,7 @@ export class FeedConnectionsDiscordChannelsService {
   }
 
   async cloneConnection(
-    userFeed: UserFeed,
+    targetUserFeeds: UserFeed[],
     connection: DiscordChannelConnection,
     {
       name,
@@ -353,7 +356,7 @@ export class FeedConnectionsDiscordChannelsService {
     userAccessToken: string,
     userDiscordUserId: string
   ) {
-    const newId = new Types.ObjectId();
+    const newIds = targetUserFeeds.map(() => new Types.ObjectId());
     let channelDetailsToUse: DiscordChannelConnection["details"]["channel"] =
       connection.details.channel;
 
@@ -368,6 +371,7 @@ export class FeedConnectionsDiscordChannelsService {
         id: newChannelId,
         type: channel.type,
         guildId: channel.channel.guild_id,
+        parentChannelId: channel.parentChannel?.id,
       };
     }
 
@@ -378,7 +382,7 @@ export class FeedConnectionsDiscordChannelsService {
       const newWebhook = await this.getOrCreateApplicationWebhook({
         channelId: connection.details.webhook.channelId as string,
         webhook: {
-          name: `feed-${userFeed._id}-${newId}`,
+          name: `feed-${targetUserFeeds[0]._id}-${newIds[0]}`,
         },
       });
 
@@ -387,40 +391,51 @@ export class FeedConnectionsDiscordChannelsService {
     }
 
     try {
-      await this.userFeedModel.findOneAndUpdate(
-        {
-          _id: userFeed._id,
-        },
-        {
-          $push: {
-            "connections.discordChannels": {
-              ...connection,
-              id: newId,
-              name,
-              details: {
-                ...connection.details,
-                channel: channelDetailsToUse,
-                webhook: connection.details.webhook
-                  ? {
-                      ...connection.details.webhook,
-                      id: newWebhookId || connection.details.webhook.id,
-                      token:
-                        newWebhookToken || connection.details.webhook.token,
-                    }
-                  : undefined,
-              },
-            },
-          },
-        }
-      );
+      const session = await this.userFeedModel.startSession();
 
-      await this.connectionEventsService.handleCreatedEvent({
-        feed: userFeed,
-        connectionId: newId,
-        creator: {
-          discordUserId: userDiscordUserId,
-        },
+      await session.withTransaction(async () => {
+        await Promise.all(
+          targetUserFeeds.map(async (userFeed, index) => {
+            await this.userFeedModel.updateOne(
+              {
+                _id: userFeed._id,
+              },
+              {
+                $push: {
+                  "connections.discordChannels": {
+                    id: newIds[index],
+                    name,
+                    details: {
+                      ...connection.details,
+                      channel: channelDetailsToUse,
+                      webhook: connection.details.webhook
+                        ? {
+                            ...connection.details.webhook,
+                            id: newWebhookId || connection.details.webhook.id,
+                            token:
+                              newWebhookToken ||
+                              connection.details.webhook.token,
+                          }
+                        : null,
+                    },
+                  },
+                },
+              },
+              { session }
+            );
+
+            await this.connectionEventsService.handleCreatedEvent({
+              feed: userFeed,
+              connectionId: newIds[index],
+              creator: {
+                discordUserId: userDiscordUserId,
+              },
+            });
+          })
+        );
       });
+
+      await session.endSession();
     } catch (err) {
       if (newWebhookId) {
         await this.cleanupWebhook(newWebhookId);
@@ -430,7 +445,7 @@ export class FeedConnectionsDiscordChannelsService {
     }
 
     return {
-      id: newId,
+      ids: newIds,
     };
   }
 
@@ -597,10 +612,11 @@ export class FeedConnectionsDiscordChannelsService {
     let createdApplicationWebhookId: string | undefined = undefined;
 
     if (updates.details?.channel?.id) {
-      const { channel, type } = await this.assertDiscordChannelCanBeUsed(
-        accessToken,
-        updates.details.channel.id
-      );
+      const { channel, type, parentChannel } =
+        await this.assertDiscordChannelCanBeUsed(
+          accessToken,
+          updates.details.channel.id
+        );
 
       // @ts-ignore
       setRecordDetails["connections.discordChannels.$.details.channel"] = {
@@ -610,6 +626,7 @@ export class FeedConnectionsDiscordChannelsService {
           updates.threadCreationMethod === "new-thread"
             ? FeedConnectionDiscordChannelType.NewThread
             : type,
+        parentChannelId: parentChannel?.id,
       };
       // @ts-ignore
       setRecordDetails["connections.discordChannels.$.details.webhook"] = null;
@@ -671,10 +688,13 @@ export class FeedConnectionsDiscordChannelsService {
       let type: FeedConnectionDiscordWebhookType | undefined = undefined;
 
       if (threadId) {
-        const { channel: threadChannel } =
-          await this.assertDiscordChannelCanBeUsed(accessToken, threadId, true);
+        const { type: detectedType } = await this.assertDiscordChannelCanBeUsed(
+          accessToken,
+          threadId,
+          true
+        );
 
-        if (threadChannel.type === DiscordChannelType.PUBLIC_THREAD) {
+        if (detectedType === FeedConnectionDiscordChannelType.Thread) {
           type = FeedConnectionDiscordWebhookType.Thread;
         } else {
           throw new InvalidDiscordChannelException();
@@ -1131,6 +1151,7 @@ export class FeedConnectionsDiscordChannelsService {
     skipBotPermissionAssertions = false
   ) {
     try {
+      let parentChannel: DiscordGuildChannel | undefined = undefined;
       const channel = await this.feedsService.canUseChannel({
         channelId,
         userAccessToken: accessToken,
@@ -1141,13 +1162,16 @@ export class FeedConnectionsDiscordChannelsService {
 
       if (channel.type === DiscordChannelType.GUILD_FORUM) {
         type = FeedConnectionDiscordChannelType.Forum;
-      } else if (channel.type === DiscordChannelType.PUBLIC_THREAD) {
+      } else if (
+        channel.type === DiscordChannelType.PUBLIC_THREAD ||
+        channel.type === DiscordChannelType.ANNOUNCEMENT_THREAD
+      ) {
         type = FeedConnectionDiscordChannelType.Thread;
 
         const parentChannelId = channel.parent_id;
 
         if (parentChannelId) {
-          const parentChannel = await this.discordApiService.getChannel(
+          parentChannel = await this.discordApiService.getChannel(
             parentChannelId
           );
 
@@ -1159,6 +1183,7 @@ export class FeedConnectionsDiscordChannelsService {
 
       return {
         channel,
+        parentChannel,
         type,
       };
     } catch (err) {
@@ -1176,8 +1201,6 @@ export class FeedConnectionsDiscordChannelsService {
             throw new DiscordChannelPermissionsException();
           }
         }
-      } else if (err instanceof NoDiscordChannelPermissionOverwritesException) {
-        throw new InvalidDiscordChannelException();
       }
 
       throw err;

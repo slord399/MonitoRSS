@@ -809,7 +809,7 @@ const handlers = [
       );
     }
 
-    await delay(500);
+    await delay(5000);
 
     return HttpResponse.json<GetUserFeedOutput>({
       result: feed,
@@ -979,7 +979,7 @@ const handlers = [
 
     return HttpResponse.json<CreateDiscordChannelConnectionCloneOutput>({
       result: {
-        id: mockUserFeeds[0].connections[1].id,
+        ids: [mockUserFeeds[0].connections[1].id],
       },
     });
   }),
