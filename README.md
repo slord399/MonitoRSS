@@ -77,9 +77,9 @@ docker volume create portainer_data
 ```
 2. Run
 ```
-docker run -d -p 8500:8500 -p 9443:9443 --name portainer --restart=always -v /var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data portainer/portainer-ce:2.21.5
+docker run -d -p 8500:8500 -p 9443:9443 --name portainer --restart=always -v /var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data portainer/portainer-ce:lts
 ```
-3. Portainer v2.21.5 been installed which is current LTS build of Portainer.
+3. Portainer LTS been installed.
 
 
 #### Enable Email Notifications
