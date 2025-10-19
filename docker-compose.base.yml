@@ -45,7 +45,7 @@ services:
     # Comment below to show logs
     logging:
       driver: none
-    image: postgres:16.3-alpine
+    image: postgres:18.0-alpine
     volumes:
       - feed-requests-postgres16-data:/var/lib/postgresql/data
       - ./services/feed-requests/sql/setup.sql:/docker-entrypoint-initdb.d/setup.sql
