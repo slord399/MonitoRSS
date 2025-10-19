@@ -67,11 +67,11 @@
     "eslint-plugin-react": "^7.28.0",
     "eslint-plugin-react-hooks": "^4.6.2",
     "eslint-plugin-unused-imports": "^3.2.0",
-    "happy-dom": "^17.1.4",
+    "happy-dom": "^20.0.5",
     "msw": "^2.7.1",
     "prettier": "2.8.2",
     "typescript": "^5.4.5",
-    "vite": "^6.1.1",
+    "vite": "^6.4.0",
     "vitest": "^3.0.6"
   },
   "msw": {
