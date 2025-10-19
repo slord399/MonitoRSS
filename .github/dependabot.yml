@@ -9,23 +9,23 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "daily"
-    multi-ecosystem-group: "default"
+
 
   - package-ecosystem: "devcontainers" # See documentation for possible values
     directory: "/" # Location of package manifests
     schedule:
       interval: "daily"
-    multi-ecosystem-group: "default"
+
 
 
   - package-ecosystem: "docker" # See documentation for possible values
     directory: "/" # Location of package manifests
     schedule:
       interval: "daily"
-    multi-ecosystem-group: "default"
+
 
   - package-ecosystem: "docker-compose" # See documentation for possible values
     directory: "/" # Location of package manifests
     schedule:
       interval: "daily"
-    multi-ecosystem-group: "default"
+
