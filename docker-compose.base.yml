@@ -45,7 +45,7 @@ services:
     # Comment below to show logs
     logging:
       driver: none
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     volumes:
       - feed-requests-postgres17-data:/var/lib/postgresql/data
     networks:
