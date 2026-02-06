@@ -28,6 +28,7 @@ export enum ApiErrorCode {
   FEED_TOO_LARGE = "FEED_TOO_LARGE",
   ADD_FEED_WITH_SOURCE_FEED_NOT_FOUND = "ADD_FEED_WITH_SOURCE_FEED_NOT_FOUND",
   FEED_INVALID_FILTER_EXPRESSION = "FEED_INVALID_FILTER_EXPRESSION",
+  FEED_INVALID_COMPONENTS_V2 = "FEED_INVALID_COMPONENTS_V2",
   BANNED_FEED = "BANNED_FEED",
   DISCORD_CHANNEL_NOT_OWNED_BY_GUILD = "DISCORD_CHANNEL_NOT_OWNED_BY_GUILD",
   DISCORD_CAHNNEL_INVALID = "DISCORD_CAHNNEL_INVALID",
@@ -39,7 +40,6 @@ export enum ApiErrorCode {
   LEGACY_CONVERSION_JOB_EXISTS = "LEGACY_CONVERSION_JOB_EXISTS",
   NO_LEGACY_FEEDS_TO_CONVERT = "NO_LEGACY_FEEDS_TO_CONVERT",
   HANDLED_BY_BULK_CONVERSION = "HANDLED_BY_BULK_CONVERSION",
-  CANNOT_RESTORE_LEGACY_FEED = "CANNOT_RESTORE_LEGACY_FEED",
   MISSING_SHARED_MANAGER_PERMISSIONS = "MISSING_SHARED_MANAGER_PERMISSIONS",
   USER_MANAGER_ALREADY_INVITED = "USER_MANAGER_ALREADY_INVITED",
   USER_FEED_TRANSFER_REQUEST_EXISTS = "USER_FEED_TRANSFER_REQUEST_EXISTS",
@@ -49,6 +49,7 @@ export enum ApiErrorCode {
   TRANSACTION_BALANCE_TOO_LOW = "TRANSACTION_BALANCE_TOO_LOW",
   SUBSCRIPTION_ABOUT_TO_RENEW = "SUBSCRIPTION_ABOUT_TO_RENEW",
   USER_REFRESH_RATE_NOT_ALLOWED = "USER_REFRESH_RATE_NOT_ALLOWED",
+  ADDRESS_LOCATION_NOT_ALLOWED = "ADDRESS_LOCATION_NOT_ALLOWED",
 }
 
 // Create a package for the frontend?
@@ -91,6 +92,7 @@ export const API_ERROR_MESSAGES: Record<ApiErrorCode, string> = {
     "Feed does not exist or is not accessible. You may confirm by directly going to the feed link and checking that the feed is valid and publicly accessible.",
   FEED_TOO_LARGE: "Feed is too large to be processed",
   FEED_INVALID_FILTER_EXPRESSION: "Invalid filter expression",
+  FEED_INVALID_COMPONENTS_V2: "Invalid componentsV2 configuration",
   FEED_CONNECTION_CANNOT_ENABLE_AUTO_DISABLED:
     "Cannot enable a feed that was automatically disabled",
   FEED_ARTICLE_NOT_FOUND: "Article does not exist",
@@ -103,7 +105,6 @@ export const API_ERROR_MESSAGES: Record<ApiErrorCode, string> = {
     "A legacy conversion job already exists for this feed",
   NO_LEGACY_FEEDS_TO_CONVERT: "No legacy feeds to convert",
   HANDLED_BY_BULK_CONVERSION: "Handled by bulk conversion",
-  CANNOT_RESTORE_LEGACY_FEED: "Feed is ineligible for legacy restoration",
   MISSING_SHARED_MANAGER_PERMISSIONS:
     "You are missing the required permissions to do this action.",
   USER_MANAGER_ALREADY_INVITED: "Invitation exists for this user.",
@@ -119,4 +120,6 @@ export const API_ERROR_MESSAGES: Record<ApiErrorCode, string> = {
   SUBSCRIPTION_ABOUT_TO_RENEW:
     "Subscription is about to renew. Wait at least 30 minutes before trying again.",
   USER_REFRESH_RATE_NOT_ALLOWED: "Refresh rate not allowed",
+  ADDRESS_LOCATION_NOT_ALLOWED:
+    "Your location is not supported for billing. This may be due to regional restrictions. If you believe this is an error, please contact support@monitorss.xyz.",
 };

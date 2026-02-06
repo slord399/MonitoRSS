@@ -6,17 +6,43 @@ import { CacheStorageModule } from "../cache-storage/cache-storage.module";
 import logger from "../shared/utils/logger";
 import { DeliveryService } from "./delivery.service";
 import { DiscordMediumService } from "./mediums/discord-medium.service";
+// eslint-disable-next-line max-len
+import { DiscordApiClientService } from "./mediums/discord/services/discord-api-client.service";
+// eslint-disable-next-line max-len
+import { DiscordDeliveryResultService } from "./mediums/discord/services/discord-delivery-result.service";
+// eslint-disable-next-line max-len
+import { DiscordMessageEnqueueService } from "./mediums/discord/services/discord-message-enqueue.service";
+// eslint-disable-next-line max-len
+import { DiscordPayloadBuilderService } from "./mediums/discord/services/discord-payload-builder.service";
+// eslint-disable-next-line max-len
+import { DiscordTestDeliveryService } from "./mediums/discord/services/discord-test-delivery.service";
 
 @Module({
   controllers: [],
-  providers: [DeliveryService, DiscordMediumService],
+  providers: [
+    DeliveryService,
+    DiscordMediumService,
+    DiscordApiClientService,
+    DiscordDeliveryResultService,
+    DiscordMessageEnqueueService,
+    DiscordPayloadBuilderService,
+    DiscordTestDeliveryService,
+  ],
   imports: [
     ArticleFiltersModule,
     ArticleRateLimitModule,
     ArticleFormatterModule,
     CacheStorageModule,
   ],
-  exports: [DeliveryService, DiscordMediumService],
+  exports: [
+    DeliveryService,
+    DiscordMediumService,
+    DiscordApiClientService,
+    DiscordDeliveryResultService,
+    DiscordMessageEnqueueService,
+    DiscordPayloadBuilderService,
+    DiscordTestDeliveryService,
+  ],
 })
 export class DeliveryModule implements OnApplicationShutdown {
   constructor(private readonly discordMediumService: DiscordMediumService) {}

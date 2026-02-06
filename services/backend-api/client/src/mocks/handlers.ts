@@ -10,25 +10,14 @@ import {
 } from "@/features/discordUser";
 import { GetServersOutput } from "../features/discordServers/api/getServer";
 import {
-  CloneFeedOutput,
-  CreateFeedSubscriberOutput,
-  CreateServerLegacyFeedBulkConversionOutput,
   CreateUserFeedCloneOutput,
   CreateUserFeedDatePreviewOutput,
   CreateUserFeedInput,
-  CreateUserFeedLegacyRestoreOutput,
   CreateUserFeedManagementInviteOutput,
   CreateUserFeedManualRequestOutput,
   CreateUserFeedOutput,
   DeleteUserFeedsInput,
   DeleteUserFeedsOutput,
-  FeedSummary,
-  GetFeedArticlesOutput,
-  GetFeedOutput,
-  GetFeedsOutput,
-  GetFeedSubscribersOutput,
-  GetLegacyFeedCountOutput,
-  GetServerLegacyFeedBulkConversionOutput,
   GetUserFeedArticlePropertiesOutput,
   GetUserFeedArticlesOutput,
   GetUserFeedDeliveryLogsOutput,
@@ -36,14 +25,11 @@ import {
   GetUserFeedManagementInvitesOutput,
   GetUserFeedOutput,
   GetUserFeedsOutput,
-  UpdateFeedSubscriberOutput,
   UpdateUserFeedOutput,
   UserFeedArticleRequestStatus,
   UserFeedHealthStatus,
 } from "../features/feed";
 import mockDiscordServers from "./data/discordServers";
-import mockFeeds from "./data/feed";
-import mockFeedArticles from "./data/feedArticles";
 import mockDiscordUserMe from "./data/discordUserMe";
 import {
   GetServerActiveThreadsOutput,
@@ -56,7 +42,6 @@ import {
 } from "@/features/discordServers";
 import mockDiscordChannels from "./data/discordChannels";
 import mockDiscordRoles from "./data/discordRoles";
-import mockFeedSubscribers from "./data/feedSubscribers";
 import { GetDiscordWebhooksOutput } from "@/features/discordWebhooks";
 import mockDiscordWebhooks from "./data/discordWebhooks";
 import { generateMockApiErrorResponse } from "./generateMockApiErrorResponse";
@@ -69,26 +54,23 @@ import {
   UpdateDiscordChannelConnectionOutput,
 } from "../features/feedConnections";
 import { mockFeedChannelConnections } from "./data/feedConnection";
-import mockUserFeeds from "./data/userFeeds";
-import mockFeedSummaries from "./data/feeds";
+import mockUserFeeds, { getMockUserFeeds } from "./data/userFeeds";
 import { mockSendTestArticleResult } from "./data/testArticleResult";
 import { mockUserFeedArticles } from "./data/userFeedArticles";
 import { GetUserFeedRequestsOutput } from "../features/feed/api/getUserFeedRequests";
 import { mockUserFeedRequests } from "./data/userFeedRequests";
-import { mockCreatePreviewResult } from "./data/createPreview";
+import { getMockCreatePreviewResult } from "./data/createPreview";
 import mockDiscordThreads from "./data/discordThreads";
 import mockDiscordServerMembers from "./data/discordServerMembers";
 import mockDiscordUser from "./data/discordUser";
 import mockUserFeedSummary from "./data/userFeedSummary";
-import { legacyFeedBulkConversion } from "./data/legacyFeedBulkConversion";
 import { UserFeedManagerStatus } from "../constants";
 import mockUserFeedManagementInvites from "./data/userFeedManagementInvites";
 import mockUserMe from "./data/userMe";
-import {
-  GetSubscriptionChangePreviewOutput,
-  GetSubscriptionProductsOutput,
-} from "../features/subscriptionProducts";
+import { GetSubscriptionChangePreviewOutput } from "../features/subscriptionProducts";
 import { mockUserFeedDeliveryLogs } from "./data/userFeedDeliveryLogs";
+import { getMockDeliveryPreviews, getMockFeedState } from "./data/deliveryPreview";
+import { DeliveryPreviewStage } from "../features/feed/types/DeliveryPreview";
 import {
   CreateUserFeedUrlValidationInput,
   CreateUserFeedUrlValidationOutput,
@@ -133,98 +115,6 @@ const handlers = [
 
     return new HttpResponse(null, {
       status: 204,
-    });
-  }),
-  http.get("/api/v1/subscription-products", async ({ request }) => {
-    const url = new URL(request.url);
-    const currencyCode = url.searchParams.get("currency") || "USD";
-
-    await delay(500);
-
-    return HttpResponse.json<GetSubscriptionProductsOutput>({
-      data: {
-        products: [
-          {
-            id: "free",
-            name: "Free",
-            prices: [
-              {
-                interval: "month",
-                formattedPrice: "$0",
-                currencyCode,
-                id: "f0",
-              },
-              {
-                interval: "year",
-                formattedPrice: "$0",
-                currencyCode,
-                id: "f1",
-              },
-            ],
-          },
-          {
-            id: "tier1",
-            name: "Tier 1",
-            prices: [
-              {
-                interval: "month",
-                formattedPrice: `$${(Math.random() * 100).toFixed(2)}`,
-                currencyCode,
-                id: "p1",
-              },
-              {
-                interval: "year",
-                formattedPrice: `$${(Math.random() * 100).toFixed(2)}`,
-                currencyCode,
-                id: "p2",
-              },
-            ],
-          },
-          {
-            id: "tier2",
-            name: "Tier 2",
-            prices: [
-              {
-                interval: "month",
-                formattedPrice: `$${(Math.random() * 100).toFixed(2)}`,
-                currencyCode,
-                id: "p3",
-              },
-              {
-                interval: "year",
-                formattedPrice: `$${(Math.random() * 100).toFixed(2)}`,
-                currencyCode,
-                id: "p4",
-              },
-            ],
-          },
-          {
-            id: "tier3",
-            name: "Tier 3",
-            prices: [
-              {
-                interval: "month",
-                formattedPrice: `$${(Math.random() * 100).toFixed(2)}`,
-                currencyCode,
-                id: "p5",
-              },
-              {
-                interval: "year",
-                formattedPrice: `$${(Math.random() * 100).toFixed(2)}`,
-                currencyCode,
-                id: "p6",
-              },
-            ],
-          },
-        ],
-        currencies: [
-          { code: "USD", symbol: "$" },
-          {
-            code: "EUR",
-            symbol: "€",
-          },
-        ],
-      },
     });
   }),
   http.post("/api/v1/error-reports", async () => {
@@ -293,26 +183,6 @@ const handlers = [
     });
   }),
 
-  http.get("/api/v1/discord-servers/:serverId/legacy-conversion", async () => {
-    await delay(500);
-
-    return HttpResponse.json<GetServerLegacyFeedBulkConversionOutput>(legacyFeedBulkConversion);
-  }),
-
-  http.post("/api/v1/discord-servers/:serverId/legacy-conversion", async () => {
-    if (legacyFeedBulkConversion.status !== "IN_PROGRESS") {
-      legacyFeedBulkConversion.status = "IN_PROGRESS";
-    } else {
-      legacyFeedBulkConversion.status = "COMPLETED";
-      legacyFeedBulkConversion.failedFeeds = [];
-    }
-
-    await delay(500);
-
-    return HttpResponse.json<CreateServerLegacyFeedBulkConversionOutput>({
-      total: 5,
-    });
-  }),
   http.get("/api/v1/discord-servers/:serverId", async () =>
     HttpResponse.json<GetServerSettingsOutput>({
       result: {
@@ -337,46 +207,6 @@ const handlers = [
       },
     })
   ),
-
-  http.get("/api/v1/discord-servers/:serverId/legacy-feed-count", async () => {
-    await delay(700);
-
-    return HttpResponse.json<GetLegacyFeedCountOutput>({
-      result: {
-        total: 5,
-      },
-    });
-  }),
-
-  http.get("/api/v1/discord-servers/:serverId/feeds", async ({ request }) => {
-    const url = new URL(request.url);
-
-    const limit = Number(url.searchParams.get("limit") || "10");
-    const offset = Number(url.searchParams.get("offset") || "0");
-    const search = url.searchParams.get("search");
-
-    const theseMockSummariesTotal = mockFeedSummaries.length * 5;
-    const theseMockSummaries: FeedSummary[] = new Array(theseMockSummariesTotal)
-      .fill(0)
-      .map((_, i) => ({
-        ...mockFeedSummaries[i % mockFeedSummaries.length],
-        id: i.toString(),
-      }))
-      .filter((feed) =>
-        !search
-          ? true
-          : feed.title.toLowerCase().includes(search) || feed.url.toLowerCase().includes(search)
-      );
-
-    const results = theseMockSummaries.slice(offset, offset + limit);
-
-    await delay(700);
-
-    return HttpResponse.json<GetFeedsOutput>({
-      total: theseMockSummariesTotal,
-      results,
-    });
-  }),
 
   http.get("/api/v1/discord-servers/:serverId/active-threads", async () =>
     HttpResponse.json<GetServerActiveThreadsOutput>({
@@ -609,16 +439,6 @@ const handlers = [
     });
   }),
 
-  http.post("/api/v1/user-feeds/:id/restore-to-legacy", async () => {
-    await delay(500);
-
-    return HttpResponse.json<CreateUserFeedLegacyRestoreOutput>({
-      result: {
-        status: "success",
-      },
-    });
-  }),
-
   http.patch("/api/v1/user-feeds", async ({ request }) => {
     const body = (await request.json()) as Record<string, unknown>;
 
@@ -799,7 +619,8 @@ const handlers = [
 
   http.get("/api/v1/user-feeds/:feedId", async ({ params }) => {
     const { feedId } = params;
-    const feed = mockUserFeeds.find((f) => f.id === feedId);
+    const feeds = getMockUserFeeds();
+    const feed = feeds.find((f) => f.id === feedId);
 
     if (!feed) {
       return HttpResponse.json(
@@ -819,12 +640,31 @@ const handlers = [
     });
   }),
 
-  http.post("/api/v1/user-feeds/:feedId/get-articles", async ({ request }) => {
+  http.post("/api/v1/user-feeds/:feedId/get-articles", async ({ request, params }) => {
+    const { feedId } = params;
     const { skip, limit, filters } = (await request.json()) as {
       skip: number;
       limit: number;
       filters: Record<string, unknown>;
     };
+
+    // Return empty articles when feedId contains "empty" (for testing empty feed state)
+    if (typeof feedId === "string" && feedId.includes("empty")) {
+      await delay(500);
+
+      return HttpResponse.json<GetUserFeedArticlesOutput>({
+        result: {
+          articles: [],
+          totalArticles: 0,
+          requestStatus: UserFeedArticleRequestStatus.Success,
+          response: {
+            statusCode: 200,
+          },
+          filterStatuses: [],
+          selectedProperties: [],
+        },
+      });
+    }
 
     const useSkip = skip || 0;
     const useLimit = limit || 10;
@@ -888,6 +728,40 @@ const handlers = [
     });
   }),
 
+  http.post("/api/v1/user-feeds/:feedId/delivery-preview", async ({ request }) => {
+    const body = (await request.json()) as { skip?: number; limit?: number };
+    const skip = body.skip || 0;
+    const limit = body.limit || 10;
+
+    const feedState = getMockFeedState();
+
+    await delay(500);
+
+    // When feedState is present, return empty results (feed-level state)
+    if (feedState) {
+      return HttpResponse.json({
+        result: {
+          results: [],
+          total: 0,
+          stages: Object.values(DeliveryPreviewStage),
+          feedState,
+        },
+      });
+    }
+
+    // Normal case: return delivery preview results
+    const mockData = getMockDeliveryPreviews();
+    const paginatedResults = mockData.slice(skip, skip + limit);
+
+    return HttpResponse.json({
+      result: {
+        results: paginatedResults,
+        total: mockData.length,
+        stages: Object.values(DeliveryPreviewStage),
+      },
+    });
+  }),
+
   http.get("/api/v1/user-feeds/:feedId/article-properties", async () => {
     await delay(500);
 
@@ -908,6 +782,17 @@ const handlers = [
         max: 500,
       },
     });
+  }),
+
+  http.post("/api/v1/user-feeds/:feedId/test-send", async () => {
+    await delay(500);
+
+    return HttpResponse.json(
+      {
+        result: mockSendTestArticleResult,
+      },
+      { status: 200 }
+    );
   }),
 
   http.get("/api/v1/user-feeds/:feedId/retry", async ({ params }) => {
@@ -937,40 +822,18 @@ const handlers = [
     });
   }),
 
-  http.get("/api/v1/feeds/:feedId", async () => {
-    // await delay(500);
-
-    return HttpResponse.json<GetFeedOutput>({
-      result: mockFeeds[0],
-    });
-  }),
-
-  http.get("/api/v1/feeds/:feedId", async () => {
-    await delay(500);
-
-    return HttpResponse.json<GetFeedOutput>({
-      result: mockFeeds[0],
-    });
-  }),
-
-  http.delete("/api/v1/feeds/:feedId", async () => {
-    await delay(500);
-
-    return new HttpResponse(null, {
-      status: 204,
-    });
-  }),
-
-  http.post("/api/v1/feeds/:feedId/clone", async () => {
-    await delay(500);
-
-    return HttpResponse.json<CloneFeedOutput>({
-      results: mockFeeds,
-    });
-  }),
-
   http.post("/api/v1/user-feeds/:feedId/connections/discord-channels", async () => {
     await delay(500);
+
+    // Sample error state for testing - uncomment the error response to test error handling
+    // return HttpResponse.json(
+    //   generateMockApiErrorResponse({
+    //     code: "DISCORD_CHANNEL_PERMISSIONS_MISSING",
+    //   }),
+    //   {
+    //     status: 403,
+    //   }
+    // );
 
     return HttpResponse.json<CreateDiscordChannelConnectionOutput>({
       result: mockFeedChannelConnections[0],
@@ -1013,7 +876,15 @@ const handlers = [
     await delay(500);
 
     return HttpResponse.json<CreateDiscordChannelConnectionPreviewOutput>({
-      result: mockCreatePreviewResult,
+      result: getMockCreatePreviewResult(true),
+    });
+  }),
+
+  http.post("/api/v1/user-feeds/:feedId/connections/template-preview", async () => {
+    await delay(500);
+
+    return HttpResponse.json<CreateDiscordChannelConnectionPreviewOutput>({
+      result: getMockCreatePreviewResult(true),
     });
   }),
 
@@ -1038,68 +909,6 @@ const handlers = [
 
     return new HttpResponse(null, {
       status: 204,
-    });
-  }),
-
-  http.get("/api/v1/feeds/:feedId/subscribers", async () => {
-    return HttpResponse.json<GetFeedSubscribersOutput>({
-      results: mockFeedSubscribers,
-      total: mockFeedSubscribers.length,
-    });
-  }),
-
-  http.post("/api/v1/feeds/:feedId/subscribers", async () => {
-    await delay(500);
-
-    return HttpResponse.json<CreateFeedSubscriberOutput>({
-      result: {
-        id: "3",
-        discordId: mockDiscordRoles[2].id,
-        feed: mockFeeds[0].id,
-        filters: [],
-        type: "role",
-      },
-    });
-  }),
-
-  http.patch("/api/v1/feeds/:feedId/subscribers/:subscriberId", async () => {
-    await delay(500);
-
-    return HttpResponse.json<UpdateFeedSubscriberOutput>({
-      result: mockFeedSubscribers[0],
-    });
-  }),
-
-  http.delete("/api/v1/feeds/:feedId/subscribers/:subscriberId", async () => {
-    await delay(500);
-
-    return new HttpResponse(null, {
-      status: 204,
-    });
-  }),
-
-  http.patch("/api/v1/feeds/:feedId", async () => {
-    await delay(500);
-
-    return HttpResponse.json(
-      generateMockApiErrorResponse({
-        code: "WEBHOOK_INVALID",
-      }),
-      {
-        status: 400,
-      }
-    );
-  }),
-
-  http.get("/api/v1/feeds/:feedId/articles", async () => {
-    return HttpResponse.json<GetFeedArticlesOutput>({
-      result: mockFeedArticles,
-    });
-  }),
-
-  http.get("/api/v1/feeds/:feedId/refresh", async () => {
-    return HttpResponse.json<GetFeedOutput>({
-      result: mockFeeds[0],
     });
   }),
 ];

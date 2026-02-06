@@ -9,6 +9,26 @@ export const UserMeSchema = object({
     dateFormat: string().nullable(),
     dateLocale: string().nullable(),
     dateTimezone: string().nullable(),
+    feedListSort: object({
+      key: string().required(),
+      direction: string().oneOf(["asc", "desc"]).required(),
+    })
+      .nullable()
+      .optional(),
+    feedListColumnVisibility: object({
+      computedStatus: bool().optional(),
+      title: bool().optional(),
+      url: bool().optional(),
+      createdAt: bool().optional(),
+      ownedByUser: bool().optional(),
+      refreshRateSeconds: bool().optional(),
+    }).optional(),
+    feedListColumnOrder: object({
+      columns: array(string().required()).required(),
+    }).optional(),
+    feedListStatusFilters: object({
+      statuses: array(string().required()).required(),
+    }).optional(),
   }).default({}),
   subscription: object({
     product: object({
@@ -32,13 +52,13 @@ export const UserMeSchema = object({
       end: string().required(),
     }).nullable(),
     updatedAt: string().required(),
+    pastDueGracePeriodEndDate: string().nullable(),
   }).required(),
   creditBalance: object({
     availableFormatted: string().required(),
   }).required(),
   isOnPatreon: bool(),
   enableBilling: bool(),
-  migratedToPersonalFeeds: bool(),
   featureFlags: object({
     externalProperties: bool(),
   }),

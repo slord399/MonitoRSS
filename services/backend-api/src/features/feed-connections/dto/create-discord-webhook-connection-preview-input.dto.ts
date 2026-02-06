@@ -86,4 +86,10 @@ export class CreateDiscordWebhookConnectionPreviewInputDto {
   @Type(() => Boolean)
   @IsBoolean()
   enablePlaceholderFallback?: boolean;
+
+  @IsArray()
+  @IsObject({ each: true })
+  @IsOptional()
+  @ValidateIf((v) => v !== null)
+  componentsV2?: Array<Record<string, unknown>>;
 }

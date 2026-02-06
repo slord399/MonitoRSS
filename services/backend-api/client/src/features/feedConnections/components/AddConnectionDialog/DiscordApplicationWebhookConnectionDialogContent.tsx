@@ -21,10 +21,16 @@ import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 import { InferType, object, string } from "yup";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 
 import RouteParams from "../../../../types/RouteParams";
-import { useCreateDiscordChannelConnection } from "../../hooks";
+import {
+  useCreateDiscordChannelConnection,
+  useConnectionTemplateSelection,
+  useTestSendFlow,
+  getTemplateUpdateData,
+  useConnectionDialogCallbacks,
+} from "../../hooks";
 import {
   DiscordActiveThreadDropdown,
   DiscordChannelDropdown,
@@ -33,9 +39,16 @@ import {
 } from "../../../discordServers";
 import { SubscriberBlockText } from "@/components/SubscriberBlockText";
 import { BlockableFeature, SupporterTier } from "../../../../constants";
-import { InlineErrorAlert, InlineErrorIncompleteFormAlert } from "../../../../components";
 import { usePageAlertContext } from "../../../../contexts/PageAlertContext";
 import { useIsFeatureAllowed } from "../../../../hooks";
+import {
+  TEMPLATES,
+  DEFAULT_TEMPLATE,
+  getTemplateById,
+} from "../../../templates/constants/templates";
+import { TemplateGalleryModal } from "../../../templates/components/TemplateGalleryModal";
+import convertMessageBuilderStateToConnectionUpdate from "../../../../pages/MessageBuilder/utils/convertMessageBuilderStateToConnectionUpdate";
+import { ConnectionDialogErrorDisplay } from "./ConnectionDialogErrorDisplay";
 
 const formSchema = object({
   name: string().required("Name is required").max(250, "Name must be less than 250 characters"),
@@ -61,10 +74,28 @@ export const DiscordApplicationWebhookConnectionDialogContent: React.FC<Props> =
 }) => {
   const { feedId } = useParams<RouteParams>();
   const { t } = useTranslation();
+
+  // Template selection state (webhook is always creating, not editing)
+  const {
+    isTemplateStep,
+    selectedTemplateId,
+    setSelectedTemplateId,
+    selectedArticleId,
+    setSelectedArticleId,
+    userFeed,
+    articles,
+    feedFields,
+    detectedFields,
+    isLoadingArticles,
+    handleNextStep: templateHandleNextStep,
+    handleBackStep,
+  } = useConnectionTemplateSelection({ isOpen, isEditing: false });
+
   const {
     handleSubmit,
     control,
     reset,
+    trigger,
     watch,
     setValue,
     formState: { errors, isSubmitting, isValid, isSubmitted },
@@ -72,11 +103,87 @@ export const DiscordApplicationWebhookConnectionDialogContent: React.FC<Props> =
     resolver: yupResolver(formSchema),
     mode: "all",
   });
-  const [serverId, channelId, threadId] = watch(["serverId", "channelId", "threadId"]);
+  const [serverId, channelId, threadId, webhookData] = watch([
+    "serverId",
+    "channelId",
+    "threadId",
+    "webhook",
+  ]);
   const { mutateAsync, error } = useCreateDiscordChannelConnection();
   const { createSuccessAlert } = usePageAlertContext();
   const { allowed } = useIsFeatureAllowed({ feature: BlockableFeature.DiscordWebhooks });
   const initialFocusRef = useRef<any>(null);
+
+  // Shared callbacks from hook
+  const { onSaveSuccess } = useConnectionDialogCallbacks();
+
+  // Create connection callback for test send flow
+  const createConnection = useCallback(async (): Promise<void> => {
+    if (!feedId) {
+      throw new Error("Feed ID missing");
+    }
+
+    const formValues = watch();
+    const { name, webhook, threadId: inputThreadId } = formValues;
+
+    // Get template data to include in create call
+    const templateData = getTemplateUpdateData(selectedTemplateId, detectedFields);
+
+    await mutateAsync({
+      feedId,
+      details: {
+        name,
+        applicationWebhook: {
+          channelId,
+          name: webhook.name,
+          iconUrl: webhook.iconUrl,
+          threadId: inputThreadId,
+        },
+        content: templateData.content,
+        embeds: templateData.embeds,
+        componentsV2: templateData.componentsV2,
+        placeholderLimits: templateData.placeholderLimits,
+        formatter: templateData.formatter,
+      },
+    });
+  }, [feedId, watch, mutateAsync, selectedTemplateId, channelId, detectedFields]);
+
+  // Get connection name from form
+  const getConnectionName = useCallback(() => watch("name"), [watch]);
+
+  // Determine the effective channel ID for test send
+  const testSendChannelId = threadId || channelId;
+
+  // Test send flow hook
+  const {
+    testSendFeedback,
+    isSaving,
+    isTestSending,
+    handleTestSend,
+    handleSave,
+    clearTestSendFeedback,
+  } = useTestSendFlow({
+    feedId,
+    channelId: testSendChannelId,
+    webhookName: webhookData?.name,
+    webhookIconUrl: webhookData?.iconUrl,
+    selectedTemplateId,
+    selectedArticleId,
+    detectedFields,
+    isOpen,
+    createConnection,
+    onSaveSuccess,
+    onClose,
+    getConnectionName,
+  });
+
+  const handleNextStep = async () => {
+    const isFormValid = await trigger(["serverId", "channelId", "name", "webhook"]);
+
+    if (isFormValid) {
+      templateHandleNextStep();
+    }
+  };
 
   const onSubmit = async ({ threadId: inputThreadId, name, webhook }: FormData) => {
     if (!feedId) {
@@ -84,6 +191,16 @@ export const DiscordApplicationWebhookConnectionDialogContent: React.FC<Props> =
     }
 
     try {
+      // Get the template to apply (selected or default)
+      const templateToApply = selectedTemplateId
+        ? getTemplateById(selectedTemplateId) || DEFAULT_TEMPLATE
+        : DEFAULT_TEMPLATE;
+
+      // Create message component with detected fields and convert to API format
+      const messageComponent = templateToApply.createMessageComponent(detectedFields);
+      const templateData = convertMessageBuilderStateToConnectionUpdate(messageComponent);
+
+      // Create the connection with template data in a single atomic operation
       await mutateAsync({
         feedId,
         details: {
@@ -94,14 +211,22 @@ export const DiscordApplicationWebhookConnectionDialogContent: React.FC<Props> =
             iconUrl: webhook.iconUrl,
             threadId: inputThreadId,
           },
+          content: templateData.content,
+          embeds: templateData.embeds,
+          componentsV2: templateData.componentsV2,
+          placeholderLimits: templateData.placeholderLimits,
+          formatter: templateData.formatter,
         },
       });
+
       createSuccessAlert({
-        title: "Successfully added connection",
-        description: "New articles will be delivered automatically when found.",
+        title: "You're all set!",
+        description: `New articles will be delivered automatically to ${name || "your channel"}.`,
       });
       onClose();
-    } catch (err) {}
+    } catch (err) {
+      // Error handled by mutation error state
+    }
   };
 
   useEffect(() => {
@@ -109,6 +234,41 @@ export const DiscordApplicationWebhookConnectionDialogContent: React.FC<Props> =
   }, [isOpen]);
 
   const errorCount = Object.keys(errors).length;
+
+  // For template selection step, show TemplateGalleryModal instead of regular modal
+  if (isTemplateStep) {
+    return (
+      <TemplateGalleryModal
+        isOpen={isOpen}
+        onClose={onClose}
+        templates={TEMPLATES}
+        selectedTemplateId={selectedTemplateId}
+        onTemplateSelect={setSelectedTemplateId}
+        feedFields={feedFields}
+        detectedFields={detectedFields}
+        articles={articles.map((a) => ({
+          id: a.id,
+          title: (a as Record<string, unknown>).title as string | undefined,
+        }))}
+        selectedArticleId={selectedArticleId}
+        onArticleChange={setSelectedArticleId}
+        isLoadingArticles={isLoadingArticles}
+        feedId={feedId || ""}
+        userFeed={userFeed}
+        tertiaryActionLabel="← Back to Channel"
+        onTertiaryAction={handleBackStep}
+        onCancel={onClose}
+        testId="webhook-template-selection-modal"
+        onTestSend={handleTestSend}
+        isTestSendLoading={isTestSending}
+        testSendFeedback={testSendFeedback}
+        onClearTestSendFeedback={clearTestSendFeedback}
+        onSave={handleSave}
+        isSaveLoading={isSaving || isSubmitting}
+        saveError={error}
+      />
+    );
+  }
 
   return (
     <Modal
@@ -334,15 +494,11 @@ export const DiscordApplicationWebhookConnectionDialogContent: React.FC<Props> =
                 </FormControl>
               </Stack>
             </form>
-            {error && (
-              <InlineErrorAlert
-                title={t("common.errors.somethingWentWrong")}
-                description={error.message}
-              />
-            )}
-            {isSubmitted && errorCount > 0 && (
-              <InlineErrorIncompleteFormAlert fieldCount={errorCount} />
-            )}
+            <ConnectionDialogErrorDisplay
+              error={error}
+              isSubmitted={isSubmitted}
+              formErrorCount={errorCount}
+            />
           </Stack>
         </ModalBody>
         <ModalFooter>
@@ -351,14 +507,8 @@ export const DiscordApplicationWebhookConnectionDialogContent: React.FC<Props> =
               <Button variant="ghost" mr={3} onClick={onClose} isDisabled={isSubmitting}>
                 <span>{t("common.buttons.cancel")}</span>
               </Button>
-              <Button
-                colorScheme="blue"
-                type="submit"
-                form="addconnection"
-                isLoading={isSubmitting}
-                aria-disabled={isSubmitting || !isValid}
-              >
-                <span>{t("common.buttons.save")}</span>
+              <Button colorScheme="blue" onClick={handleNextStep} isDisabled={isSubmitting}>
+                <span>Next: Choose Template</span>
               </Button>
             </HStack>
           )}

@@ -6,6 +6,8 @@
 import SimpleMarkdown from "simple-markdown";
 import Twemoji from "twemoji";
 import hljs from "highlight.js";
+import { uniqueId } from "lodash";
+import { getChannelIcon } from "../../../utils/getChannelIcon";
 import Emoji from "../../../constants/emojis";
 
 // this is mostly translated from discord's client,
@@ -56,6 +58,14 @@ function parserFor(rules, returnAst) {
   const renderer = SimpleMarkdown.reactFor(SimpleMarkdown.ruleOutput(rules, "react"));
 
   return function (input = "", inline = true, state = {}, transform = null) {
+    // Preserve multiple consecutive newlines (2+) by adding zero-width spaces
+    // This prevents SimpleMarkdown from collapsing them into a single paragraph break
+    // N newlines should produce N-1 visible line breaks
+    input = input.replace(/\n{2,}/g, (match) => {
+      // Paragraph break alone creates 0 visible spacing (margin:0), so add explicit breaks
+      return `\n\n${"\u200B\n".repeat(match.length - 1)}`;
+    });
+
     if (!inline) {
       input += "\n\n";
     }
@@ -71,7 +81,7 @@ function parserFor(rules, returnAst) {
       return ast;
     }
 
-    return renderer(ast);
+    return renderer(ast, state);
   };
 }
 
@@ -167,6 +177,163 @@ function translateSurrogatesToInlineEmoji(surrogates) {
 
 const baseRules = {
   newline: SimpleMarkdown.defaultRules.newline,
+  heading: {
+    order: SimpleMarkdown.defaultRules.heading.order,
+    match: SimpleMarkdown.blockRegex(/^(#{1,3})\s+([^\n]+?)(?:\n|$)/),
+    parse(capture, parse, state) {
+      // Parse heading content in inline mode so links work inside headings
+      const inlineState = { ...state, inline: true };
+
+      return {
+        level: capture[1].length,
+        content: parse(capture[2].trim(), inlineState),
+      };
+    },
+    react(node, recurseOutput, state) {
+      return (
+        <div key={state.key} className={`markdown-heading markdown-heading-${node.level}`}>
+          {recurseOutput(node.content, state)}
+        </div>
+      );
+    },
+  },
+  subtext: {
+    order: SimpleMarkdown.defaultRules.heading.order,
+    match(source) {
+      // Match -# at start of source or after newlines
+      return /^(?:\n)*-#\s+([^\n]+?)(?:\n|$)/.exec(source);
+    },
+    parse(capture, parse, state) {
+      // Parse subtext content in inline mode so links work inside subtext
+      const inlineState = { ...state, inline: true };
+
+      return {
+        content: parse(capture[1].trim(), inlineState),
+      };
+    },
+    react(node, recurseOutput, state) {
+      return (
+        <div key={state.key} className="markdown-subtext">
+          {recurseOutput(node.content, state)}
+        </div>
+      );
+    },
+  },
+  blockQuote: {
+    order: SimpleMarkdown.defaultRules.blockQuote.order,
+    match(source) {
+      // Match >>> for multi-line quotes (everything after)
+      const multiLineMatch = /^>>>(?:[ \t]*)([^]*?)(?:\n\n|\n?$)/.exec(source);
+
+      if (multiLineMatch) {
+        return multiLineMatch;
+      }
+
+      // Match > for single-line quotes
+      return /^>(?:[ \t]*)([^\n]*?)(?:\n|$)/.exec(source);
+    },
+    parse(capture, parse, state) {
+      // Parse blockquote content in inline mode so links work inside quotes
+      const inlineState = { ...state, inline: true };
+
+      return {
+        content: parse(capture[1].trim(), inlineState),
+      };
+    },
+    react(node, recurseOutput, state) {
+      return (
+        <div key={state.key} className="markdown-blockquote">
+          {recurseOutput(node.content, state)}
+        </div>
+      );
+    },
+  },
+  list: {
+    order: SimpleMarkdown.defaultRules.list.order,
+    match(source) {
+      // Match list items starting with - or * (but not -# which is subtext)
+      // Captures multiple consecutive list items including nested ones
+      return /^((?:[ \t]*[-*](?!#)[ \t]+[^\n]*(?:\n|$))+)/.exec(source);
+    },
+    parse(capture, parse, state) {
+      const content = capture[1];
+      const lines = content.split("\n").filter((line) => /^[ \t]*[-*](?!#)[ \t]+/.test(line));
+      // Parse list item content in inline mode so links work inside list items
+      const inlineState = { ...state, inline: true };
+
+      // Get indentation level for a line
+      const getIndent = (line) => {
+        const match = /^([ \t]*)/.exec(line);
+
+        return match ? match[1].length : 0;
+      };
+
+      // Parse lines into a nested structure based on indentation
+      const parseItems = (linesList, minIndent = 0) => {
+        const items = [];
+        let i = 0;
+
+        while (i < linesList.length) {
+          const line = linesList[i];
+          const indent = getIndent(line);
+
+          // Skip lines with less indentation than expected
+          if (indent < minIndent) {
+            break;
+          }
+
+          const itemMatch = /^[ \t]*[-*][ \t]+(.*)$/.exec(line);
+
+          if (!itemMatch) {
+            i += 1;
+          } else {
+            const text = itemMatch[1].trim();
+
+            // Collect nested items (any lines with greater indentation)
+            const nestedLines = [];
+            let j = i + 1;
+
+            while (j < linesList.length) {
+              const nextIndent = getIndent(linesList[j]);
+
+              if (nextIndent <= indent) {
+                break;
+              }
+
+              nestedLines.push(linesList[j]);
+              j += 1;
+            }
+
+            const item = {
+              content: parse(text, inlineState),
+              children: nestedLines.length > 0 ? parseItems(nestedLines, indent + 1) : [],
+            };
+
+            items.push(item);
+            i = j;
+          }
+        }
+
+        return items;
+      };
+
+      return { items: parseItems(lines, 0) };
+    },
+    react(node, recurseOutput, state) {
+      const renderItems = (items) => (
+        <ul className="markdown-list">
+          {items.map((item) => (
+            <li key={uniqueId()} className="markdown-list-item">
+              {recurseOutput(item.content, state)}
+              {item.children && item.children.length > 0 && renderItems(item.children)}
+            </li>
+          ))}
+        </ul>
+      );
+
+      return <div key={state.key}>{renderItems(node.items)}</div>;
+    },
+  },
   paragraph: SimpleMarkdown.defaultRules.paragraph,
   escape: SimpleMarkdown.defaultRules.escape,
   link: SimpleMarkdown.defaultRules.link,
@@ -193,10 +360,12 @@ const baseRules = {
   codeBlock: {
     order: SimpleMarkdown.defaultRules.codeBlock.order,
     match(source) {
-      return /^```(([A-z0-9\-]+?)\n+)?\n*([^]+?)\n*```/.exec(source);
+      // Match code blocks: ```lang\ncontent``` or ```content```
+      // Handle optional newline after opening ``` and before closing ```
+      return /^```(?:([a-zA-Z0-9-]+)?\n)?([\s\S]*?)\n?```(?=\s|$|[^`])/.exec(source);
     },
     parse(capture) {
-      return { lang: (capture[2] || "").trim(), content: capture[3] || "" };
+      return { lang: (capture[1] || "").trim(), content: capture[2] || "" };
     },
   },
   emoji: {
@@ -233,6 +402,131 @@ const baseRules = {
         />
       ) : (
         <span key={state.key}>{node.surrogate}</span>
+      );
+    },
+  },
+  discordMention: {
+    order: SimpleMarkdown.defaultRules.escape.order,
+    match(source) {
+      // Match Discord mentions: <@userId>, <@!userId>, <@&roleId>, <#channelId>
+      return /^<(@!?|@&|#)([a-zA-Z0-9_-]+)>/.exec(source);
+    },
+    parse(capture) {
+      const prefix = capture[1];
+      const id = capture[2];
+      let type = "user";
+
+      if (prefix === "@&") {
+        type = "role";
+      } else if (prefix === "#") {
+        type = "channel";
+      }
+
+      return {
+        type: "discordMention",
+        mentionType: type,
+        id,
+        raw: capture[0],
+      };
+    },
+    react(node, recurseOutput, state) {
+      const { mentionResolvers } = state;
+
+      const renderLoadingMention = (key, raw) => (
+        <span key={key} className="discord-mention discord-mention-loading">
+          {raw}
+        </span>
+      );
+
+      if (mentionResolvers) {
+        if (node.mentionType === "user") {
+          mentionResolvers.requestUserFetch?.(node.id);
+          const isLoading = mentionResolvers.isUserLoading?.(node.id);
+
+          if (isLoading) {
+            return renderLoadingMention(state.key, node.raw);
+          }
+
+          const user = mentionResolvers.getUser?.(node.id);
+          const displayName = user?.displayName || "Unknown User";
+
+          return (
+            <span key={state.key} className="discord-mention">
+              @{displayName}
+            </span>
+          );
+        }
+
+        if (node.mentionType === "role") {
+          mentionResolvers.requestRolesFetch?.();
+
+          if (mentionResolvers.isRolesLoading) {
+            return renderLoadingMention(state.key, node.raw);
+          }
+
+          const role = mentionResolvers.getRole?.(node.id);
+          const displayName = role?.name || "Unknown Role";
+          const roleColor = role?.color && role.color !== "#000000" ? role.color : undefined;
+
+          return (
+            <span
+              key={state.key}
+              className="discord-mention"
+              style={
+                roleColor ? { color: roleColor, backgroundColor: `${roleColor}20` } : undefined
+              }
+            >
+              @{displayName}
+            </span>
+          );
+        }
+
+        if (node.mentionType === "channel") {
+          mentionResolvers.requestChannelsFetch?.();
+
+          if (mentionResolvers.isChannelsLoading) {
+            return renderLoadingMention(state.key, node.raw);
+          }
+
+          const channel = mentionResolvers.getChannel?.(node.id);
+          const displayName = channel?.name || "unknown-channel";
+          const channelIcon = getChannelIcon(channel?.type, {
+            className: "discord-channel-icon",
+          });
+
+          return (
+            <span key={state.key} className="discord-mention discord-mention-channel">
+              {channelIcon}
+              {displayName}
+            </span>
+          );
+        }
+      }
+
+      return (
+        <span key={state.key} className="discord-mention">
+          {node.raw}
+        </span>
+      );
+    },
+  },
+  everyoneMention: {
+    order: SimpleMarkdown.defaultRules.escape.order,
+    match(source) {
+      // Match @everyone and @here
+      return /^@(everyone|here)\b/.exec(source);
+    },
+    parse(capture) {
+      return {
+        type: "everyoneMention",
+        mentionType: capture[1],
+      };
+    },
+    react(node, recurseOutput, state) {
+      return (
+        <span key={state.key} className="discord-mention">
+          @{node.mentionType}
+        </span>
       );
     },
   },
@@ -316,7 +610,11 @@ function createRules(r) {
     paragraph: {
       ...paragraph,
       react(node, recurseOutput, state) {
-        return <p key={state.key}>{recurseOutput(node.content, state)}</p>;
+        return (
+          <p key={state.key} style={{ margin: 0 }}>
+            {recurseOutput(node.content, state)}
+          </p>
+        );
       },
     },
     url: {
@@ -405,7 +703,17 @@ const parseAllowLinks = parserFor(createRules(baseRules));
 //  embed title (obviously)
 //  embed field names
 const parseEmbedTitle = parserFor(
-  omit(rulesWithoutMaskedLinks, ["codeBlock", "br", "mention", "channel", "roleMention"])
+  omit(rulesWithoutMaskedLinks, [
+    "codeBlock",
+    "br",
+    "mention",
+    "channel",
+    "roleMention",
+    "heading",
+    "subtext",
+    "blockQuote",
+    "list",
+  ])
 );
 
 // used in:

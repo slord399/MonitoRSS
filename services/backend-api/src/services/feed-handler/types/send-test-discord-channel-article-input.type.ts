@@ -1,6 +1,7 @@
 import {
   CustomPlaceholderDto,
   DiscordMediumEvent,
+  DiscordMediumFormatterOptions,
   ExternalPropertyDto,
 } from "../../../common";
 import { FeedRequestLookupDetails } from "../../../common/types/feed-request-lookup-details.type";
@@ -42,15 +43,8 @@ export interface SendTestDiscordChannelArticleInput {
       };
       content?: string;
       embeds: DiscordMediumEvent["details"]["embeds"];
-      formatter?: {
-        stripImages?: boolean;
-        formatTables?: boolean;
-      };
-      splitOptions?: {
-        splitChar?: string | null;
-        appendChar?: string | null;
-        prependChar?: string | null;
-      };
+      formatter?: DiscordMediumFormatterOptions;
+      splitOptions?: DiscordMediumEvent["details"]["splitOptions"];
       channelNewThreadTitle?: DiscordChannelConnection["details"]["channelNewThreadTitle"];
       channelNewThreadExcludesPreview?: DiscordChannelConnection["details"]["channelNewThreadExcludesPreview"];
       forumThreadTitle?: DiscordChannelConnection["details"]["forumThreadTitle"];
@@ -60,6 +54,7 @@ export interface SendTestDiscordChannelArticleInput {
       enablePlaceholderFallback?: DiscordChannelConnection["details"]["enablePlaceholderFallback"];
       customPlaceholders?: CustomPlaceholderDto[];
       components?: DiscordMediumEvent["details"]["components"];
+      componentsV2?: DiscordMediumEvent["details"]["componentsV2"];
     };
   };
 }

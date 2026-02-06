@@ -24,6 +24,8 @@ import { FastifyReply, FastifyRequest } from "fastify";
 import { SessionAccessToken } from "../discord-auth/types/SessionAccessToken.type";
 
 import { ADD_DISCORD_CHANNEL_CONNECTION_ERROR_CODES } from "../feed-connections/filters";
+import { FeedConnectionsDiscordChannelsService } from "../feed-connections/feed-connections-discord-channels.service";
+import { FeedsService } from "../feeds/feeds.service";
 import {
   FEED_EXCEPTION_FILTER_ERROR_CODES,
   FeedExceptionFilter,
@@ -41,6 +43,7 @@ import {
   GetUserFeedOutputDto,
   GetUserFeedsInputDto,
   GetUserFeedsOutputDto,
+  SendTestArticleInputDto,
   UpdateUserFeedInputDto,
   UpdateUserFeedOutputDto,
   UpdateUserFeedsInput,
@@ -56,8 +59,8 @@ import {
 import {
   GetUserFeedArticlesExceptionFilter,
   RETRY_USER_FEED_ERROR_CODES,
+  SendTestArticleFilter,
 } from "./filters";
-import { RestoreLegacyUserFeedExceptionFilter } from "./filters/restore-legacy-user-feed-exception.filter";
 import { GetUserFeedsPipe, GetUserFeedsPipeOutput } from "./pipes";
 import { GetFeedArticlePropertiesInput, GetFeedArticlesInput } from "./types";
 import { UserFeedsService } from "./user-feeds.service";
@@ -73,7 +76,9 @@ import { UpdateUserFeedExceptionFilter } from "../feeds/filters/update-user-feed
 export class UserFeedsController {
   constructor(
     private readonly userFeedsService: UserFeedsService,
-    private readonly usersService: UsersService
+    private readonly usersService: UsersService,
+    private readonly feedConnectionsService: FeedConnectionsDiscordChannelsService,
+    private readonly feedsService: FeedsService
   ) {}
 
   @Post()
@@ -232,6 +237,59 @@ export class UserFeedsController {
     };
   }
 
+  @Post("/:feedId/test-send")
+  @UseFilters(SendTestArticleFilter)
+  async sendTestArticle(
+    @Param(
+      "feedId",
+      GetUserFeedsPipe({
+        userTypes: [
+          UserFeedManagerType.Creator,
+          UserFeedManagerType.SharedManager,
+        ],
+      })
+    )
+    [{ feed }]: GetUserFeedsPipeOutput,
+    @Body(ValidationPipe)
+    {
+      article,
+      channelId,
+      content,
+      embeds,
+      componentsV2,
+      placeholderLimits,
+      webhook,
+      threadId,
+      userFeedFormatOptions,
+    }: SendTestArticleInputDto,
+    @DiscordAccessToken()
+    { access_token }: SessionAccessToken
+  ) {
+    await this.feedsService.canUseChannel({
+      channelId,
+      userAccessToken: access_token,
+    });
+
+    const result = await this.feedConnectionsService.sendTestArticleDirect(
+      feed,
+      {
+        article,
+        channelId,
+        content,
+        embeds,
+        componentsV2,
+        placeholderLimits,
+        webhook,
+        threadId,
+        userFeedFormatOptions,
+      }
+    );
+
+    return {
+      result,
+    };
+  }
+
   @Post("/:feedId/date-preview")
   @UseFilters(FeedExceptionFilter)
   async createDatePreview(
@@ -283,6 +341,21 @@ export class UserFeedsController {
     return result;
   }
 
+  @Post("/:feedId/delivery-preview")
+  @HttpCode(HttpStatus.OK)
+  async getDeliveryPreview(
+    @Param("feedId", GetUserFeedsPipe())
+    [{ feed }]: GetUserFeedsPipeOutput,
+    @Body(TransformValidationPipe)
+    { skip, limit }: import("./dto").DeliveryPreviewInputDto
+  ) {
+    return this.userFeedsService.getDeliveryPreview({
+      feed,
+      skip: skip ?? 0,
+      limit: limit ?? 10,
+    });
+  }
+
   @Post("/:feedId/get-article-properties")
   @UseFilters(GetUserFeedArticlesExceptionFilter)
   async getArticleProperties(
@@ -321,6 +394,7 @@ export class UserFeedsController {
       selectPropertyTypes,
       skip,
       formatter: { externalProperties, ...formatter },
+      includeHtmlInErrors,
     }: GetUserFeedArticlesInputDto,
     @Param("feedId", GetUserFeedsPipe())
     [{ feed }]: GetUserFeedsPipeOutput
@@ -335,6 +409,7 @@ export class UserFeedsController {
       selectProperties,
       selectPropertyTypes,
       skip,
+      includeHtmlInErrors,
       formatter: {
         ...formatter,
         externalProperties,
@@ -354,6 +429,7 @@ export class UserFeedsController {
       selectedProperties,
       totalArticles,
       response,
+      externalContentErrors,
     } = await this.userFeedsService.getFeedArticles(input);
 
     return {
@@ -364,6 +440,7 @@ export class UserFeedsController {
         filterStatuses,
         selectedProperties,
         totalArticles,
+        externalContentErrors,
       },
     };
   }
@@ -494,25 +571,6 @@ export class UserFeedsController {
     });
   }
 
-  @Post("/:feedId/restore-to-legacy")
-  @UseFilters(RestoreLegacyUserFeedExceptionFilter)
-  async restoreToLegacy(
-    @Param("feedId", GetUserFeedsPipe())
-    [{ feed }]: GetUserFeedsPipeOutput
-  ) {
-    if (!feed.legacyFeedId) {
-      throw new BadRequestException("Feed is not related to a legacy feed");
-    }
-
-    await this.userFeedsService.restoreToLegacyFeed(feed);
-
-    return {
-      result: {
-        status: "success",
-      },
-    };
-  }
-
   @Get()
   async getFeeds(
     @DiscordAccessToken()
@@ -538,8 +596,9 @@ export class UserFeedsController {
         disabledCode: feed.disabledCode,
         createdAt: feed.createdAt.toISOString(),
         computedStatus: feed.computedStatus,
-        isLegacyFeed: !!feed.legacyFeedId,
+        isLegacyFeed: false,
         ownedByUser: feed.ownedByUser,
+        refreshRateSeconds: feed.refreshRateSeconds,
       })),
       total: count,
     };

@@ -247,6 +247,12 @@ class Details {
     type: Boolean,
   })
   enablePlaceholderFallback?: boolean;
+
+  @Prop({
+    type: MongooseSchema.Types.Mixed,
+    required: false,
+  })
+  componentsV2?: Array<Record<string, unknown>>;
 }
 
 const DetailsSchema = SchemaFactory.createForClass(Details);

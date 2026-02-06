@@ -30,6 +30,7 @@ import { AmqpConnection } from "@golevelup/nestjs-rabbitmq";
 import { MessageBrokerQueue } from "../../common/constants/message-broker-queue.constants";
 import { FeedFetcherApiService } from "../../services/feed-fetcher/feed-fetcher-api.service";
 import {
+  DeliveryPreviewMediumInput,
   GetArticlesInput,
   GetArticlesResponseRequestStatus,
 } from "../../services/feed-handler/types";
@@ -46,19 +47,7 @@ import {
   FeedConnectionTypeEntityKey,
 } from "../feeds/constants";
 import { UserFeedComputedStatus } from "./constants/user-feed-computed-status.type";
-import { Feed, FeedModel } from "../feeds/entities/feed.entity";
-import {
-  UserFeedLimitOverride,
-  UserFeedLimitOverrideModel,
-} from "../supporters/entities/user-feed-limit-overrides.entity";
-import {
-  IneligibleForRestorationException,
-  ManualRequestTooSoonException,
-} from "./exceptions";
-import {
-  LegacyFeedConversionJob,
-  LegacyFeedConversionJobModel,
-} from "../legacy-feed-conversion/entities/legacy-feed-conversion-job.entity";
+import { ManualRequestTooSoonException } from "./exceptions";
 import { UserFeedManagerStatus } from "../user-feed-management-invites/constants";
 import { FeedConnectionsDiscordChannelsService } from "../feed-connections/feed-connections-discord-channels.service";
 import dayjs from "dayjs";
@@ -68,6 +57,7 @@ import { convertToNestedDiscordEmbed } from "../../utils/convert-to-nested-disco
 import { CustomPlaceholderStepType } from "../../common/constants/custom-placeholder-step-type.constants";
 import {
   FeedFetchTimeoutException,
+  FeedInvalidSslCertException,
   FeedParseException,
   FeedRequestException,
   NoFeedOnHtmlPageException,
@@ -84,10 +74,12 @@ import {
 } from "./dto/copy-user-feed-settings-input.dto";
 import { generateUserFeedOwnershipFilters } from "./utils/get-user-feed-ownership-filters.utils";
 import { generateUserFeedSearchFilters } from "./utils/get-user-feed-search-filters.utils";
+import { getEffectiveRefreshRateSeconds } from "./utils/get-effective-refresh-rate";
 import { UserFeedTargetFeedSelectionType } from "./constants/target-feed-selection-type.type";
 import { SourceFeedNotFoundException } from "./exceptions/source-feed-not-found.exception";
 import { getUserFeedTagLookupAggregateStage } from "./constants/user-feed-tag-lookup-aggregate-stage.constants";
 import { RefreshRateNotAllowedException } from "../feeds/exceptions/refresh-rate-not-allowed.exception";
+import { calculateSlotOffsetMs } from "../../common/utils/fnv1a-hash";
 
 const badConnectionCodes = Object.values(FeedConnectionDisabledCode).filter(
   (c) => c !== FeedConnectionDisabledCode.Manual
@@ -121,11 +113,6 @@ export class UserFeedsService {
   constructor(
     @InjectModel(User.name) private readonly userModel: UserModel,
     @InjectModel(UserFeed.name) private readonly userFeedModel: UserFeedModel,
-    @InjectModel(Feed.name) private readonly feedModel: FeedModel,
-    @InjectModel(UserFeedLimitOverride.name)
-    private readonly limitOverrideModel: UserFeedLimitOverrideModel,
-    @InjectModel(LegacyFeedConversionJob.name)
-    private readonly legacyFeedConversionJobModel: LegacyFeedConversionJobModel,
     private readonly configService: ConfigService,
     private readonly feedsService: FeedsService,
     private readonly feedFetcherService: FeedFetcherService,
@@ -158,6 +145,11 @@ export class UserFeedsService {
                 channelId: con.details.webhook.channelId,
               }
             : undefined,
+          componentRows:
+            con.details.componentRows?.map((r) => ({
+              ...r,
+              components: r.components || [],
+            })) || [],
         },
         filters: con.filters,
         rateLimits: con.rateLimits,
@@ -218,7 +210,6 @@ export class UserFeedsService {
     return {
       result: {
         id: feed._id.toHexString(),
-        allowLegacyReversion: feed.allowLegacyReversion,
         sharedAccessDetails: userInviteId
           ? {
               inviteId: userInviteId.toHexString(),
@@ -227,7 +218,6 @@ export class UserFeedsService {
         title: feed.title,
         url: feed.url,
         inputUrl: feed.inputUrl,
-        isLegacyFeed: !!feed.legacyFeedId,
         connections: [...discordChannelConnections],
         disabledCode: feed.disabledCode,
         healthStatus: feed.healthStatus,
@@ -251,50 +241,6 @@ export class UserFeedsService {
         refreshRateOptions,
       },
     };
-  }
-
-  async restoreToLegacyFeed(userFeed: UserFeed) {
-    if (!userFeed.legacyFeedId) {
-      throw new IneligibleForRestorationException(
-        `User feed ${userFeed._id} is not related to a legacy feed for restoration`
-      );
-    }
-
-    if (userFeed.disabledCode === UserFeedDisabledCode.ExcessivelyActive) {
-      throw new IneligibleForRestorationException(
-        `User feed ${userFeed._id} is excessively active and cannot be restored`
-      );
-    }
-
-    await this.feedModel.updateOne(
-      {
-        _id: userFeed.legacyFeedId,
-      },
-      {
-        $unset: {
-          disabled: "",
-        },
-      }
-    );
-
-    await this.userFeedModel.deleteOne({
-      _id: userFeed._id,
-    });
-
-    await this.limitOverrideModel.updateOne(
-      {
-        _id: userFeed.user.discordUserId,
-      },
-      {
-        $inc: {
-          additionalUserFeeds: -1,
-        },
-      }
-    );
-
-    await this.legacyFeedConversionJobModel.deleteOne({
-      legacyFeedId: userFeed.legacyFeedId,
-    });
   }
 
   getDatePreview({
@@ -441,6 +387,7 @@ export class UserFeedsService {
         discordUserId,
       },
       refreshRateSeconds,
+      slotOffsetMs: calculateSlotOffsetMs(finalUrl, refreshRateSeconds),
       maxDailyArticles,
       feedRequestLookupKey: tempLookupDetails?.key,
       dateCheckOptions: enableDateChecks
@@ -681,13 +628,10 @@ export class UserFeedsService {
           $in: feedIds.map((id) => new Types.ObjectId(id)),
         },
       })
-      .select("_id legacyFeedId connections user")
+      .select("_id connections user")
       .lean();
 
     const foundIds = new Set(found.map((doc) => doc._id.toHexString()));
-    const legacyFeedIds = new Set(
-      found.filter((d) => d.legacyFeedId).map((d) => d._id.toHexString())
-    );
 
     if (found.length > 0) {
       try {
@@ -748,7 +692,6 @@ export class UserFeedsService {
     return feedIds.map((id) => ({
       id,
       deleted: foundIds.has(id),
-      isLegacy: legacyFeedIds.has(id),
     }));
   }
 
@@ -906,6 +849,7 @@ export class UserFeedsService {
       computedStatus: boolean;
       legacyFeedId?: Types.ObjectId;
       ownedByUser: boolean;
+      refreshRateSeconds?: number;
     }>
   > {
     const useSort = sort || GetUserFeedsInputSortKey.CreatedAtDescending;
@@ -919,6 +863,13 @@ export class UserFeedsService {
         search,
         filters,
       }),
+      {
+        $addFields: {
+          refreshRateSeconds: {
+            $ifNull: ["$userRefreshRateSeconds", "$refreshRateSeconds"],
+          },
+        },
+      },
       {
         $sort: {
           [sortKey]: sortDirection,
@@ -943,6 +894,7 @@ export class UserFeedsService {
           legacyFeedId: 1,
           ownedByUser: 1,
           userTags: 1,
+          refreshRateSeconds: 1,
         },
       },
     ]);
@@ -1047,6 +999,16 @@ export class UserFeedsService {
       );
       useUpdateObject.$set!.url = finalUrl;
       useUpdateObject.$set!.inputUrl = updates.url;
+
+      // Recalculate slot offset when URL changes to maintain even distribution
+      const effectiveRefreshRate =
+        feed.userRefreshRateSeconds ??
+        feed.refreshRateSeconds ??
+        this.supportersService.defaultRefreshRateSeconds;
+      useUpdateObject.$set!.slotOffsetMs = calculateSlotOffsetMs(
+        finalUrl,
+        effectiveRefreshRate
+      );
     }
 
     if (updates.disabledCode !== undefined) {
@@ -1120,20 +1082,32 @@ export class UserFeedsService {
         updates.userRefreshRateSeconds === fastestPossibleRate
       ) {
         useUpdateObject.$unset!.userRefreshRateSeconds = "";
-      } else if (
-        updates.userRefreshRateSeconds > 86400 ||
-        (updates.userRefreshRateSeconds !==
-          this.supportersService.defaultRefreshRateSeconds &&
-          updates.userRefreshRateSeconds !==
-            this.supportersService.defaultSupporterRefreshRateSeconds &&
-          updates.userRefreshRateSeconds < fastestPossibleRate)
-      ) {
+
+        // Recalculate slot offset based on the new effective rate
+        const newEffectiveRate =
+          feed.refreshRateSeconds ??
+          this.supportersService.defaultRefreshRateSeconds;
+        useUpdateObject.$set!.slotOffsetMs = calculateSlotOffsetMs(
+          feed.url,
+          newEffectiveRate
+        );
+      } else if (updates.userRefreshRateSeconds > 86400) {
         throw new RefreshRateNotAllowedException(
-          `Refresh rate ${updates.userRefreshRateSeconds} is not allowed for user ${user.discordUserId}`
+          `Refresh rate is too high. Maximum is 86400 seconds (24 hours).`
+        );
+      } else if (updates.userRefreshRateSeconds < fastestPossibleRate) {
+        throw new RefreshRateNotAllowedException(
+          `Refresh rate is too low. Must be at least ${fastestPossibleRate} seconds.`
         );
       } else {
         useUpdateObject.$set!.userRefreshRateSeconds =
           updates.userRefreshRateSeconds;
+
+        // Recalculate slot offset based on the new user refresh rate
+        useUpdateObject.$set!.slotOffsetMs = calculateSlotOffsetMs(
+          feed.url,
+          updates.userRefreshRateSeconds
+        );
       }
     }
 
@@ -1263,8 +1237,7 @@ export class UserFeedsService {
 
   async manuallyRequest(feed: UserFeed) {
     const lastRequestTime = feed.lastManualRequestAt || new Date(0);
-    const waitDurationSeconds =
-      feed.userRefreshRateSeconds || feed.refreshRateSeconds || 10 * 60;
+    const waitDurationSeconds = getEffectiveRefreshRateSeconds(feed, 10 * 60)!;
     const secondsSinceLastRequest = dayjs().diff(
       dayjs(lastRequestTime),
       "seconds"
@@ -1390,6 +1363,7 @@ export class UserFeedsService {
     formatter,
     discordUserId,
     feed,
+    includeHtmlInErrors,
   }: GetFeedArticlesInput): Promise<GetFeedArticlesOutput> {
     const user = await this.usersService.getOrCreateUserByDiscordId(
       discordUserId
@@ -1404,6 +1378,7 @@ export class UserFeedsService {
         skip: skip || 0,
         selectProperties,
         selectPropertyTypes,
+        includeHtmlInErrors,
         formatter: {
           ...formatter,
           options: {
@@ -1446,6 +1421,9 @@ export class UserFeedsService {
           dateLocale: undefined,
         },
         customPlaceholders,
+        externalProperties: feed.externalProperties?.map((p) => ({
+          ...p,
+        })),
       },
     };
 
@@ -1876,7 +1854,7 @@ export class UserFeedsService {
         const numberOfFeedsToEnable = defaultMaxUserFeeds - enabledFeedCount;
         // Enable the newest ones first
         const toEnable = disabledFeedIds.slice(
-          disabledFeedIds.length - numberOfFeedsToEnable
+          Math.max(0, disabledFeedIds.length - numberOfFeedsToEnable)
         );
 
         arrayOfFeedIdsToEnable.push(...toEnable);
@@ -2038,7 +2016,7 @@ export class UserFeedsService {
         const numberOfFeedsToEnable = limit - enabledFeedCount;
         // Enable the newest ones first
         const toEnable = disabledFeedIds.slice(
-          disabledFeedIds.length - numberOfFeedsToEnable
+          Math.max(0, disabledFeedIds.length - numberOfFeedsToEnable)
         );
 
         arrayOfFeedIdsToEnable.push(...toEnable);
@@ -2136,7 +2114,7 @@ export class UserFeedsService {
       bulkWriteDocs.push({
         updateMany: {
           filter: {
-            userRefreshRateSeconds: refreshRateSeconds,
+            userRefreshRateSeconds: supporterRefreshRate,
             "user.discordUserId": discordUserId,
           },
           update: {
@@ -2226,8 +2204,100 @@ export class UserFeedsService {
       this.feedFetcherService.handleStatusCode(statusCode);
     } else if (requestStatus === GetArticlesResponseRequestStatus.FetchError) {
       throw new FeedRequestException(`Feed fetch failed`);
+    } else if (
+      requestStatus === GetArticlesResponseRequestStatus.InvalidSslCertificate
+    ) {
+      throw new FeedInvalidSslCertException(
+        "Issue encountered with SSL certificate"
+      );
     }
 
     throw new Error(`Unhandled request status ${requestStatus}`);
+  }
+
+  async getDeliveryPreview({
+    feed,
+    skip,
+    limit,
+  }: {
+    feed: UserFeed;
+    skip: number;
+    limit: number;
+  }) {
+    const [user, { maxDailyArticles }] = await Promise.all([
+      this.usersService.getOrCreateUserByDiscordId(feed.user.discordUserId),
+      this.supportersService.getBenefitsOfDiscordUser(feed.user.discordUserId),
+    ]);
+
+    const lookupDetails = getFeedRequestLookupDetails({
+      feed,
+      user,
+      decryptionKey: this.configService.get("BACKEND_API_ENCRYPTION_KEY_HEX"),
+    });
+
+    const mediums = this.mapConnectionsToMediums(feed);
+
+    const result = await this.feedHandlerService.getDeliveryPreview({
+      feed: {
+        id: feed._id.toHexString(),
+        url: feed.url,
+        blockingComparisons: feed.blockingComparisons || [],
+        passingComparisons: feed.passingComparisons || [],
+        dateChecks: feed.dateCheckOptions,
+        formatOptions: feed.formatOptions,
+        externalProperties: feed.externalProperties?.map((ep) => ({
+          sourceField: ep.sourceField,
+          label: ep.label,
+          cssSelector: ep.cssSelector,
+        })),
+        requestLookupDetails: lookupDetails
+          ? {
+              key: lookupDetails.key,
+              url: lookupDetails.url,
+              headers: lookupDetails.headers,
+            }
+          : null,
+        refreshRateSeconds: getEffectiveRefreshRateSeconds(feed),
+      },
+      mediums,
+      articleDayLimit: feed.maxDailyArticles ?? maxDailyArticles,
+      skip,
+      limit,
+    });
+
+    return { result };
+  }
+
+  private mapConnectionsToMediums(
+    feed: UserFeed
+  ): DeliveryPreviewMediumInput[] {
+    const mediums: DeliveryPreviewMediumInput[] = [];
+
+    for (const connectionType of Object.values(FeedConnectionTypeEntityKey)) {
+      if (connectionType !== FeedConnectionTypeEntityKey.DiscordChannels) {
+        continue;
+      }
+
+      const connections = feed.connections?.[connectionType] || [];
+
+      for (const conn of connections) {
+        if (conn.disabledCode) {
+          continue;
+        }
+
+        mediums.push({
+          id: conn.id.toHexString(),
+          rateLimits: conn.rateLimits?.map((rl) => ({
+            limit: rl.limit,
+            timeWindowSeconds: rl.timeWindowSeconds,
+          })),
+          filters: conn.filters?.expression
+            ? { expression: conn.filters.expression }
+            : undefined,
+        });
+      }
+    }
+
+    return mediums;
   }
 }

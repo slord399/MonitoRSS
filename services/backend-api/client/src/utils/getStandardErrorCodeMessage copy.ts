@@ -28,6 +28,7 @@ export enum ApiErrorCode {
   FEED_NOT_FOUND = "FEED_NOT_FOUND",
   FEED_TOO_LARGE = "FEED_TOO_LARGE",
   FEED_INVALID_FILTER_EXPRESSION = "FEED_INVALID_FILTER_EXPRESSION",
+  FEED_INVALID_COMPONENTS_V2 = "FEED_INVALID_COMPONENTS_V2",
   FEED_CONNECTION_CANNOT_ENABLE_AUTO_DISABLED = "FEED_CONNECTION_CANNOT_ENABLE_AUTO_DISABLED",
   FEED_ARTICLE_NOT_FOUND = "FEED_ARTICLE_NOT_FOUND",
   DISCORD_SERVER_NOT_FOUND = "DISCORD_SERVER_NOT_FOUND",
@@ -47,6 +48,7 @@ export enum ApiErrorCode {
   TRANSACTION_BALANCE_TOO_LOW = "TRANSACTION_BALANCE_TOO_LOW",
   SUBSCRIPTION_ABOUT_TO_RENEW = "SUBSCRIPTION_ABOUT_TO_RENEW",
   USER_REFRESH_RATE_NOT_ALLOWED = "USER_REFRESH_RATE_NOT_ALLOWED",
+  ADDRESS_LOCATION_NOT_ALLOWED = "ADDRESS_LOCATION_NOT_ALLOWED",
 }
 
 const ERROR_CODE_MESSAGES: Record<ApiErrorCode, string> = {
@@ -73,11 +75,14 @@ const ERROR_CODE_MESSAGES: Record<ApiErrorCode, string> = {
   FEED_LIMIT_REACHED: t("common.apiErrors.feedLimitReached"),
   FEED_MISSING_CHANNEL: t("common.apiErrors.feedMissingChannel"),
   FEED_USER_MISSING_MANAGE_GUILD: t("common.apiErrors.feedUserMissingManageGuild"),
-  INTERNAL_ERROR: t("common.errors.somethingWentWrong"),
+  INTERNAL_ERROR:
+    "Something went wrong. Please try again later, or contact support@monitorss.xyz if the issue persists.",
   FEED_NOT_FAILED: t("common.apiErrors.feedNotFailed"),
   FEED_NOT_FOUND: t("common.apiErrors.feedNotFound"),
   FEED_TOO_LARGE: "Feed is too large (larger than 3 MB) to be processed",
   FEED_INVALID_FILTER_EXPRESSION: t("common.apiErrors.feedFilterInvalidExpression"),
+  FEED_INVALID_COMPONENTS_V2:
+    "Your message configuration is invalid. Please check your V2 component settings and ensure all required fields are filled in.",
   FEED_CONNECTION_CANNOT_ENABLE_AUTO_DISABLED: t(
     "common.apiErrors.feedConnectionCannotEnableAutoDisabled"
   ),
@@ -105,6 +110,8 @@ const ERROR_CODE_MESSAGES: Record<ApiErrorCode, string> = {
   SUBSCRIPTION_ABOUT_TO_RENEW:
     "Cannot update subscription when renewal is within the next 30 minutes. Try again later.",
   USER_REFRESH_RATE_NOT_ALLOWED: "Refresh rate is not allowed.",
+  ADDRESS_LOCATION_NOT_ALLOWED:
+    "Your location is not supported for billing. This may be due to regional restrictions. If you believe this is an error, please contact support@monitorss.xyz.",
 };
 
 export const getStandardErrorCodeMessage = (code: ApiErrorCode) => {

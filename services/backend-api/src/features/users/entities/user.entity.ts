@@ -7,6 +7,75 @@ import { UserExternalCredentialStatus } from "../../../common/constants/user-ext
   timestamps: false,
   _id: false,
 })
+export class UserFeedListSort {
+  @Prop({ required: true })
+  key: string;
+
+  @Prop({ required: true })
+  direction: "asc" | "desc";
+}
+
+export const UserFeedListSortSchema =
+  SchemaFactory.createForClass(UserFeedListSort);
+
+@Schema({
+  timestamps: false,
+  _id: false,
+})
+export class UserFeedListColumnVisibility {
+  @Prop()
+  computedStatus?: boolean;
+
+  @Prop()
+  title?: boolean;
+
+  @Prop()
+  url?: boolean;
+
+  @Prop()
+  createdAt?: boolean;
+
+  @Prop()
+  ownedByUser?: boolean;
+
+  @Prop()
+  refreshRateSeconds?: boolean;
+}
+
+export const UserFeedListColumnVisibilitySchema = SchemaFactory.createForClass(
+  UserFeedListColumnVisibility
+);
+
+@Schema({
+  timestamps: false,
+  _id: false,
+})
+export class UserFeedListColumnOrder {
+  @Prop({ type: [String] })
+  columns: string[];
+}
+
+export const UserFeedListColumnOrderSchema = SchemaFactory.createForClass(
+  UserFeedListColumnOrder
+);
+
+@Schema({
+  timestamps: false,
+  _id: false,
+})
+export class UserFeedListStatusFilters {
+  @Prop({ type: [String] })
+  statuses: string[];
+}
+
+export const UserFeedListStatusFiltersSchema = SchemaFactory.createForClass(
+  UserFeedListStatusFilters
+);
+
+@Schema({
+  timestamps: false,
+  _id: false,
+})
 export class UserPreferences {
   @Prop()
   alertOnDisabledFeeds?: boolean;
@@ -19,6 +88,18 @@ export class UserPreferences {
 
   @Prop()
   dateLocale?: string;
+
+  @Prop({ type: UserFeedListSortSchema })
+  feedListSort?: UserFeedListSort;
+
+  @Prop({ type: UserFeedListColumnVisibilitySchema })
+  feedListColumnVisibility?: UserFeedListColumnVisibility;
+
+  @Prop({ type: UserFeedListColumnOrderSchema })
+  feedListColumnOrder?: UserFeedListColumnOrder;
+
+  @Prop({ type: UserFeedListStatusFiltersSchema })
+  feedListStatusFilters?: UserFeedListStatusFilters;
 }
 
 export const UserPreferencesSchema =

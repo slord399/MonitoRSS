@@ -25,6 +25,8 @@ import {
 } from "../articles/exceptions";
 import { DeliveryRecordService } from "../delivery-record/delivery-record.service";
 import { DiscordMediumService } from "../delivery/mediums/discord-medium.service";
+// eslint-disable-next-line max-len
+import { DiscordPayloadBuilderService } from "../delivery/mediums/discord/services/discord-payload-builder.service";
 import { DiscordEmbed } from "../delivery/types";
 import {
   FeedArticleNotFoundException,
@@ -59,6 +61,8 @@ import {
   GetUserFeedArticlesInputDto,
   GetUserFeedArticlesOutputDto,
   GetUserFeedDeliveryRecordsOutputDto,
+  ValidateDiscordPayloadOutputDto,
+  ValidationError,
 } from "./dto";
 import { FeedsService } from "./feeds.service";
 
@@ -70,6 +74,7 @@ export class FeedsController {
   constructor(
     private readonly feedsService: FeedsService,
     private readonly discordMediumService: DiscordMediumService,
+    private readonly discordPayloadBuilderService: DiscordPayloadBuilderService,
     private readonly feedFetcherService: FeedFetcherService,
     private readonly articleFormatterService: ArticleFormatterService,
     private readonly articleFiltersService: ArticleFiltersService,
@@ -89,6 +94,31 @@ export class FeedsController {
       result: {
         errors,
       },
+    };
+  }
+
+  @Post("validate-discord-payload")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(ApiGuard)
+  validateDiscordPayload(
+    @Body() payload: Record<string, unknown>
+  ): ValidateDiscordPayloadOutputDto {
+    const result = discordMediumPayloadDetailsSchema
+      .pick({
+        componentsV2: true,
+      })
+      .safeParse(payload.data);
+
+    if (result.success) {
+      return { valid: true, data: result.data };
+    }
+
+    return {
+      valid: false,
+      errors: result.error.issues.map((issue) => ({
+        path: issue.path,
+        message: issue.message,
+      })),
     };
   }
 
@@ -349,6 +379,7 @@ export class FeedsController {
         if (!article) {
           return {
             status: TestDeliveryStatus.NoArticles,
+            operationType: undefined,
           };
         }
 
@@ -363,7 +394,7 @@ export class FeedsController {
             article,
           });
 
-        const { result, apiPayload } =
+        const { result, apiPayload, operationType } =
           await this.discordMediumService.deliverTestArticle(formattedArticle, {
             mediumDetails,
             filterReferences,
@@ -382,33 +413,39 @@ export class FeedsController {
           return {
             status: TestDeliveryStatus.ThirdPartyInternalError,
             apiPayload,
+            operationType,
           };
         } else if (result.status === 401 || result.status === 403) {
           return {
             status: TestDeliveryStatus.MissingApplicationPermission,
             apiPayload,
+            operationType,
           };
         } else if (result.status === 400) {
           return {
             status: TestDeliveryStatus.BadPayload,
             apiResponse: result.body,
             apiPayload,
+            operationType,
           };
         } else if (result.status === 404) {
           return {
             status: TestDeliveryStatus.MissingChannel,
             apiResponse: result.body,
             apiPayload,
+            operationType,
           };
         } else if (result.status === 429) {
           return {
             status: TestDeliveryStatus.TooManyRequests,
             apiPayload,
+            operationType,
           };
         } else if (result.status >= 200 && result.status < 300) {
           return {
             status: TestDeliveryStatus.Success,
             apiPayload,
+            operationType,
           };
         } else {
           throw new Error(
@@ -420,7 +457,12 @@ export class FeedsController {
       }
     } catch (err) {
       if (err instanceof z.ZodError) {
-        throw new BadRequestException(err.errors);
+        const errors: ValidationError[] = err.errors.map((issue) => ({
+          path: issue.path,
+          message: issue.message,
+        }));
+
+        throw new BadRequestException(errors);
       }
 
       if (err instanceof FeedArticleNotFoundException) {
@@ -514,7 +556,7 @@ export class FeedsController {
             article,
           });
 
-        const payloads = this.discordMediumService.generateApiPayloads(
+        const payloads = this.discordPayloadBuilderService.generateApiPayloads(
           formattedArticle,
           {
             embeds: mediumDetails.embeds,
@@ -525,6 +567,7 @@ export class FeedsController {
             placeholderLimits: mediumDetails.placeholderLimits,
             enablePlaceholderFallback: mediumDetails.enablePlaceholderFallback,
             components: mediumDetails.components,
+            componentsV2: mediumDetails.componentsV2,
           }
         );
 
@@ -558,7 +601,12 @@ export class FeedsController {
       }
     } catch (err) {
       if (err instanceof z.ZodError) {
-        throw new BadRequestException(err.errors);
+        const errors: ValidationError[] = err.errors.map((issue) => ({
+          path: issue.path,
+          message: issue.message,
+        }));
+
+        throw new BadRequestException(errors);
       }
 
       if (err instanceof CustomPlaceholderRegexEvalException) {

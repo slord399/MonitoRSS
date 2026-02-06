@@ -66,6 +66,25 @@ export interface CreateDiscordChannelConnectionPreviewInput {
     }> | null;
     channelNewThreadExcludesPreview?: boolean | null;
     channelNewThreadTitle?: string | null;
+    componentsV2?: Array<{
+      type: string;
+      content?: string;
+      components?: Array<{
+        type: string;
+        content?: string;
+        style?: number;
+        label?: string;
+        url?: string | null;
+        disabled?: boolean;
+      }>;
+      accessory?: {
+        type: string;
+        style?: number;
+        label?: string;
+        url?: string | null;
+        disabled?: boolean;
+      } | null;
+    }> | null;
   };
 }
 

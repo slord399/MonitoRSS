@@ -14,6 +14,7 @@ import {
   DiscordWebhookMissingUserPermException,
   DiscordWebhookNonexistentException,
   InsufficientSupporterLevelException,
+  InvalidComponentsV2Exception,
   InvalidFilterExpressionException,
 } from "../../common/exceptions";
 import { DiscordPreviewEmbed } from "../../common/types/discord-preview-embed.type";
@@ -87,6 +88,7 @@ export interface UpdateDiscordChannelConnectionInput {
       componentRows?:
         | DiscordChannelConnection["details"]["componentRows"]
         | null;
+      componentsV2?: DiscordChannelConnection["details"]["componentsV2"] | null;
       placeholderLimits?:
         | DiscordChannelConnection["details"]["placeholderLimits"]
         | null;
@@ -145,10 +147,27 @@ interface CreatePreviewInput {
   forumThreadTags?: DiscordChannelConnection["details"]["forumThreadTags"];
   enablePlaceholderFallback?: boolean;
   componentRows?: DiscordChannelConnection["details"]["componentRows"] | null;
+  componentsV2?: DiscordChannelConnection["details"]["componentsV2"] | null;
   includeCustomPlaceholderPreviews?: boolean;
   channelNewThreadTitle?: DiscordChannelConnection["details"]["channelNewThreadTitle"];
   channelNewThreadExcludesPreview?:
     | DiscordChannelConnection["details"]["channelNewThreadExcludesPreview"];
+}
+
+interface CreateTemplatePreviewInput {
+  userFeed: UserFeed;
+  content?: string;
+  embeds?: DiscordPreviewEmbed[];
+  feedFormatOptions: UserFeed["formatOptions"] | null;
+  connectionFormatOptions?:
+    | DiscordChannelConnection["details"]["formatter"]
+    | null;
+  articleId?: string;
+  placeholderLimits?:
+    | DiscordChannelConnection["details"]["placeholderLimits"]
+    | null;
+  enablePlaceholderFallback?: boolean;
+  componentsV2?: DiscordChannelConnection["details"]["componentsV2"] | null;
 }
 
 @Injectable()
@@ -175,6 +194,7 @@ export class FeedConnectionsDiscordChannelsService {
     userAccessToken,
     userDiscordUserId,
     threadCreationMethod,
+    templateData,
   }: {
     feed: UserFeed;
     name: string;
@@ -194,6 +214,13 @@ export class FeedConnectionsDiscordChannelsService {
     userAccessToken: string;
     userDiscordUserId: string;
     threadCreationMethod?: "new-thread";
+    templateData?: {
+      content?: string;
+      embeds?: DiscordChannelConnection["details"]["embeds"];
+      componentsV2?: DiscordChannelConnection["details"]["componentsV2"];
+      placeholderLimits?: DiscordChannelConnection["details"]["placeholderLimits"];
+      formatter?: DiscordChannelConnection["details"]["formatter"];
+    };
   }): Promise<DiscordChannelConnection> {
     const connectionId = new Types.ObjectId();
     let channelToAdd: DiscordChannelConnection["details"]["channel"];
@@ -299,6 +326,28 @@ export class FeedConnectionsDiscordChannelsService {
       throw new Error("Must provide either channelId or webhookId");
     }
 
+    let validatedComponentsV2: DiscordChannelConnection["details"]["componentsV2"] =
+      templateData?.componentsV2;
+
+    if (templateData?.componentsV2) {
+      const validationResult =
+        await this.feedHandlerService.validateDiscordPayload({
+          componentsV2: templateData.componentsV2,
+        });
+
+      if (!validationResult.valid) {
+        throw new InvalidComponentsV2Exception(
+          validationResult.errors.map(
+            (e) => new InvalidComponentsV2Exception(e.message, e.path)
+          )
+        );
+      }
+
+      // Use the parsed payload which strips unknown fields
+      // @ts-ignore
+      validatedComponentsV2 = validationResult.data.componentsV2;
+    }
+
     try {
       const updated = await this.userFeedModel.findOneAndUpdate(
         {
@@ -313,7 +362,11 @@ export class FeedConnectionsDiscordChannelsService {
                 type: FeedConnectionType.DiscordChannel,
                 channel: channelToAdd,
                 webhook: webhookToAdd,
-                embeds: [],
+                embeds: templateData?.embeds || [],
+                content: templateData?.content,
+                componentsV2: validatedComponentsV2,
+                placeholderLimits: templateData?.placeholderLimits,
+                formatter: templateData?.formatter || undefined,
               },
             },
           },
@@ -583,6 +636,11 @@ export class FeedConnectionsDiscordChannelsService {
           sourceConnection.details.componentRows;
       }
 
+      if (properties.includes(CopyableSetting.ComponentsV2)) {
+        currentConnection.details.componentsV2 =
+          sourceConnection.details.componentsV2;
+      }
+
       if (properties.includes(CopyableSetting.ForumThreadTitle)) {
         currentConnection.details.forumThreadTitle =
           sourceConnection.details.forumThreadTitle;
@@ -773,6 +831,28 @@ export class FeedConnectionsDiscordChannelsService {
         throw new InvalidFilterExpressionException(
           errors.map((message) => new InvalidFilterExpressionException(message))
         );
+      }
+    }
+
+    if (updates.details?.componentsV2) {
+      const validationResult =
+        await this.feedHandlerService.validateDiscordPayload({
+          componentsV2: updates.details.componentsV2,
+        });
+
+      if (!validationResult.valid) {
+        throw new InvalidComponentsV2Exception(
+          validationResult.errors.map(
+            (e) => new InvalidComponentsV2Exception(e.message, e.path)
+          )
+        );
+      }
+
+      // Use the parsed payload which strips unknown fields
+      if (validationResult.data.componentsV2) {
+        // @ts-ignore
+        setRecordDetails["connections.discordChannels.$.details.componentsV2"] =
+          validationResult.data.componentsV2;
       }
     }
 
@@ -1056,8 +1136,11 @@ export class FeedConnectionsDiscordChannelsService {
         embeds: castDiscordEmbedsForMedium(
           cleanedPreviewEmbeds || connection.details.embeds
         ),
-        formatter:
-          previewInput?.connectionFormatOptions || connection.details.formatter,
+        formatter: {
+          ...(previewInput?.connectionFormatOptions ||
+            connection.details.formatter),
+          connectionCreatedAt: connection.createdAt?.toISOString(),
+        },
         mentions: previewInput?.mentions || connection.mentions,
         customPlaceholders: useCustomPlaceholders,
         splitOptions: previewInput?.splitOptions?.isEnabled
@@ -1074,6 +1157,12 @@ export class FeedConnectionsDiscordChannelsService {
         components: castDiscordComponentRowsForMedium(
           previewInput?.componentRows || connection.details.componentRows
         ),
+        componentsV2:
+          previewInput?.content ||
+          previewInput?.embeds?.length ||
+          previewInput?.componentsV2 === null
+            ? undefined
+            : previewInput?.componentsV2 || connection.details.componentsV2,
         channelNewThreadTitle:
           previewInput?.channelNewThreadTitle ||
           connection.details.channelNewThreadTitle,
@@ -1102,6 +1191,7 @@ export class FeedConnectionsDiscordChannelsService {
     enablePlaceholderFallback,
     customPlaceholders,
     componentRows,
+    componentsV2,
     includeCustomPlaceholderPreviews,
     externalProperties,
     channelNewThreadTitle,
@@ -1175,15 +1265,105 @@ export class FeedConnectionsDiscordChannelsService {
               ) || [],
           }))
         ),
-        formatter: connectionFormatOptions || undefined,
+        formatter: {
+          ...connectionFormatOptions,
+          connectionCreatedAt: connection.createdAt?.toISOString(),
+        },
         splitOptions: splitOptions?.isEnabled ? splitOptions : undefined,
         mentions: mentions,
         customPlaceholders,
         placeholderLimits,
         enablePlaceholderFallback: enablePlaceholderFallback,
         components: castDiscordComponentRowsForMedium(componentRows),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        componentsV2: (componentsV2 as any) ?? undefined,
       },
     } as const;
+
+    return this.feedHandlerService.createPreview({
+      details: payload,
+    });
+  }
+
+  async createTemplatePreview({
+    userFeed,
+    content,
+    embeds,
+    feedFormatOptions,
+    connectionFormatOptions,
+    articleId,
+    placeholderLimits,
+    enablePlaceholderFallback,
+    componentsV2,
+  }: CreateTemplatePreviewInput) {
+    const user = await this.usersService.getOrCreateUserByDiscordId(
+      userFeed.user.discordUserId
+    );
+
+    const payload: CreateDiscordChannelPreviewInput["details"] = {
+      type: "discord",
+      includeCustomPlaceholderPreviews: false,
+      feed: {
+        requestLookupDetails: getFeedRequestLookupDetails({
+          feed: userFeed,
+          user,
+          decryptionKey: this.configService.get(
+            "BACKEND_API_ENCRYPTION_KEY_HEX"
+          ),
+        }),
+        url: userFeed.url,
+        formatOptions: {
+          ...feedFormatOptions,
+          dateFormat:
+            feedFormatOptions?.dateFormat || user?.preferences?.dateFormat,
+          dateTimezone:
+            feedFormatOptions?.dateTimezone || user?.preferences?.dateTimezone,
+          dateLocale:
+            feedFormatOptions?.dateLocale || user?.preferences?.dateLocale,
+        },
+        externalProperties: undefined,
+      },
+      article: articleId ? { id: articleId } : undefined,
+      mediumDetails: {
+        channel: undefined,
+        webhook: undefined,
+        guildId: "",
+        content: castDiscordContentForMedium(content),
+        embeds: castDiscordEmbedsForMedium(
+          embeds?.map((e) => ({
+            title: e.title || undefined,
+            description: e.description || undefined,
+            url: e.url || undefined,
+            imageURL: e.image?.url || undefined,
+            thumbnailURL: e.thumbnail?.url || undefined,
+            authorIconURL: e.author?.iconUrl || undefined,
+            authorName: e.author?.name || undefined,
+            authorURL: e.author?.url || undefined,
+            color: e.color || undefined,
+            footerIconURL: e.footer?.iconUrl || undefined,
+            footerText: e.footer?.text || undefined,
+            timestamp: e.timestamp || undefined,
+            fields:
+              e.fields?.filter(
+                (f): f is { name: string; value: string; inline?: boolean } =>
+                  !!f.name && !!f.value
+              ) || [],
+          }))
+        ),
+        formatter: {
+          ...connectionFormatOptions,
+          connectionCreatedAt: new Date().toISOString(),
+        },
+        splitOptions: undefined,
+        mentions: undefined,
+        customPlaceholders: undefined,
+        placeholderLimits,
+        enablePlaceholderFallback: enablePlaceholderFallback,
+        components: [],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        componentsV2: (componentsV2 as any) ?? undefined,
+      },
+    };
 
     return this.feedHandlerService.createPreview({
       details: payload,
@@ -1340,6 +1520,135 @@ export class FeedConnectionsDiscordChannelsService {
 
       throw err;
     }
+  }
+
+  async sendTestArticleDirect(
+    userFeed: UserFeed,
+    input: {
+      article: {
+        id: string;
+      };
+      channelId: string;
+      content?: string;
+      embeds?: DiscordPreviewEmbed[];
+      componentsV2?: Array<Record<string, unknown>>;
+      placeholderLimits?: {
+        placeholder: string;
+        characterCount: number;
+        appendString?: string;
+      }[];
+      webhook?: {
+        name: string;
+        iconUrl?: string;
+      } | null;
+      threadId?: string;
+      userFeedFormatOptions?: UserFeed["formatOptions"] | null;
+    }
+  ): Promise<SendTestArticleResult> {
+    const user = await this.usersService.getOrCreateUserByDiscordId(
+      userFeed.user.discordUserId
+    );
+
+    const requestLookupDetails = getFeedRequestLookupDetails({
+      feed: userFeed,
+      decryptionKey: this.configService.get("BACKEND_API_ENCRYPTION_KEY_HEX"),
+      user,
+    });
+
+    const cleanedEmbeds = input.embeds
+      ? input.embeds.map((e) => ({
+          title: e.title || undefined,
+          description: e.description || undefined,
+          url: e.url || undefined,
+          imageURL: e.image?.url || undefined,
+          thumbnailURL: e.thumbnail?.url || undefined,
+          authorIconURL: e.author?.iconUrl || undefined,
+          authorName: e.author?.name || undefined,
+          authorURL: e.author?.url || undefined,
+          color: e.color || undefined,
+          footerIconURL: e.footer?.iconUrl || undefined,
+          footerText: e.footer?.text || undefined,
+          timestamp: e.timestamp || undefined,
+          fields:
+            e.fields?.filter(
+              (f): f is { name: string; value: string; inline?: boolean } =>
+                !!f.name && !!f.value
+            ) || [],
+        }))
+      : undefined;
+
+    const { isSupporter } =
+      await this.supportersService.getBenefitsOfDiscordUser(
+        userFeed.user.discordUserId
+      );
+
+    let webhookDetails:
+      | SendTestDiscordChannelArticleInput["details"]["mediumDetails"]["webhook"]
+      | undefined;
+
+    if (input.webhook && isSupporter) {
+      const webhook = await this.getOrCreateApplicationWebhook({
+        channelId: input.threadId || input.channelId,
+        webhook: { name: `test-send-${userFeed._id}` },
+      });
+
+      webhookDetails = {
+        id: webhook.id,
+        token: webhook.token as string,
+        name: input.webhook.name,
+        iconUrl: input.webhook.iconUrl,
+        threadId: input.threadId,
+      };
+    }
+
+    const payload: SendTestDiscordChannelArticleInput["details"] = {
+      type: "discord",
+      feed: {
+        url: userFeed.url,
+        formatOptions: {
+          ...userFeed.formatOptions,
+          ...input.userFeedFormatOptions,
+          dateFormat:
+            input.userFeedFormatOptions?.dateFormat ||
+            userFeed.formatOptions?.dateFormat ||
+            user?.preferences?.dateFormat,
+          dateTimezone:
+            input.userFeedFormatOptions?.dateTimezone ||
+            userFeed.formatOptions?.dateTimezone ||
+            user?.preferences?.dateTimezone,
+          dateLocale:
+            input.userFeedFormatOptions?.dateLocale ||
+            userFeed.formatOptions?.dateLocale ||
+            user?.preferences?.dateLocale,
+        },
+        externalProperties: userFeed.externalProperties,
+        requestLookupDetails: requestLookupDetails || undefined,
+      },
+      article: input.article,
+      mediumDetails: {
+        components: [],
+        channel: webhookDetails
+          ? undefined
+          : {
+              id: input.threadId || input.channelId,
+            },
+        webhook: webhookDetails,
+        content: castDiscordContentForMedium(input.content),
+        embeds: castDiscordEmbedsForMedium(cleanedEmbeds || []),
+        placeholderLimits: input.placeholderLimits,
+        componentsV2:
+          input.content || input.embeds?.length
+            ? undefined
+            : (input.componentsV2 as SendTestDiscordChannelArticleInput["details"]["mediumDetails"]["componentsV2"]),
+        formatter: {
+          connectionCreatedAt: new Date().toISOString(),
+        },
+      },
+    } as const;
+
+    return this.feedHandlerService.sendTestArticle({
+      details: payload,
+    });
   }
 
   private async cleanupWebhook(webhookId: string) {

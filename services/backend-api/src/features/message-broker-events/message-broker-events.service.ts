@@ -13,10 +13,7 @@ import {
 import { castDiscordComponentRowsForMedium } from "../../common/utils/cast-discord-component-rows-from-connection";
 import { FeedFetcherFetchStatus } from "../../services/feed-fetcher/types";
 import logger from "../../utils/logger";
-import {
-  DiscordChannelConnection,
-  DiscordWebhookConnection,
-} from "../feeds/entities/feed-connections";
+import { DiscordChannelConnection } from "../feeds/entities/feed-connections";
 import { NotificationsService } from "../notifications/notifications.service";
 import {
   ArticleRejectCode,
@@ -161,9 +158,9 @@ export class MessageBrokerEventsService {
           });
         }
 
-        const cons = Object.values(feed.connections).flat() as Array<
-          DiscordChannelConnection | DiscordWebhookConnection
-        >;
+        const cons = Object.values(
+          feed.connections
+        ).flat() as Array<DiscordChannelConnection>;
 
         const hasCustomPlaceholders = cons.find(
           (c) => !c.customPlaceholders?.length
@@ -513,6 +510,8 @@ export class MessageBrokerEventsService {
           components: castDiscordComponentRowsForMedium(
             con.details.componentRows
           ),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          componentsV2: con.details.componentsV2 as any,
           forumThreadTitle: con.details.forumThreadTitle,
           forumThreadTags: con.details.forumThreadTags,
           mentions: con.mentions,
@@ -525,6 +524,7 @@ export class MessageBrokerEventsService {
             disableImageLinkPreviews:
               con.details.formatter?.disableImageLinkPreviews,
             ignoreNewLines: con.details.formatter?.ignoreNewLines,
+            connectionCreatedAt: con.createdAt?.toISOString(),
           },
           splitOptions: con.splitOptions?.isEnabled
             ? con.splitOptions

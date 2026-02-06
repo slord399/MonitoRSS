@@ -18,6 +18,28 @@ export interface UpdateDiscordChannelConnectionInput {
         url?: string | null;
       }>;
     }> | null;
+    componentsV2?: Array<{
+      type: string;
+      content?: string;
+      components?: Array<{
+        type: string;
+        content?: string;
+        style?: number;
+        label?: string;
+        url?: string | null;
+        disabled?: boolean;
+      }>;
+      accessory?: {
+        type: string;
+        style?: number;
+        label?: string;
+        url?: string | null;
+        disabled?: boolean;
+        media?: {
+          url: string;
+        };
+      } | null;
+    }> | null;
     webhook?: {
       id: string;
       iconUrl?: string | null;
@@ -51,6 +73,8 @@ export interface UpdateDiscordChannelConnectionInput {
       appendString?: string | null;
     }> | null;
     threadCreationMethod?: "new-thread" | null;
+    channelNewThreadTitle?: string | null;
+    channelNewThreadExcludesPreview?: boolean | null;
     disabledCode?: FeedConnectionDisabledCode.Manual | null;
     passingComparisons?: string[];
     blockingComparisons?: string[];
@@ -74,6 +98,7 @@ export interface UpdateDiscordChannelConnectionInput {
         text?: string | null;
         iconUrl?: string | null;
       } | null;
+      timestamp?: string | null;
     }>;
     splitOptions?: {
       splitChar?: string | null;
@@ -86,6 +111,7 @@ export interface UpdateDiscordChannelConnectionInput {
       disabledImageLinkPreviews?: boolean | null;
       ignoreNewLines?: boolean | null;
     } | null;
+    enablePlaceholderFallback?: boolean | null;
     customPlaceholders?: CustomPlaceholder[] | null;
     mentions?: {
       targets?: Array<{

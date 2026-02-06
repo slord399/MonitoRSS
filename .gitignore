@@ -136,3 +136,6 @@ __pycache__
 # dotenv environment variables file
 .env*
 !.env.example
+CLAUDE.md
+nul
+dist

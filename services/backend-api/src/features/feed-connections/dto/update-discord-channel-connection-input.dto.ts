@@ -173,4 +173,10 @@ export class UpdateDiscordChannelConnectionInputDto {
   @IsIn(["new-thread"])
   @ValidateIf((v) => v !== null)
   threadCreationMethod?: "new-thread" | null;
+
+  @IsArray()
+  @IsObject({ each: true })
+  @IsOptional()
+  @ValidateIf((v) => v !== null)
+  componentsV2?: Array<Record<string, unknown>>;
 }

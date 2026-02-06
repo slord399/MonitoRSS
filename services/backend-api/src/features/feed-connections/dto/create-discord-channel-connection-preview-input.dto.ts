@@ -126,4 +126,10 @@ export class CreateDiscordChannelConnectionPreviewInputDto {
   @IsOptional()
   @IsBoolean()
   includeCustomPlaceholderPreviews?: boolean;
+
+  @IsArray()
+  @IsObject({ each: true })
+  @IsOptional()
+  @ValidateIf((v) => v !== null)
+  componentsV2?: Array<Record<string, unknown>>;
 }

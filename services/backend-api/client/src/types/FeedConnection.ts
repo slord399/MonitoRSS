@@ -15,7 +15,11 @@ export enum FeedConnectionDisabledCode {
 }
 
 export enum DiscordComponentType {
+  ActionRow = 1,
   Button = 2,
+  Section = 9,
+  TextDisplay = 10,
+  Thumbnail = 11,
 }
 
 export enum DiscordComponentButtonStyle {
@@ -66,6 +70,53 @@ const DiscordChannelConnectionDetailsSchema = object({
       components: array(DiscordButtonSchema.required()).required().max(5),
     }).required()
   ).max(5),
+  componentsV2: array(
+    object({
+      type: string().required(),
+      content: string().optional(),
+      divider: boolean().optional(),
+      spacing: number().optional(),
+      accent_color: number().optional().nullable(),
+      spoiler: boolean().optional(),
+      items: array(
+        object({
+          media: object({
+            url: string().required(),
+          }).required(),
+          description: string().optional().nullable(),
+          spoiler: boolean().optional(),
+        })
+      ).optional(),
+      components: array(
+        object({
+          type: string().required(),
+          content: string().optional(),
+          style: number().optional(),
+          label: string().optional(),
+          url: string().optional().nullable(),
+          disabled: boolean().optional(),
+          divider: boolean().optional(),
+          spacing: number().optional(),
+        })
+      ).optional(),
+      accessory: object({
+        type: string().required(),
+        style: number().optional(),
+        label: string().optional(),
+        url: string().optional().nullable(),
+        disabled: boolean().optional(),
+        media: object({
+          url: string().required(),
+        }).optional(),
+        description: string().optional().nullable(),
+        spoiler: boolean().optional(),
+      })
+        .optional()
+        .nullable(),
+    }).required()
+  )
+    .optional()
+    .nullable(),
   content: string().optional(),
   forumThreadTitle: string().optional(),
   forumThreadTags: array(

@@ -1,6 +1,5 @@
 export * from "./FeedArticle";
 export * from "./FeedSummary";
-export * from "./FeedCloneProperties";
 export * from "./UserFeed";
 export * from "./UserFeedDisabledCode";
 export * from "./UserFeedHealthStatus";
@@ -10,3 +9,5 @@ export * from "./UserFeedSummary";
 export * from "./UserFeedComputedStatus";
 export * from "./UserFeedManagementInvite";
 export * from "./UserFeedDeliveryLog";
+export * from "./DeliveryPreview";
+export * from "./ExternalContentError";
