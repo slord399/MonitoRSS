@@ -33,7 +33,7 @@ services:
 
   mongo:
     restart: on-failure:5
-    image: mongo:7.0.2
+    image: mongo:8.2.4
     hostname: mongo
     volumes:
       - mongodb-dev-data:/data/db
