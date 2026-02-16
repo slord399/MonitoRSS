@@ -145,7 +145,7 @@ const convertV2ContainerToAPI = (container: ContainerComponent) => ({
 });
 
 const convertV2RootToConnectionUpdate = (
-  component: V2MessageComponentRoot
+  component: V2MessageComponentRoot,
 ): UpdateDiscordChannelConnectionInput["details"] => {
   const details: UpdateDiscordChannelConnectionInput["details"] = {};
 
@@ -239,7 +239,7 @@ const convertV2RootToConnectionUpdate = (
 };
 
 const convertLegacyRootToConnectionUpdate = (
-  component: LegacyMessageComponentRoot
+  component: LegacyMessageComponentRoot,
 ): UpdateDiscordChannelConnectionInput["details"] => {
   const details: UpdateDiscordChannelConnectionInput["details"] = {};
 
@@ -397,11 +397,19 @@ const convertLegacyRootToConnectionUpdate = (
     details.placeholderLimits = component.placeholderLimits;
   }
 
+  if (component.channelNewThreadTitle !== undefined) {
+    details.channelNewThreadTitle = component.channelNewThreadTitle;
+  }
+
+  if (component.channelNewThreadExcludesPreview !== undefined) {
+    details.channelNewThreadExcludesPreview = component.channelNewThreadExcludesPreview;
+  }
+
   return details;
 };
 
 const convertMessageBuilderStateToConnectionUpdate = (
-  component?: MessageComponentRoot
+  component?: MessageComponentRoot,
 ): UpdateDiscordChannelConnectionInput["details"] => {
   if (!component) return {};
 
