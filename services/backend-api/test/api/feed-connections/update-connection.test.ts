@@ -77,7 +77,7 @@ interface CreateTestFeedOptions {
         placeholder: string;
         characterCount: number;
       }>;
-      formatter?: { formatTables?: boolean };
+      formatter?: { formatTables?: boolean; stripImages?: boolean };
       enablePlaceholderFallback?: boolean;
     };
   }>;
@@ -511,7 +511,7 @@ describe(
         assert.strictEqual(body.result.details.embeds[0]?.title, "Test Embed");
       });
 
-      it("clears detail fields omitted from request", async () => {
+      it("preserves detail fields omitted from request", async () => {
         const discordUserId = generateSnowflake();
         const user = await ctx.asUser(discordUserId);
         const { feedId, connectionId } = await createTestFeedWithConnection(
@@ -519,10 +519,29 @@ describe(
           {
             discordUserId,
             connectionOverrides: {
+              customPlaceholders: [
+                {
+                  id: generateTestId(),
+                  referenceName: "myplaceholder",
+                  sourcePlaceholder: "title",
+                  steps: [
+                    {
+                      id: generateTestId(),
+                      type: "REGEX",
+                      regexSearch: ".*",
+                    },
+                  ],
+                },
+              ],
               details: {
                 content: "Old content",
                 embeds: [{ title: "Old embed" }],
                 forumThreadTitle: "Old thread",
+                formatter: { formatTables: true, stripImages: true },
+                enablePlaceholderFallback: true,
+                placeholderLimits: [
+                  { placeholder: "title", characterCount: 100 },
+                ],
               },
             },
           },
@@ -540,11 +559,145 @@ describe(
           (c) => c.id === connectionId,
         );
 
-        assert.strictEqual(storedConnection?.details.content, undefined);
-        assert.strictEqual(storedConnection?.details.embeds, undefined);
+        assert.strictEqual(storedConnection?.details.content, "Old content");
+        assert.strictEqual(storedConnection?.details.embeds?.length, 1);
+        assert.strictEqual(
+          storedConnection?.details.embeds?.[0]?.title,
+          "Old embed",
+        );
         assert.strictEqual(
           storedConnection?.details.forumThreadTitle,
-          undefined,
+          "Old thread",
+        );
+        assert.strictEqual(
+          storedConnection?.details.formatter?.formatTables,
+          true,
+        );
+        assert.strictEqual(
+          storedConnection?.details.formatter?.stripImages,
+          true,
+        );
+        assert.strictEqual(
+          storedConnection?.details.enablePlaceholderFallback,
+          true,
+        );
+        assert.strictEqual(
+          storedConnection?.details.placeholderLimits?.length,
+          1,
+        );
+        assert.strictEqual(
+          storedConnection?.details.placeholderLimits?.[0]?.placeholder,
+          "title",
+        );
+        assert.strictEqual(storedConnection?.customPlaceholders?.length, 1);
+        assert.strictEqual(
+          storedConnection?.customPlaceholders?.[0]?.referenceName,
+          "myplaceholder",
+        );
+      });
+
+      it("preserves detail fields when saving only customPlaceholders", async () => {
+        const discordUserId = generateSnowflake();
+        const user = await ctx.asUser(discordUserId);
+        const { feedId, connectionId } = await createTestFeedWithConnection(
+          ctx,
+          {
+            discordUserId,
+            connectionOverrides: {
+              details: {
+                content: "Old content",
+                embeds: [{ title: "Old embed" }],
+                formatter: { formatTables: true },
+                componentsV2: [{ type: 1, components: [] }],
+              },
+            },
+          },
+        );
+
+        const response = await user.fetch(testUrl(feedId, connectionId), {
+          method: "PATCH",
+          body: JSON.stringify({
+            customPlaceholders: [
+              {
+                referenceName: "newplaceholder",
+                sourcePlaceholder: "description",
+                steps: [
+                  {
+                    type: "REGEX",
+                    regexSearch: "test",
+                  },
+                ],
+              },
+            ],
+          }),
+        });
+
+        assert.strictEqual(response.status, 200);
+
+        const feed = await ctx.container.userFeedRepository.findById(feedId);
+        const storedConnection = feed?.connections.discordChannels.find(
+          (c) => c.id === connectionId,
+        );
+
+        assert.strictEqual(storedConnection?.details.content, "Old content");
+        assert.strictEqual(storedConnection?.details.embeds?.length, 1);
+        assert.strictEqual(
+          storedConnection?.details.formatter?.formatTables,
+          true,
+        );
+        assert.ok(
+          storedConnection?.details.componentsV2?.length,
+          "componentsV2 should be preserved",
+        );
+        assert.strictEqual(storedConnection?.customPlaceholders?.length, 1);
+        assert.strictEqual(
+          storedConnection?.customPlaceholders?.[0]?.referenceName,
+          "newplaceholder",
+        );
+      });
+
+      it("clears detail fields when explicitly set to null", async () => {
+        const discordUserId = generateSnowflake();
+        const user = await ctx.asUser(discordUserId);
+        const { feedId, connectionId } = await createTestFeedWithConnection(
+          ctx,
+          {
+            discordUserId,
+            connectionOverrides: {
+              details: {
+                content: "Old content",
+                formatter: {
+                  formatTables: true,
+                  stripImages: false,
+                },
+              },
+            },
+          },
+        );
+
+        const response = await user.fetch(testUrl(feedId, connectionId), {
+          method: "PATCH",
+          body: JSON.stringify({
+            content: null,
+            formatter: null,
+          }),
+        });
+
+        assert.strictEqual(response.status, 200);
+
+        const feed = await ctx.container.userFeedRepository.findById(feedId);
+        const storedConnection = feed?.connections.discordChannels.find(
+          (c) => c.id === connectionId,
+        );
+
+        assert.ok(
+          !storedConnection?.details.content,
+          `content should be cleared`,
+        );
+        assert.ok(
+          !storedConnection?.details.formatter ||
+            Object.keys(storedConnection.details.formatter).length === 0,
+          `formatter should be cleared`,
         );
       });
 
@@ -1302,7 +1455,7 @@ describe(
     });
 
     describe("Response format", () => {
-      it("returns minimal response structure matching NestJS format", async () => {
+      it("returns full connection response structure", async () => {
         const discordUserId = generateSnowflake();
         const user = await ctx.asUser(discordUserId);
         const { feedId, connectionId } = await createTestFeedWithConnection(
@@ -1312,7 +1465,7 @@ describe(
 
         const response = await user.fetch(testUrl(feedId, connectionId), {
           method: "PATCH",
-          body: JSON.stringify({ name: "minimal-response-test" }),
+          body: JSON.stringify({ name: "full-response-test" }),
         });
 
         assert.strictEqual(response.status, 200);
@@ -1321,60 +1474,18 @@ describe(
         };
 
         assert.ok(body.result.id);
-        assert.strictEqual(body.result.name, "minimal-response-test");
+        assert.strictEqual(body.result.name, "full-response-test");
         assert.strictEqual(body.result.key, "DISCORD_CHANNEL");
         assert.ok(body.result.details);
 
-        assert.strictEqual(
-          body.result.mentions,
-          undefined,
-          "should not include mentions",
-        );
-        assert.strictEqual(
-          body.result.rateLimits,
-          undefined,
-          "should not include rateLimits",
-        );
-        assert.strictEqual(
-          body.result.customPlaceholders,
-          undefined,
-          "should not include customPlaceholders",
-        );
-        assert.strictEqual(
-          body.result.disabledCode,
-          undefined,
-          "should not include disabledCode",
-        );
-        assert.strictEqual(
-          body.result.createdAt,
-          undefined,
-          "should not include createdAt",
-        );
-        assert.strictEqual(
-          body.result.updatedAt,
-          undefined,
-          "should not include updatedAt",
-        );
-
         const details = body.result.details as Record<string, unknown>;
-        assert.strictEqual(
-          details.forumThreadTitle,
-          undefined,
-          "details should not include forumThreadTitle",
-        );
-        assert.strictEqual(
-          details.forumThreadTags,
-          undefined,
-          "details should not include forumThreadTags",
-        );
-        assert.deepStrictEqual(
+        assert.ok(
           details.formatter,
-          {},
-          "details.formatter should be empty object for connections without formatter",
+          "details.formatter should be present for connections",
         );
       });
 
-      it("returns channel with only id and guildId", async () => {
+      it("returns channel with id and guildId", async () => {
         const discordUserId = generateSnowflake();
         const user = await ctx.asUser(discordUserId);
         const { feedId, connectionId } = await createTestFeedWithConnection(
@@ -1395,11 +1506,6 @@ describe(
         const channel = body.result.details.channel;
         assert.ok(channel.id);
         assert.ok(channel.guildId);
-        assert.strictEqual(
-          channel.type,
-          undefined,
-          "channel should not include type",
-        );
       });
     });
 
