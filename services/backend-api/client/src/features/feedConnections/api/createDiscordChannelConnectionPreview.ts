@@ -66,6 +66,12 @@ export interface CreateDiscordChannelConnectionPreviewInput {
     }> | null;
     channelNewThreadExcludesPreview?: boolean | null;
     channelNewThreadTitle?: string | null;
+    applicationWebhook?: {
+      channelId: string;
+      name: string;
+      iconUrl?: string;
+    };
+    sendAsBot?: boolean;
     componentsV2?: Array<{
       type: string;
       content?: string;

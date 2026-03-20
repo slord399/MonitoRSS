@@ -108,7 +108,9 @@ export class FeedConnectionsDiscordChannelsService {
       let channel: DiscordGuildChannel;
       const threadId = applicationWebhook?.threadId || inputWebhook?.threadId;
       const iconUrl = inputWebhook?.iconUrl || applicationWebhook?.iconUrl;
-      const name = inputWebhook?.name || applicationWebhook?.name;
+      const name = await this.resolveWebhookName(
+        inputWebhook?.name || applicationWebhook?.name,
+      );
 
       if (inputWebhook) {
         ({ webhook, channel } = await this.assertDiscordWebhookCanBeUsed(
@@ -323,9 +325,10 @@ export class FeedConnectionsDiscordChannelsService {
       const threadId =
         updates.details.webhook?.threadId ||
         updates.details.applicationWebhook?.threadId;
-      const name =
+      const name = await this.resolveWebhookName(
         updates.details.webhook?.name ||
-        updates.details.applicationWebhook?.name;
+          updates.details.applicationWebhook?.name,
+      );
       const iconUrl =
         updates.details.webhook?.iconUrl ||
         updates.details.applicationWebhook?.iconUrl;
@@ -716,7 +719,11 @@ export class FeedConnectionsDiscordChannelsService {
   async copySettings(
     userFeed: IUserFeed,
     sourceConnection: IDiscordChannelConnection,
-    { targetDiscordChannelConnectionIds, properties }: CopySettingsInput,
+    {
+      targetDiscordChannelConnectionIds,
+      properties,
+      accessToken,
+    }: CopySettingsInput,
   ): Promise<void> {
     const foundFeed = await this.deps.userFeedRepository.findById(userFeed.id);
 
@@ -738,6 +745,10 @@ export class FeedConnectionsDiscordChannelsService {
       return connection;
     });
 
+    const copyingBranding =
+      properties.includes(CopyableSetting.WebhookName) ||
+      properties.includes(CopyableSetting.WebhookIconUrl);
+
     for (let i = 0; i < relevantConnections.length; ++i) {
       const currentConnection = relevantConnections[i];
 
@@ -749,21 +760,46 @@ export class FeedConnectionsDiscordChannelsService {
         currentConnection.details.embeds = sourceConnection.details.embeds;
       }
 
-      if (
-        currentConnection.details.webhook &&
-        sourceConnection.details.webhook
-      ) {
-        if (properties.includes(CopyableSetting.WebhookName)) {
-          currentConnection.details.webhook.name =
-            sourceConnection.details.webhook.name;
+      if (copyingBranding && sourceConnection.details.webhook) {
+        if (!currentConnection.details.webhook) {
+          const channelId = currentConnection.details.channel?.id;
+
+          if (channelId) {
+            const { channel } = await this.assertDiscordChannelCanBeUsed(
+              accessToken,
+              channelId,
+              true,
+            );
+
+            const webhook = await this.getOrCreateApplicationWebhook({
+              channelId: channel.id,
+              webhook: {
+                name: `feed-${userFeed.id}-${currentConnection.id}`,
+              },
+            });
+
+            currentConnection.details.webhook = {
+              id: webhook.id,
+              token: webhook.token as string,
+              guildId: channel.guild_id,
+              channelId: channel.id,
+              isApplicationOwned: true,
+            };
+            currentConnection.details.channel = undefined;
+          }
         }
 
-        if (properties.includes(CopyableSetting.WebhookIconUrl)) {
-          currentConnection.details.webhook.iconUrl =
-            sourceConnection.details.webhook.iconUrl;
-        }
+        if (currentConnection.details.webhook) {
+          if (properties.includes(CopyableSetting.WebhookName)) {
+            currentConnection.details.webhook.name =
+              sourceConnection.details.webhook.name;
+          }
 
-        if (properties.includes(CopyableSetting.WebhookThread)) {
+          if (properties.includes(CopyableSetting.WebhookIconUrl)) {
+            currentConnection.details.webhook.iconUrl =
+              sourceConnection.details.webhook.iconUrl;
+          }
+
           currentConnection.details.webhook.threadId =
             sourceConnection.details.webhook.threadId;
         }
@@ -861,14 +897,6 @@ export class FeedConnectionsDiscordChannelsService {
       if (properties.includes(CopyableSetting.MessageMentions)) {
         currentConnection.mentions = sourceConnection.mentions;
       }
-
-      if (
-        properties.includes(CopyableSetting.Channel) &&
-        sourceConnection.details.channel &&
-        currentConnection.details.channel
-      ) {
-        currentConnection.details.channel = sourceConnection.details.channel;
-      }
     }
 
     await this.deps.userFeedRepository.updateById(userFeed.id, {
@@ -885,6 +913,13 @@ export class FeedConnectionsDiscordChannelsService {
       article?: {
         id: string;
       };
+      applicationWebhook?: {
+        channelId: string;
+        name: string;
+        iconUrl?: string;
+        threadId?: string;
+      };
+      sendAsBot?: boolean;
       previewInput?: SendTestArticlePreviewInput;
     },
   ): Promise<SendTestArticleResult> {
@@ -975,22 +1010,12 @@ export class FeedConnectionsDiscordChannelsService {
       article: details?.article ? details.article : undefined,
       mediumDetails: {
         ...connection.details,
-        channel: connection.details.channel
-          ? {
-              id: connection.details.channel.id,
-              type: connection.details.channel.type,
-            }
-          : undefined,
-        webhook: connection.details.webhook
-          ? {
-              id: connection.details.webhook.id,
-              token: connection.details.webhook.token,
-              name: connection.details.webhook.name,
-              iconUrl: connection.details.webhook.iconUrl,
-              type: connection.details.webhook.type,
-              threadId: connection.details.webhook.threadId,
-            }
-          : undefined,
+        ...(await this.resolveTestArticleWebhookDetails(
+          userFeed,
+          connection,
+          details?.applicationWebhook,
+          details?.sendAsBot,
+        )),
         forumThreadTitle:
           previewInput?.forumThreadTitle || connection.details.forumThreadTitle,
         forumThreadTags:
@@ -1062,6 +1087,7 @@ export class FeedConnectionsDiscordChannelsService {
         iconUrl?: string;
       } | null;
       threadId?: string;
+      channelNewThread?: boolean;
       userFeedFormatOptions?: IUserFeed["formatOptions"] | null;
     },
   ): Promise<SendTestArticleResult> {
@@ -1106,18 +1132,32 @@ export class FeedConnectionsDiscordChannelsService {
       | SendTestArticleInput["details"]["mediumDetails"]["webhook"]
       | undefined;
 
-    if (input.webhook && isSupporter) {
+    const channel = await this.deps.discordApiService.getChannel(
+      input.channelId,
+    );
+    const isForumChannel = channel.type === DiscordChannelType.GUILD_FORUM;
+    const isThread =
+      channel.type === DiscordChannelType.PUBLIC_THREAD ||
+      channel.type === DiscordChannelType.ANNOUNCEMENT_THREAD ||
+      channel.type === DiscordChannelType.PRIVATE_THREAD;
+
+    if (input.webhook || isForumChannel) {
+      const webhookChannelId = isThread
+        ? channel.parent_id || input.channelId
+        : input.channelId;
+
       const webhook = await this.getOrCreateApplicationWebhook({
-        channelId: input.threadId || input.channelId,
+        channelId: webhookChannelId,
         webhook: { name: `test-send-${userFeed.id}` },
       });
 
       webhookDetails = {
         id: webhook.id,
         token: webhook.token as string,
-        name: input.webhook.name,
-        iconUrl: input.webhook.iconUrl,
-        threadId: input.threadId,
+        name: input.webhook?.name,
+        iconUrl: input.webhook?.iconUrl,
+        threadId: isThread ? input.channelId : input.threadId,
+        type: isForumChannel ? "forum" : undefined,
       };
     }
 
@@ -1151,6 +1191,7 @@ export class FeedConnectionsDiscordChannelsService {
           ? undefined
           : {
               id: input.threadId || input.channelId,
+              ...(input.channelNewThread && { type: "new-thread" }),
             },
         webhook: webhookDetails,
         content: castDiscordContentForMedium(input.content),
@@ -1470,6 +1511,106 @@ export class FeedConnectionsDiscordChannelsService {
       }
 
       throw err;
+    }
+  }
+
+  private async resolveTestArticleWebhookDetails(
+    userFeed: IUserFeed,
+    connection: IDiscordChannelConnection,
+    applicationWebhook?: {
+      channelId: string;
+      name: string;
+      iconUrl?: string;
+      threadId?: string;
+    },
+    sendAsBot?: boolean,
+  ): Promise<{
+    channel?: { id: string; type?: string };
+    webhook?: {
+      id: string;
+      token: string;
+      name?: string;
+      iconUrl?: string;
+      type?: string;
+      threadId?: string;
+    };
+  }> {
+    if (sendAsBot) {
+      const channelId =
+        connection.details.webhook?.channelId || connection.details.channel?.id;
+
+      if (!channelId) {
+        throw new MissingDiscordChannelException();
+      }
+
+      return {
+        channel: { id: channelId },
+        webhook: undefined,
+      };
+    }
+
+    if (applicationWebhook) {
+      const channelId =
+        applicationWebhook.channelId ||
+        connection.details.webhook?.channelId ||
+        connection.details.channel?.id;
+
+      if (!channelId) {
+        throw new MissingDiscordChannelException();
+      }
+
+      const webhook = await this.getOrCreateApplicationWebhook({
+        channelId,
+        webhook: { name: `test-send-${userFeed.id}` },
+      });
+
+      return {
+        channel: undefined,
+        webhook: {
+          id: webhook.id,
+          token: webhook.token as string,
+          name: applicationWebhook.name,
+          iconUrl: applicationWebhook.iconUrl,
+          type: connection.details.webhook?.type || undefined,
+          threadId:
+            applicationWebhook.threadId || connection.details.webhook?.threadId,
+        },
+      };
+    }
+
+    return {
+      channel: connection.details.channel
+        ? {
+            id: connection.details.channel.id,
+            type: connection.details.channel.type || undefined,
+          }
+        : undefined,
+      webhook: connection.details.webhook
+        ? {
+            id: connection.details.webhook.id,
+            token: connection.details.webhook.token,
+            name: connection.details.webhook.name,
+            iconUrl: connection.details.webhook.iconUrl,
+            type: connection.details.webhook.type || undefined,
+            threadId: connection.details.webhook.threadId,
+          }
+        : undefined,
+    };
+  }
+
+  private async resolveWebhookName(
+    name: string | undefined,
+  ): Promise<string | undefined> {
+    if (name) {
+      return name;
+    }
+
+    try {
+      const bot = await this.deps.discordApiService.getBot();
+
+      return bot.username;
+    } catch {
+      return undefined;
     }
   }
 

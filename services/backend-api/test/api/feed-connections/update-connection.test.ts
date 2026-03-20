@@ -65,6 +65,9 @@ interface CreateTestFeedOptions {
         id: string;
         token: string;
         guildId: string;
+        name?: string;
+        iconUrl?: string;
+        channelId?: string;
         isApplicationOwned?: boolean;
       };
       content?: string;
@@ -1267,6 +1270,134 @@ describe(
 
         assert.strictEqual(storedConnection?.details.webhook, undefined);
         assert.strictEqual(storedConnection?.details.channel?.id, newChannelId);
+      });
+
+      it("preserves webhook branding when updating with applicationWebhook alongside channelId", async () => {
+        const discordUserId = generateSnowflake();
+        const user = await ctx.asUser(discordUserId);
+        const guildId = generateSnowflake();
+        const channelId = generateSnowflake();
+        const webhookId = generateSnowflake();
+        const webhookToken = "wh-token-1";
+
+        await ctx.createSupporter({
+          id: discordUserId,
+          expireAt: new Date("2030-12-31"),
+        });
+
+        setupDiscordMocks(channelId, guildId, user.accessToken.access_token);
+
+        ctx.discordMockServer.registerRoute(
+          "GET",
+          `/channels/${channelId}/webhooks`,
+          {
+            status: 200,
+            body: [
+              {
+                id: webhookId,
+                token: webhookToken,
+                type: 1,
+                application_id: "test-client-id",
+                channel_id: channelId,
+              },
+            ],
+          },
+        );
+
+        const { feedId, connectionId } = await createTestFeedWithConnection(
+          ctx,
+          {
+            discordUserId,
+            connectionOverrides: {
+              details: {
+                channel: null,
+                webhook: {
+                  id: webhookId,
+                  token: webhookToken,
+                  guildId,
+                  isApplicationOwned: true,
+                },
+              },
+            },
+          },
+        );
+
+        const response = await user.fetch(testUrl(feedId, connectionId), {
+          method: "PATCH",
+          body: JSON.stringify({
+            channelId,
+            applicationWebhook: {
+              channelId,
+              name: "Updated Name",
+              iconUrl: "https://example.com/new-icon.png",
+            },
+          }),
+        });
+
+        assert.strictEqual(response.status, 200);
+
+        const feed = await ctx.container.userFeedRepository.findById(feedId);
+        const storedConnection = feed?.connections.discordChannels.find(
+          (c) => c.id === connectionId,
+        );
+
+        assert.strictEqual(
+          storedConnection?.details.webhook?.name,
+          "Updated Name",
+        );
+        assert.strictEqual(
+          storedConnection?.details.webhook?.iconUrl,
+          "https://example.com/new-icon.png",
+        );
+        assert.strictEqual(storedConnection?.details.channel, undefined);
+      });
+
+      it("removes webhook when updating with channelId on a connection that had a webhook", async () => {
+        const discordUserId = generateSnowflake();
+        const user = await ctx.asUser(discordUserId);
+        const guildId = generateSnowflake();
+        const channelId = generateSnowflake();
+        const webhookId = generateSnowflake();
+
+        setupDiscordMocks(channelId, guildId, user.accessToken.access_token);
+
+        const { feedId, connectionId } = await createTestFeedWithConnection(
+          ctx,
+          {
+            discordUserId,
+            connectionOverrides: {
+              details: {
+                channel: null,
+                webhook: {
+                  id: webhookId,
+                  token: "wh-token",
+                  name: "Old Name",
+                  iconUrl: "https://example.com/old-icon.png",
+                  guildId,
+                  channelId,
+                  isApplicationOwned: true,
+                },
+              },
+            },
+          },
+        );
+
+        const response = await user.fetch(testUrl(feedId, connectionId), {
+          method: "PATCH",
+          body: JSON.stringify({
+            channelId,
+          }),
+        });
+
+        assert.strictEqual(response.status, 200);
+
+        const feed = await ctx.container.userFeedRepository.findById(feedId);
+        const storedConnection = feed?.connections.discordChannels.find(
+          (c) => c.id === connectionId,
+        );
+
+        assert.strictEqual(storedConnection?.details.webhook, undefined);
+        assert.strictEqual(storedConnection?.details.channel?.id, channelId);
       });
 
       it("accepts content null and componentRows null for V2 mode", async () => {

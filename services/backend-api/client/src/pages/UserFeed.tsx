@@ -48,7 +48,7 @@ import {
   ExternalLinkIcon,
   QuestionOutlineIcon,
 } from "@chakra-ui/icons";
-import { useContext, useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef } from "react";
 import { FaGear, FaPause, FaUserSlash } from "react-icons/fa6";
 import { FaCopy } from "react-icons/fa";
 import { IoDuplicate } from "react-icons/io5";
@@ -79,7 +79,10 @@ import { UserFeedLogs } from "../features/feed/components/UserFeedLogs";
 import { useUserMe } from "../features/discordUser";
 import { PricingDialogContext } from "../contexts";
 import { FeedConnectionDisabledCode } from "../types";
-import { formatRefreshRateSeconds } from "../utils/formatRefreshRateSeconds";
+import {
+  formatRefreshRateSeconds,
+  getEffectiveRefreshRateSeconds,
+} from "../utils/formatRefreshRateSeconds";
 import { ExternalPropertiesTabSection } from "../features/feedConnections/components/ExternalPropertiesTabSection";
 import { UserFeedProvider, useUserFeedContext } from "../contexts/UserFeedContext";
 import { UserFeedTabSearchParam } from "../constants/userFeedTabSearchParam";
@@ -141,9 +144,6 @@ const UserFeedInner: React.FC = () => {
   const { search: urlSearch, state } = useLocation();
   const { isOpen, onClose, onOpen } = useDisclosure();
   const menuButtonRef = useRef<HTMLButtonElement>(null);
-  const [addConnectionType, setAddConnectionType] = useState<
-    { type: "discord-channel" | "discord-forum" | "discord-webhook" } | undefined
-  >(undefined);
   const { data: dailyLimit } = useArticleDailyLimit({
     feedId,
   });
@@ -168,9 +168,7 @@ const UserFeedInner: React.FC = () => {
   const isNewFeed = state?.isNewFeed as boolean | undefined;
 
   const { createSuccessAlert, createErrorAlert } = usePageAlertContext();
-
-  const onAddConnection = (type: "discord-channel" | "discord-webhook" | "discord-forum") => {
-    setAddConnectionType({ type });
+  const onAddConnection = () => {
     onOpen();
   };
 
@@ -251,26 +249,8 @@ const UserFeedInner: React.FC = () => {
 
   const addConnectionButtons = isSharedWithMe ? null : (
     <Flex gap={4} flexWrap="wrap">
-      <Button
-        variant="outline"
-        onClick={() => onAddConnection("discord-channel")}
-        leftIcon={<AddIcon fontSize="sm" />}
-      >
-        Add Discord channel
-      </Button>
-      <Button
-        variant="outline"
-        onClick={() => onAddConnection("discord-forum")}
-        leftIcon={<AddIcon fontSize="sm" />}
-      >
-        Add Discord forum
-      </Button>
-      <Button
-        variant="outline"
-        onClick={() => onAddConnection("discord-webhook")}
-        leftIcon={<AddIcon fontSize="sm" />}
-      >
-        Add Discord webhook
+      <Button variant="outline" onClick={onAddConnection} leftIcon={<AddIcon fontSize="sm" />}>
+        Add Discord connection
       </Button>
     </Flex>
   );
@@ -297,7 +277,7 @@ const UserFeedInner: React.FC = () => {
         }}
       />
       <Tabs isLazy isFitted defaultIndex={tabIndex ?? 0} index={tabIndex ?? undefined} width="100%">
-        <AddConnectionDialog isOpen={isOpen} type={addConnectionType?.type} onClose={onClose} />
+        <AddConnectionDialog isOpen={isOpen} onClose={onClose} />
         <EditUserFeedDialog
           onCloseRef={menuButtonRef}
           isOpen={editIsOpen}
@@ -543,11 +523,7 @@ const UserFeedInner: React.FC = () => {
                     as="ul"
                   >
                     <CategoryText title={t("pages.feed.refreshRateLabel")}>
-                      {feed
-                        ? formatRefreshRateSeconds(
-                            feed.userRefreshRateSeconds || feed.refreshRateSeconds,
-                          )
-                        : null}
+                      {feed ? formatRefreshRateSeconds(getEffectiveRefreshRateSeconds(feed)) : null}
                     </CategoryText>
                     <CategoryText title={t("pages.feed.createdAtLabel")}>
                       {feed?.createdAt}
@@ -670,43 +646,13 @@ const UserFeedInner: React.FC = () => {
                         <Heading size="md" as="h2">
                           {t("pages.userFeeds.tabConnections")}
                         </Heading>
-                        <Menu placement="bottom-end">
-                          <MenuButton
-                            colorScheme="blue"
-                            as={Button}
-                            rightIcon={<ChevronDownIcon />}
-                          >
-                            Add new connection
-                          </MenuButton>
-                          <MenuList maxWidth="300px">
-                            <MenuItem onClick={() => onAddConnection("discord-channel")}>
-                              <Stack spacing={1}>
-                                <Text>Discord Channel</Text>
-                                <Text fontSize={13} color="whiteAlpha.600">
-                                  Send articles as messages authored by the bot to a Discord
-                                  channel.
-                                </Text>
-                              </Stack>
-                            </MenuItem>
-                            <MenuItem onClick={() => onAddConnection("discord-forum")}>
-                              <Stack spacing={1}>
-                                <Text>Discord Forum</Text>
-                                <Text fontSize={13} color="whiteAlpha.600" whiteSpace="normal">
-                                  Send articles as messages authored by the bot to a Discord forum.
-                                </Text>
-                              </Stack>
-                            </MenuItem>
-                            <MenuItem onClick={() => onAddConnection("discord-webhook")}>
-                              <Stack spacing={1}>
-                                <Text>{t("pages.feed.discordWebhookMenuItem")}</Text>
-                                <Text fontSize={13} color="whiteAlpha.600">
-                                  Send articles as messages authored by a webhook with a custom name
-                                  and avatar to a Discord channel.
-                                </Text>
-                              </Stack>
-                            </MenuItem>
-                          </MenuList>
-                        </Menu>
+                        <Button
+                          colorScheme="blue"
+                          onClick={onAddConnection}
+                          leftIcon={<AddIcon fontSize="sm" />}
+                        >
+                          Add connection
+                        </Button>
                       </Flex>
                       <Text>{t("pages.feed.connectionSectionDescription")}</Text>
                     </Stack>

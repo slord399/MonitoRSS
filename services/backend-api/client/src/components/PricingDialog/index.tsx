@@ -37,10 +37,13 @@ import { useNavigate } from "react-router-dom";
 import { InlineErrorAlert } from "../InlineErrorAlert";
 import { FAQ } from "../FAQ";
 import { ChangeSubscriptionDialog } from "../ChangeSubscriptionDialog";
-import { pages, ProductKey } from "../../constants";
+import { pages, ProductKey, TIER_CONFIGS } from "../../constants";
 import { EXTERNAL_PROPERTIES_MAX_ARTICLES } from "../../constants/externalPropertiesMaxArticles";
+import { captureException } from "@sentry/react";
 import { usePaddleContext } from "../../contexts/PaddleContext";
+import { useUserMe } from "../../features/discordUser";
 import { notifyInfo } from "../../utils/notifyInfo";
+import { notifySuccess } from "../../utils/notifySuccess";
 import { usePricingData } from "../../features/subscriptionProducts";
 
 interface Props {
@@ -48,65 +51,6 @@ interface Props {
   onClose: () => void;
   onOpen: () => void;
 }
-
-enum Feature {
-  Feeds = "Feeds",
-  ArticleLimit = "Article Limit",
-  Webhooks = "Webhooks",
-  CustomPlaceholders = "Custom Placeholders",
-  RefreshRate = "Refresh Rate",
-  ExternalProperties = "External Properties",
-}
-
-interface TierConfig {
-  productId: ProductKey;
-  supportsAdditionalFeeds?: boolean;
-  features: Array<{ name: string; description: string; enabled?: boolean }>;
-}
-
-const TIER_CONFIGS: TierConfig[] = [
-  {
-    productId: ProductKey.Tier1,
-    features: [
-      { name: Feature.Feeds, description: "Track 35 news feeds", enabled: true },
-      { name: Feature.ArticleLimit, description: "1000 articles daily per feed", enabled: true },
-      { name: Feature.Webhooks, description: "Custom name/avatar with webhooks", enabled: true },
-      { name: Feature.CustomPlaceholders, description: "Custom placeholders", enabled: true },
-      { name: Feature.RefreshRate, description: "2 minute refresh rate", enabled: true },
-    ],
-  },
-  {
-    productId: ProductKey.Tier2,
-    features: [
-      { name: Feature.Feeds, description: "Track 70 news feeds", enabled: true },
-      { name: Feature.ArticleLimit, description: "1000 articles daily per feed", enabled: true },
-      { name: Feature.Webhooks, description: "Custom name/avatar with webhooks", enabled: true },
-      { name: Feature.CustomPlaceholders, description: "Custom placeholders", enabled: true },
-      {
-        name: Feature.ExternalProperties,
-        description: "External properties (scrape external links)*",
-        enabled: true,
-      },
-      { name: Feature.RefreshRate, description: "2 minute refresh rate", enabled: true },
-    ],
-  },
-  {
-    productId: ProductKey.Tier3,
-    supportsAdditionalFeeds: true,
-    features: [
-      { name: Feature.Feeds, description: "Track 140 news feeds", enabled: true },
-      { name: Feature.ArticleLimit, description: "1000 articles daily per feed", enabled: true },
-      { name: Feature.Webhooks, description: "Custom name/avatar with webhooks", enabled: true },
-      { name: Feature.CustomPlaceholders, description: "Custom placeholders", enabled: true },
-      {
-        name: Feature.ExternalProperties,
-        description: "External properties (scrape external links)*",
-        enabled: true,
-      },
-      { name: Feature.RefreshRate, description: "2 minute refresh rate", enabled: true },
-    ],
-  },
-];
 
 const getIdealPriceTextSize = (length: number) => {
   if (length < 10) return "6xl";
@@ -122,7 +66,8 @@ interface ChangeSubscriptionDetails {
 }
 
 export const PricingDialog = ({ isOpen, onClose, onOpen }: Props) => {
-  const { resetCheckoutData } = usePaddleContext();
+  const { resetCheckoutData, initCancellationFlow } = usePaddleContext();
+  const { data: userData } = useUserMe();
   const navigate = useNavigate();
   const [changeSubscriptionDetails, setChangeSubscriptionDetails] =
     useState<ChangeSubscriptionDetails>();
@@ -157,7 +102,9 @@ export const PricingDialog = ({ isOpen, onClose, onOpen }: Props) => {
     changeInterval(e.target.checked ? "year" : "month");
   };
 
-  const onClickPrice = (priceId?: string, productId?: ProductKey, isDowngrade?: boolean) => {
+  const subscriptionId = userData?.result.subscription.subscriptionId;
+
+  const onClickPrice = async (priceId?: string, productId?: ProductKey, isDowngrade?: boolean) => {
     if (!priceId || !productId || !userSubscription) {
       return;
     }
@@ -173,12 +120,49 @@ export const PricingDialog = ({ isOpen, onClose, onOpen }: Props) => {
     if (userSubscription.product.key === ProductKey.Free) {
       navigate(pages.checkout(priceId, additionalFeedsItem));
       onClose();
-    } else {
-      setChangeSubscriptionDetails({
-        prices: [{ priceId, quantity: 1 }, ...(additionalFeedsItem ? [additionalFeedsItem] : [])],
-        productId,
-        isDowngrade,
-      });
+
+      return;
+    }
+
+    const isCancelling = productId === ProductKey.Free;
+
+    if (isCancelling && subscriptionId) {
+      onClose();
+
+      try {
+        const result = await initCancellationFlow(subscriptionId);
+        console.log("[Paddle Retain] Flow completed with status:", result.status);
+
+        if (result.status === "retained" || result.status === "chose_to_cancel") {
+          notifySuccess("Changes saved!");
+
+          return;
+        }
+
+        if (result.status === "aborted") {
+          onOpen();
+
+          return;
+        }
+
+        if (result.status === "error") {
+          const errorDetails = "details" in result ? result.details : "unknown";
+          console.warn("[Paddle Retain] Flow returned error:", errorDetails);
+          captureException(new Error(`Paddle Retain error: ${errorDetails}`));
+        }
+      } catch (err) {
+        console.warn("[Paddle Retain] initCancellationFlow threw:", err);
+        captureException(err);
+      }
+    }
+
+    setChangeSubscriptionDetails({
+      prices: [{ priceId, quantity: 1 }, ...(additionalFeedsItem ? [additionalFeedsItem] : [])],
+      productId,
+      isDowngrade,
+    });
+
+    if (!isCancelling || !subscriptionId) {
       onClose();
     }
   };

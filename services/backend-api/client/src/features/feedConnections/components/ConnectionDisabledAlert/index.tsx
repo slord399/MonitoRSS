@@ -1,4 +1,12 @@
-import { Alert, AlertDescription, AlertTitle, Box, Button, useDisclosure } from "@chakra-ui/react";
+import {
+  Alert,
+  AlertDescription,
+  AlertIcon,
+  AlertTitle,
+  Box,
+  Button,
+  useDisclosure,
+} from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { useContext, useRef } from "react";
 import { ArrowLeftIcon } from "@chakra-ui/icons";
@@ -41,7 +49,8 @@ export const ConnectionDisabledAlert = () => {
 
   if (disabledCode === FeedConnectionDisabledCode.Manual) {
     return (
-      <Alert status="info" borderRadius="md">
+      <Alert status="info" borderRadius="md" alignItems="flex-start">
+        <AlertIcon />
         <Box>
           <AlertTitle>
             {t("features.feedConnections.components.connectionDisabledAlert.manuallyDisabledTitle")}
@@ -63,7 +72,8 @@ export const ConnectionDisabledAlert = () => {
 
   if (disabledCode === FeedConnectionDisabledCode.BadFormat) {
     return (
-      <Alert status="error" borderRadius="md">
+      <Alert status="error" borderRadius="md" alignItems="flex-start">
+        <AlertIcon />
         <Box>
           <AlertTitle>
             {t("features.feedConnections.components.connectionDisabledAlert.badFormatTitle")}
@@ -85,7 +95,8 @@ export const ConnectionDisabledAlert = () => {
           onClose={editOnClose}
           onCloseRef={configureButtonRef}
         />
-        <Alert status="error" borderRadius="md">
+        <Alert status="error" borderRadius="md" alignItems="flex-start">
+          <AlertIcon />
           <Box>
             <AlertTitle>
               {t("features.feedConnections.components.connectionDisabledAlert.missingMediumTitle")}
@@ -108,7 +119,8 @@ export const ConnectionDisabledAlert = () => {
 
   if (disabledCode === FeedConnectionDisabledCode.MissingPermissions) {
     return (
-      <Alert status="error" borderRadius="md">
+      <Alert status="error" borderRadius="md" alignItems="flex-start">
+        <AlertIcon />
         <Box>
           <AlertTitle>
             {t(
@@ -132,22 +144,20 @@ export const ConnectionDisabledAlert = () => {
 
   if (disabledCode === FeedConnectionDisabledCode.NotPaidSubscriber) {
     return (
-      <Alert status="error" borderRadius="md">
+      <Alert status="warning" borderRadius="md" alignItems="flex-start">
+        <AlertIcon />
         <Box>
-          <AlertTitle>
-            This webhook connection has been disabled because you are not currently a paid
-            subscriber to be able to access webhooks.
-          </AlertTitle>
+          <AlertTitle>Your branded delivery is paused</AlertTitle>
           <AlertDescription display="block">
-            Consider supporting MonitoRSS&apos;s open-source development by subscribing to a paid
-            plan and get access to this feature.
+            Articles are still being delivered, but without your custom name and avatar. Resubscribe
+            to restore your branded delivery and make your content stand out.
             <Box marginTop="1rem">
               <Button
-                variant="outline"
+                colorScheme="blue"
                 leftIcon={<ArrowLeftIcon transform="rotate(90deg)" />}
                 onClick={onOpenPricingDialog}
               >
-                Upgrade to a paid plan
+                Restore branded delivery
               </Button>
             </Box>
           </AlertDescription>

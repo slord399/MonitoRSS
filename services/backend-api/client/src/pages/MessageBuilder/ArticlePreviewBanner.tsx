@@ -19,12 +19,21 @@ import { SendTestArticleContext } from "../../contexts";
 import { useUserFeedConnectionContext } from "../../contexts/UserFeedConnectionContext";
 import { useUserFeedContext } from "../../contexts/UserFeedContext";
 import { CreateDiscordChannelConnectionPreviewInput } from "../../features/feedConnections/api";
+import { getConnectionWebhookChannelId } from "../../features/feedConnections/utils";
 import { usePageAlertContext } from "../../contexts/PageAlertContext";
 import MessageBuilderFormState from "./types/MessageBuilderFormState";
 import { FeedDiscordChannelConnection } from "../../types";
 import convertMessageBuilderStateToConnectionPreviewInput from "./utils/convertMessageBuilderStateToConnectionPreviewInput";
 
-export const ArticlePreviewBanner: React.FC = () => {
+interface ArticlePreviewBannerProps {
+  brandingDisplayName?: string;
+  brandingAvatarUrl?: string;
+}
+
+export const ArticlePreviewBanner: React.FC<ArticlePreviewBannerProps> = ({
+  brandingDisplayName,
+  brandingAvatarUrl,
+}) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   // Get article state from context
@@ -66,6 +75,20 @@ export const ArticlePreviewBanner: React.FC = () => {
             id: currentArticleId,
           },
           ...messageComponentData,
+          applicationWebhook:
+            brandingDisplayName?.trim() || brandingAvatarUrl?.trim()
+              ? {
+                  channelId: getConnectionWebhookChannelId(connection) || "",
+                  name: brandingDisplayName?.trim() || "",
+                  iconUrl: brandingAvatarUrl?.trim() || undefined,
+                }
+              : undefined,
+          sendAsBot:
+            !brandingDisplayName?.trim() &&
+            !brandingAvatarUrl?.trim() &&
+            !!connection.details.webhook
+              ? true
+              : undefined,
         },
       };
 

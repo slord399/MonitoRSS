@@ -1,3 +1,10 @@
+import dayjs from "dayjs";
+
+export const getEffectiveRefreshRateSeconds = (feed: {
+  userRefreshRateSeconds?: number;
+  refreshRateSeconds: number;
+}): number => feed.userRefreshRateSeconds || feed.refreshRateSeconds;
+
 export const formatRefreshRateSeconds = (num: number) => {
   let displayDuration = `${num} seconds`;
 
@@ -10,4 +17,25 @@ export const formatRefreshRateSeconds = (num: number) => {
   }
 
   return displayDuration;
+};
+
+export const getNextCheckText = (
+  lastRequestAtUnix: number | undefined,
+  refreshRateSeconds: number,
+): string => {
+  if (!lastRequestAtUnix) {
+    return "";
+  }
+
+  const nowSeconds = Date.now() / 1000;
+  const secondsSinceLastCheck = nowSeconds - lastRequestAtUnix;
+  const secondsRemaining = refreshRateSeconds - secondsSinceLastCheck;
+
+  if (secondsRemaining <= 0) {
+    return "Next check expected shortly.";
+  }
+
+  const humanized = dayjs.duration(secondsRemaining, "seconds").humanize();
+
+  return `Next check expected in about ${humanized}.`;
 };

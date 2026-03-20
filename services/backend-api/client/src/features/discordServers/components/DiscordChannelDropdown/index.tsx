@@ -6,7 +6,7 @@ import { GetDiscordChannelType } from "../../constants";
 
 interface Props {
   serverId?: string;
-  onChange: (channelId: string, channelName: string) => void;
+  onChange: (channelId: string, channelName: string, channelType?: string | null) => void;
   onBlur: () => void;
   value?: string;
   isDisabled?: boolean;
@@ -41,15 +41,18 @@ export const DiscordChannelDropdown: React.FC<Props> = ({
     <Box>
       <ThemedSelect
         loading={isFetching}
-        isDisabled={isDisabled || isFetching || !!error}
+        isDisabled={isDisabled || !!error}
         options={options}
-        onChange={(val, optionData) => onChange(val, optionData.name)}
+        onChange={(val, optionData) => onChange(val, optionData.name, optionData.type)}
         onBlur={onBlur}
         value={value}
         isInvalid={isInvalid}
         selectProps={{
           inputId,
           "aria-labelledby": ariaLabelledBy,
+          "aria-busy": isFetching,
+          openMenuOnClick: !isFetching,
+          openMenuOnFocus: !isFetching,
         }}
         placeholder={!serverId ? "Must select a Discord server first" : "Select a channel"}
       />

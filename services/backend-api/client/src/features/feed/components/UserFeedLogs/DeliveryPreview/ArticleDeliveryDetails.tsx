@@ -2,6 +2,7 @@ import {
   Badge,
   Box,
   Button,
+  Grid,
   Stack,
   Table,
   TableContainer,
@@ -10,11 +11,13 @@ import {
   Text,
   Th,
   Thead,
+  Tooltip,
   Tr,
   useDisclosure,
 } from "@chakra-ui/react";
 import { Link } from "react-router-dom";
 import { ExternalLinkIcon } from "@chakra-ui/icons";
+import dayjs from "dayjs";
 import {
   ArticleDeliveryOutcome,
   ArticleDeliveryResult,
@@ -25,10 +28,15 @@ import { pages } from "../../../../../constants";
 import { FeedConnectionType } from "../../../../../types";
 import { DeliveryChecksModal } from "./DeliveryChecksModal";
 import { getOutcomeColorScheme } from "./deliveryPreviewUtils";
-import { formatRefreshRateSeconds } from "../../../../../utils/formatRefreshRateSeconds";
+import {
+  formatRefreshRateSeconds,
+  getEffectiveRefreshRateSeconds,
+  getNextCheckText,
+} from "../../../../../utils/formatRefreshRateSeconds";
 
 interface Props {
   result: ArticleDeliveryResult;
+  lastRequestAtUnix?: number;
 }
 
 const getOutcomeLabel = (outcome: ArticleDeliveryOutcome): string => {
@@ -60,10 +68,18 @@ const getOutcomeLabel = (outcome: ArticleDeliveryOutcome): string => {
   }
 };
 
-const getExplanationText = (outcome: ArticleDeliveryOutcome): string => {
+const getExplanationText = (
+  outcome: ArticleDeliveryOutcome,
+  refreshRateSeconds: number,
+  lastRequestAtUnix?: number,
+): string => {
+  const refreshRateText = `Your feed checks for new content every ${formatRefreshRateSeconds(refreshRateSeconds)}.`;
+  const nextCheckText = getNextCheckText(lastRequestAtUnix, refreshRateSeconds);
+  const timingText = nextCheckText ? `${refreshRateText} ${nextCheckText}` : refreshRateText;
+
   switch (outcome) {
     case ArticleDeliveryOutcome.WouldDeliver:
-      return "This article would be delivered to Discord when the feed is next processed.";
+      return `This article would be delivered to Discord when the feed is next processed. ${timingText}`;
     case ArticleDeliveryOutcome.FirstRunBaseline:
       return "This feed is in its learning phase. MonitoRSS skips pre-existing articles to avoid flooding your channel with old content.";
     case ArticleDeliveryOutcome.DuplicateId:
@@ -79,7 +95,7 @@ const getExplanationText = (outcome: ArticleDeliveryOutcome): string => {
     case ArticleDeliveryOutcome.RateLimitedMedium:
       return "This connection has reached its delivery limit. The article will be delivered automatically once the limit resets.";
     case ArticleDeliveryOutcome.WouldDeliverPassingComparison:
-      return "This article was seen before, but one of your Passing Comparison fields changed, so it will be re-delivered as an update.";
+      return `This article was seen before, but one of your Passing Comparison fields changed, so it will be re-delivered as an update. ${timingText}`;
     case ArticleDeliveryOutcome.FeedUnchanged:
       return "The feed's content hasn't changed since it was last checked. MonitoRSS skips unchanged feeds to save resources. New articles will be detected automatically once the publisher has indicated that there are new changes.";
     case ArticleDeliveryOutcome.FeedError:
@@ -134,7 +150,7 @@ const ConnectionResultRow = ({ mediumResult }: ConnectionResultRowProps) => {
   );
 };
 
-export const ArticleDeliveryDetails = ({ result }: Props) => {
+export const ArticleDeliveryDetails = ({ result, lastRequestAtUnix }: Props) => {
   const { userFeed } = useUserFeedContext();
   const { isOpen, onOpen, onClose } = useDisclosure();
 
@@ -148,19 +164,23 @@ export const ArticleDeliveryDetails = ({ result }: Props) => {
     return uniqueOutcomes.size > 1;
   };
 
+  const effectiveRefreshRateSeconds = getEffectiveRefreshRateSeconds(userFeed);
+
   const getDisplayText = () => {
     if (isLearningPhase) {
       const plural = connectionCount !== 1 ? "s" : "";
-      const formattedTime = formatRefreshRateSeconds(userFeed.refreshRateSeconds);
+      const formattedTime = formatRefreshRateSeconds(effectiveRefreshRateSeconds);
+      const nextCheckText = getNextCheckText(lastRequestAtUnix, effectiveRefreshRateSeconds);
+      const nextCheckSuffix = nextCheckText ? ` ${nextCheckText}` : "";
 
-      return `Skipped (Learning Phase): This article existed before the feed was added. MonitoRSS skips pre-existing articles to avoid flooding your channel with old content. New articles will be delivered to all ${connectionCount} connection${plural} once learning completes (within ${formattedTime}).`;
+      return `Skipped (Learning Phase): This article existed before the feed was added. MonitoRSS skips pre-existing articles to avoid flooding your channel with old content. New articles will be delivered to all ${connectionCount} connection${plural} once learning completes (within ${formattedTime}).${nextCheckSuffix}`;
     }
 
     if (hasPartialDelivery()) {
       return "This article would deliver to some connections but not others.";
     }
 
-    return getExplanationText(result.outcome);
+    return getExplanationText(result.outcome, effectiveRefreshRateSeconds, lastRequestAtUnix);
   };
 
   return (
@@ -173,6 +193,94 @@ export const ArticleDeliveryDetails = ({ result }: Props) => {
           <Text color="whiteAlpha.800" fontSize="sm">
             {getDisplayText()}
           </Text>
+        </Box>
+        <Box>
+          <Text fontWeight="semibold" mb={2}>
+            Dates
+          </Text>
+          <Grid as="dl" templateColumns="140px 1fr" gap={1} fontSize="sm" m={0}>
+            <Text as="dt" color="gray.400">
+              Published
+            </Text>
+            <Box as="dd" ml={0}>
+              {result.articlePublishedDate ? (
+                <Tooltip
+                  label={dayjs(result.articlePublishedDate).format("DD MMM YYYY, HH:mm:ss")}
+                  hasArrow
+                >
+                  <Text
+                    as="time"
+                    dateTime={result.articlePublishedDate}
+                    tabIndex={0}
+                    cursor="default"
+                    color="gray.300"
+                    display="inline"
+                    borderBottom="1px dashed"
+                    borderColor="whiteAlpha.300"
+                    sx={{ cursor: "help" }}
+                  >
+                    {dayjs(result.articlePublishedDate).fromNow()}
+                  </Text>
+                </Tooltip>
+              ) : (
+                <Tooltip
+                  label="This feed does not include a published date for this article"
+                  hasArrow
+                >
+                  <Text
+                    tabIndex={0}
+                    color="gray.400"
+                    display="inline"
+                    borderBottom="1px dashed"
+                    borderColor="whiteAlpha.200"
+                    sx={{ cursor: "help" }}
+                    aria-label="Not available. This feed does not include a published date for this article."
+                  >
+                    --
+                  </Text>
+                </Tooltip>
+              )}
+            </Box>
+            <Text as="dt" color="gray.400">
+              First detected
+            </Text>
+            <Box as="dd" ml={0}>
+              {result.articleStoredDate ? (
+                <Tooltip
+                  label={dayjs(result.articleStoredDate).format("DD MMM YYYY, HH:mm:ss")}
+                  hasArrow
+                >
+                  <Text
+                    as="time"
+                    dateTime={result.articleStoredDate}
+                    tabIndex={0}
+                    cursor="default"
+                    color="gray.300"
+                    display="inline"
+                    borderBottom="1px dashed"
+                    borderColor="whiteAlpha.300"
+                    sx={{ cursor: "help" }}
+                  >
+                    {dayjs(result.articleStoredDate).fromNow()}
+                  </Text>
+                </Tooltip>
+              ) : (
+                <Tooltip label="This article has not been stored yet" hasArrow>
+                  <Text
+                    tabIndex={0}
+                    color="gray.400"
+                    display="inline"
+                    borderBottom="1px dashed"
+                    borderColor="whiteAlpha.200"
+                    sx={{ cursor: "help" }}
+                    aria-label="Not available. This article has not been stored yet."
+                  >
+                    --
+                  </Text>
+                </Tooltip>
+              )}
+            </Box>
+          </Grid>
         </Box>
         {!isLearningPhase && result.mediumResults.length > 0 && (
           <Box>
