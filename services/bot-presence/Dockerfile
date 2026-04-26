@@ -1,4 +1,4 @@
-FROM node:24 AS build
+FROM node:22 AS build
 
 WORKDIR /usr/src/app
 
@@ -8,7 +8,7 @@ RUN npm install
 
 COPY . ./
 
-FROM node:24 AS build-prod
+FROM node:22 AS build-prod
 
 WORKDIR /usr/src/app
 COPY --from=build /usr/src/app ./
@@ -17,7 +17,7 @@ RUN npm run build
 
 RUN npm prune --production
 
-FROM node:24-alpine AS prod
+FROM node:22-alpine AS prod
 
 WORKDIR /usr/src/app
 
