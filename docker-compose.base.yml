@@ -56,7 +56,7 @@ services:
     build:
       context: services/bot-presence
       dockerfile: Dockerfile
-      target: build
+      target: build-prod
     depends_on:
       rabbitmq-broker:
         condition: service_healthy
@@ -72,7 +72,7 @@ services:
     build:
       context: services/discord-rest-listener
       dockerfile: Dockerfile
-      target: build
+      target: build-prod
     depends_on:
       rabbitmq-broker:
         condition: service_healthy
@@ -89,7 +89,7 @@ services:
     build:
       context: services/feed-requests
       dockerfile: Dockerfile
-      target: build
+      target: build-prod
     command: "npm run migration:up"
     depends_on:
       feed-requests-postgres-db:
@@ -114,7 +114,7 @@ services:
     build:
       context: services/feed-requests
       dockerfile: Dockerfile
-      target: build
+      target: build-prod
     healthcheck:
       test: "wget --no-verbose --tries=1 --spider http://127.0.0.1:5000/v1/feed-requests/health || exit 1"
       interval: 5s
@@ -142,7 +142,7 @@ services:
     build:
       context: services/user-feeds
       dockerfile: Dockerfile
-      target: build
+      target: build-prod
     depends_on:
       - feed-requests-postgres-db
       - feed-requests-service
@@ -174,7 +174,7 @@ services:
     build:
       context: services/user-feeds
       dockerfile: Dockerfile
-      target: build
+      target: build-prod
     command: npm run migration:up
     depends_on:
       - feed-requests-postgres-db
@@ -200,6 +200,7 @@ services:
     build:
       context: services/user-feeds-next
       dockerfile: Dockerfile
+      target: build-prod
     depends_on:
       - feed-requests-postgres-db
       - feed-requests-service
@@ -226,6 +227,7 @@ services:
     build:
       context: services/user-feeds-next
       dockerfile: Dockerfile
+      target: build-prod
     command: node ./dist/src/scripts/run-migrations.js
     depends_on:
       - feed-requests-postgres-db
@@ -239,7 +241,7 @@ services:
     build:
       context: services/backend-api
       dockerfile: dockerfiles/web/mixed.Dockerfile
-      target: build
+      target: build-prod
     restart: on-failure:10
     depends_on:
       - mongo
