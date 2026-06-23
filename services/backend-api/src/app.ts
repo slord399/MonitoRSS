@@ -241,14 +241,7 @@ export async function createApp(
   );
 
   // Serve frontend static files from backend-api/client/dist
-  const clientDistPath = join(
-    __dirname,
-    "..",
-    "..",
-    "backend-api",
-    "client",
-    "dist",
-  );
+  const clientDistPath = join(process.cwd(), "client", "dist");
   await app.register(fastifyStatic, {
     root: clientDistPath,
     prefix: "/",

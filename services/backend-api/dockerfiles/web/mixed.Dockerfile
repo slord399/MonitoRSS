@@ -1,4 +1,4 @@
-FROM node:24 AS build
+FROM node:22 AS build
 WORKDIR /usr/src/app
 
 COPY package*.json ./
@@ -8,7 +8,9 @@ RUN npm install && cd client && npm install
 
 COPY . ./
 
-FROM node:24 AS build-prod
+RUN npm run build && cd client && npm run build
+
+FROM build AS build-prod
 
 ARG VITE_FRESHDESK_WIDGET_ID
 ARG VITE_PADDLE_PW_AUTH
@@ -31,12 +33,10 @@ ENV SENTRY_ORG=$SENTRY_ORG
 ENV SENTRY_PROJECT=$SENTRY_PROJECT
 ENV SENTRY_RELEASE=$SENTRY_RELEASE
 
-RUN npm run build && cd client && npm run build
-
 RUN npm prune --production
 
 # Alpine will cause the app to mysteriously exit when attempting to register @fastify/secure-session
-FROM node:24-slim AS prod
+FROM node:22-slim AS prod
 
 RUN apt-get update && apt-get install -y wget
 WORKDIR /usr/src/app
@@ -44,6 +44,6 @@ WORKDIR /usr/src/app
 COPY --from=build-prod /usr/src/app/package*.json ./
 COPY --from=build-prod /usr/src/app/node_modules node_modules
 COPY --from=build-prod /usr/src/app/dist dist
-COPY --from=build-prod /usr/src/app/client/dist /usr/src/backend-api/client/dist
+COPY --from=build-prod /usr/src/app/client/dist /usr/src/app/client/dist
 
 ENV BACKEND_API_PORT=3000

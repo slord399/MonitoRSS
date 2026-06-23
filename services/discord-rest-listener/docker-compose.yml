@@ -4,7 +4,7 @@ services:
     restart: on-failure:3
     build:
       dockerfile: Dockerfile
-      target: build
+      target: build-prod
     volumes:
       - ./:/usr/src/app
       - /usr/src/app/node_modules/

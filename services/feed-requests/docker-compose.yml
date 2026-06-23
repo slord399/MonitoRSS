@@ -42,7 +42,7 @@ services:
     # The image can also be used
     build:
       context: .
-      target: build
+      target: build-prod
     ports:
       - '5000:5000'
     volumes:
