@@ -6,7 +6,7 @@ import { RequestStatus } from './constants';
 import dayjs from 'dayjs';
 import { AmqpConnection, RabbitSubscribe } from '@golevelup/nestjs-rabbitmq';
 import { EntityManager } from '@mikro-orm/postgresql';
-import { MikroORM, UseRequestContext } from '@mikro-orm/core';
+import { MikroORM, CreateRequestContext } from '@mikro-orm/core';
 import { FeedFetcherService } from './feed-fetcher.service';
 import { RequestSource } from './constants/request-source.constants';
 import PartitionedRequestsStoreService from '../partitioned-requests-store/partitioned-requests-store.service';
@@ -40,7 +40,7 @@ export class FeedFetcherListenerService {
     private readonly configService: ConfigService,
     private readonly feedFetcherService: FeedFetcherService,
     private readonly amqpConnection: AmqpConnection,
-    private readonly orm: MikroORM, // For @UseRequestContext decorator
+    private readonly orm: MikroORM, // For @CreateRequestContext decorator
     private readonly em: EntityManager,
     private readonly partitionedRequestsStoreService: PartitionedRequestsStoreService,
     private readonly hostRateLimiterService: HostRateLimiterService,
@@ -79,7 +79,7 @@ export class FeedFetcherListenerService {
     await this.onBrokerFetchRequestBatchHandler(message);
   }
 
-  @UseRequestContext()
+  @CreateRequestContext()
   private async onBrokerFetchRequestBatchHandler(
     batchRequest: BatchRequestMessage,
   ): Promise<void> {

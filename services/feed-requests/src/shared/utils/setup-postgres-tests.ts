@@ -1,3 +1,4 @@
+import { PostgreSqlDriver } from '@mikro-orm/postgresql';
 import 'reflect-metadata';
 import { EntityName, MikroOrmModule } from '@mikro-orm/nestjs';
 import { ModuleMetadata } from '@nestjs/common';
@@ -40,7 +41,7 @@ export async function setupPostgresTests(
         entities: ['dist/**/*.entity.js'],
         entitiesTs: ['src/**/*.entity.ts'],
         clientUrl: configVals.FEED_REQUESTS_POSTGRES_URI,
-        type: 'postgresql',
+        driver: PostgreSqlDriver,
         forceUtcTimezone: true,
         timezone: 'UTC',
         schema: postgresSchema,

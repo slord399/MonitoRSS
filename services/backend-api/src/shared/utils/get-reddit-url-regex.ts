@@ -1,3 +1,3 @@
 export function getRedditUrlRegex(): RegExp {
-  return /^http(s?):\/\/(www.)?(\w+\.)?reddit\.com\/r\//i;
+  return /^https?:\/\/(www\.)?(\w+\.)?reddit\.com\/r\//i;
 }

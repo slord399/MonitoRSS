@@ -1,3 +1,4 @@
+import { PostgreSqlDriver } from '@mikro-orm/postgresql';
 import { DynamicModule, Module, OnApplicationShutdown } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
@@ -43,7 +44,7 @@ export class AppModule implements OnApplicationShutdown {
           entities: ['dist/**/*.entity.js'],
           entitiesTs: ['src/**/*.entity.ts'],
           clientUrl: configVals.FEED_REQUESTS_POSTGRES_URI,
-          type: 'postgresql',
+          driver: PostgreSqlDriver,
           forceUtcTimezone: true,
           timezone: 'UTC',
           // loadStrategy: LoadStrategy.JOINED,
