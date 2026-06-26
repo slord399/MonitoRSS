@@ -723,7 +723,7 @@ module.exports = class Article {
         continue;
       }
 
-      const placeholder = arr[0].replace(/{|}/, "");
+      const placeholder = arr[0].replace(/{|}/g, "");
       const placeholderImgs = this[placeholder + "Images"];
 
       if (
@@ -823,7 +823,7 @@ module.exports = class Article {
       return "";
     }
 
-    const placeholder = arr[0].replace(/{|}/, "");
+    const placeholder = arr[0].replace(/{|}/g, "");
     const placeholderAnchors = this[placeholder + "Anchors"];
 
     if (

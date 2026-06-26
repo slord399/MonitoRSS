@@ -17,9 +17,6 @@ env:
   BOT_PRESENCE_IMAGE_NAME: ${{ github.repository }}-bot-presence
   DISCORD_REST_LISTENER_IMAGE_NAME: ${{ github.repository }}-discord-rest-listener
 
-permissions:
-  contents: read
-
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
