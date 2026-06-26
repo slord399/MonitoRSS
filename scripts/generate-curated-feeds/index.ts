@@ -290,7 +290,6 @@ function shouldExplicitSkip(url: string): boolean {
 function sanitizeForPrompt(text: string, maxLen = 200): string {
   if (!text) return "";
   return text
-    .replace(/<[^>]*>?/gm, "")
     .replace(/[<>]/g, "")
     .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "")
     .replace(/\s+/g, " ")
