@@ -40,7 +40,7 @@ export class FeedFetcherListenerService {
     private readonly configService: ConfigService,
     private readonly feedFetcherService: FeedFetcherService,
     private readonly amqpConnection: AmqpConnection,
-    private readonly orm: MikroORM, // For @CreateRequestContext decorator
+    private readonly orm: MikroORM, // For @UseRequestContext decorator
     private readonly em: EntityManager,
     private readonly partitionedRequestsStoreService: PartitionedRequestsStoreService,
     private readonly hostRateLimiterService: HostRateLimiterService,

@@ -1,4 +1,3 @@
-import { PostgreSqlDriver } from '@mikro-orm/postgresql';
 import { Options } from '@mikro-orm/core';
 import config from './config';
 
@@ -11,7 +10,7 @@ const MikroOrmConfig: Options = {
   entities: ['dist/**/*.entity.js'],
   entitiesTs: ['src/**/*.entity.ts'],
   clientUrl: configVals.FEED_REQUESTS_POSTGRES_URI,
-  driver: PostgreSqlDriver,
+  type: 'postgresql',
   forceUtcTimezone: true,
   timezone: 'UTC',
   dbName,
