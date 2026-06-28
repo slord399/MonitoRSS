@@ -28,7 +28,7 @@ vi.mock("../../hooks/useDeleteUserFeed", () => ({
 
 vi.mock("../FixFeedRequestsCTA", () => ({
   FixFeedRequestsCTA: ({ url }: { url: string }) => {
-    const isReddit = /^http(s?):\/\/(www.)?(\w+\.)?reddit\.com\/r\//i.test(url);
+    const isReddit = /^https?:\/\/(www\.)?(\w+\.)?reddit\.com\/r\//i.test(url);
 
     if (!isReddit) return null;
 

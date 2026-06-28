@@ -9,7 +9,7 @@ interface Props {
 
 export const FixFeedRequestsCTA = ({ url, onCorrected }: Props) => {
   const { data } = useUserMe();
-  const isReddit = /^http(s?):\/\/(www.)?(\w+\.)?reddit\.com\/r\//i.test(url);
+  const isReddit = /^https?:\/\/(www\.)?(\w+\.)?reddit\.com\/r\//i.test(url);
 
   if (!isReddit) {
     return null;

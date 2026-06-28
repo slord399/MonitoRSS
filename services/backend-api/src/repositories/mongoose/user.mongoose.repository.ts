@@ -20,7 +20,7 @@ import {
 } from "../shared/enums";
 import { BaseMongooseRepository } from "./base.mongoose.repository";
 
-const REDDIT_URL_REGEX = /^http(s?):\/\/(www.)?(\w+\.)?reddit\.com\/r\//i;
+const REDDIT_URL_REGEX = /^https?:\/\/(www\.)?(\w+\.)?reddit\.com\/r\//i;
 
 const UserFeedListSortSchema = new Schema(
   {
