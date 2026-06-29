@@ -30,7 +30,7 @@
     "@grpc/proto-loader": "^0.7.8",
     "@mikro-orm/core": "^6.4.6",
     "@mikro-orm/nestjs": "^6.1.1",
-    "@mikro-orm/postgresql": "^6.4.6",
+    "@mikro-orm/postgresql": "^6.6.15",
     "@monitorss/logger": "^1.1.2",
     "@nestjs/common": "^11.0.10",
     "@nestjs/config": "^4.0.0",
@@ -60,8 +60,8 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@mikro-orm/cli": "^6.4.6",
-    "@mikro-orm/migrations": "^6.4.6",
+    "@mikro-orm/cli": "^6.6.15",
+    "@mikro-orm/migrations": "^6.6.15",
     "@nestjs/cli": "^11.0.23",
     "@nestjs/schematics": "^11.0.1",
     "@nestjs/testing": "^11.0.10",
