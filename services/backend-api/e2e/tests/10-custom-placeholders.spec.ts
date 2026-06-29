@@ -66,8 +66,9 @@ async function expandAccordion(
   page: import("@playwright/test").Page,
   name: string,
 ) {
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   await page
-    .getByRole("button", { name: new RegExp(name.replace(/[{}]/g, "\\$&")) })
+    .getByRole("button", { name: new RegExp(escapedName) })
     .click();
 }
 

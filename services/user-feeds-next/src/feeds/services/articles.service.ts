@@ -3,6 +3,7 @@
  * Matches user-feeds ArticlesService behavior.
  */
 
+import { randomInt } from "crypto";
 import { fetchFeed, FeedResponseRequestStatus } from "../../feed-fetcher";
 import { FeedRequestBadStatusCodeException } from "../../feed-fetcher/exceptions";
 import {
@@ -309,6 +310,6 @@ export async function fetchRandomFeedArticle(
     return null;
   }
 
-  const randomIndex = Math.floor(Math.random() * output.articles.length);
+  const randomIndex = randomInt(0, output.articles.length);
   return output.articles[randomIndex] ?? null;
 }

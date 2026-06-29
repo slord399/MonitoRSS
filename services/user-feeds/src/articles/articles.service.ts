@@ -22,7 +22,7 @@ import {
   ExternalFeedProperty,
   PostProcessParserRule,
 } from "../article-parser/constants";
-import { createHash } from "crypto";
+import { createHash, randomInt } from "crypto";
 import { FeedFetcherService } from "../feed-fetcher/feed-fetcher.service";
 import { getParserRules } from "../feed-event-handler/utils";
 import { FeedArticleNotFoundException } from "../feed-fetcher/exceptions";
@@ -353,7 +353,7 @@ export class ArticlesService {
 
     const { articles } = result;
 
-    return articles[Math.floor(Math.random() * articles.length)];
+    return articles[randomInt(0, articles.length)];
   }
 
   /**

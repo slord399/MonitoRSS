@@ -52,7 +52,6 @@ export function createSynzenDiscordRestClient(
 
   return {
     async initialize(): Promise<void> {
-      await producer.initialize();
       initialized = true;
       logger.info("Discord REST client initialized");
     },

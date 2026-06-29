@@ -1,17 +1,18 @@
-import { MikroORM } from "@mikro-orm/mongodb"
+import { MikroORM } from "@mikro-orm/core"
 import DeliveryRecord from "../entities/DeliveryRecord"
 import Feed from "../entities/Feed"
 import GeneralStat from "../entities/GeneralStat"
 import Profile from "../entities/Profile"
 import config from "./config"
 import log from "./log"
-import amqp, { Channel } from 'amqp-connection-manager'
+import amqp from 'amqp-connection-manager'
+import { Channel } from 'amqplib'
 import { AmqpChannel } from "../constants/amqpChannels"
 import { URL } from "url"
 
-const pollDb = (orm: MikroORM, dbName: string) => {
+const pollDb = (orm: MikroORM<any>, dbName: string) => {
   setInterval(() => {
-    orm.em.getConnection().getClient().db(dbName).command({ping: 1}).catch(err => {
+    (orm.em.getConnection() as any).getClient().db(dbName).command({ping: 1}).catch((err: any) => {
       log.error('MongoDB ping failed, shutting down', {
         message: err.message,
       })

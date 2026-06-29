@@ -1,4 +1,4 @@
-import { Entity, Index, PrimaryKey, Property } from "@mikro-orm/core";
+import { Entity, Index, PrimaryKey, Property } from "@mikro-orm/mongodb";
 import { ObjectId } from '@mikro-orm/mongodb'
 
 @Entity({

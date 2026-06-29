@@ -261,7 +261,7 @@ function shouldSkipUrl(url: string): boolean {
     const parsed = new URL(url);
     const host = parsed.hostname.toLowerCase();
     for (const domain of SKIP_DOMAINS) {
-      if (host.includes(domain)) return true;
+      if (host === domain || host.endsWith("." + domain)) return true;
     }
   } catch {
     // fall through
@@ -454,7 +454,7 @@ function step3_assignDomains(feeds: PipelineFeed[]): PipelineFeed[] {
     // Check full URL path overrides (for feedburner-style URLs)
     let assigned = false;
     for (const [pattern, override] of Object.entries(domainOverrides)) {
-      if (feed.url.includes(pattern) || host === pattern) {
+      if (feed.url.startsWith(pattern) || host === pattern) {
         feed.domain = override;
         assigned = true;
         break;
@@ -478,10 +478,10 @@ function step3_assignDomains(feeds: PipelineFeed[]): PipelineFeed[] {
         host !== domain ||
         host.includes("feedburner") ||
         host.includes("feedsportal") ||
-        host.includes("moxie.") ||
+        host.startsWith("moxie.") ||
         host.includes("cr-news-api") ||
-        host.includes("uecdn.") ||
-        host.includes("svc.com") ||
+        host.startsWith("uecdn.") ||
+        host.endsWith(".svc.com") ||
         !host.includes(".");
 
       if (looksLikeProxy) {

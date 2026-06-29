@@ -1,4 +1,4 @@
-import { Entity, MikroORM, PrimaryKey, Property } from "@mikro-orm/core";
+import { Entity, PrimaryKey, Property, MikroORM } from "@mikro-orm/mongodb";
 
 @Entity({
   collection: 'general_stats'
@@ -27,7 +27,7 @@ class GeneralStat {
   /**
    * Atomically increase a particular numeric stat by 1
    */
-  static async increaseNumericStat (orm: MikroORM, key: string) {
+  static async increaseNumericStat (orm: any, key: string) {
     const c = await orm.em.fork().findOne(this, {
       _id: key
     })

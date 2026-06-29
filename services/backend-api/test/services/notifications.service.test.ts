@@ -356,7 +356,7 @@ describe("NotificationsService", { concurrency: true }, () => {
         ?.arguments[0] as { html: string };
       assert.ok(
         sendMailCall.html.includes(
-          "https://my.test.com/feeds/feed-456/discord-channel-connections/conn-123",
+          ">https://my.test.com/feeds/feed-456/discord-channel-connections/conn-123</a>",
         ),
       );
     });
@@ -376,7 +376,7 @@ describe("NotificationsService", { concurrency: true }, () => {
       const sendMailCall = ctx.smtpTransport!.sendMail.mock.calls[0]
         ?.arguments[0] as { html: string };
       assert.ok(
-        sendMailCall.html.includes("https://my.test.com/feeds/feed-789"),
+        sendMailCall.html.includes(">https://my.test.com/feeds/feed-789</a>"),
       );
       assert.ok(!sendMailCall.html.includes("discord-channel-connections"));
     });

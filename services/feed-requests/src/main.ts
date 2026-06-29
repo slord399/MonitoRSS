@@ -19,7 +19,7 @@ async function startApi() {
     new FastifyAdapter(),
   );
 
-  app.register(compression, {
+  await app.register(compression as any, {
     encodings: ['gzip', 'deflate'],
   });
 
@@ -91,7 +91,7 @@ async function bootstrap() {
   }
 }
 
-async function tryDbConnection(orm: MikroORM, currentTries = 0) {
+async function tryDbConnection(orm: any, currentTries = 0) {
   if (currentTries >= 10) {
     logger.error('Failed to connect to database after 10 tries. Exiting...');
 
@@ -99,7 +99,6 @@ async function tryDbConnection(orm: MikroORM, currentTries = 0) {
   }
 
   await orm.em
-    .getDriver()
     .getConnection()
     .execute('SELECT 1')
     .catch((err) => {
