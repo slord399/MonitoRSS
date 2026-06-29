@@ -32,7 +32,6 @@ export async function initializeDiscordProducer(options: {
   discordProducer = new RESTProducer(options.rabbitmqUri, {
     clientId: options.clientId,
   });
-  await discordProducer.initialize();
 }
 
 export async function closeDiscordProducer(): Promise<void> {

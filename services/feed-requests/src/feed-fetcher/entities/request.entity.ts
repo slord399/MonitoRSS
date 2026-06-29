@@ -8,7 +8,7 @@ import {
   Property,
   OneToOne,
   Index,
-} from '@mikro-orm/core';
+} from '@mikro-orm/postgresql';
 
 @Entity()
 @Index({
@@ -69,7 +69,7 @@ export class Request {
     nullable: true,
     entity: () => Response,
     index: true,
-    onDelete: 'cascade',
+    deleteRule: 'cascade',
   })
   response!: Response | null;
 }

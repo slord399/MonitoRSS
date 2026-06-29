@@ -170,21 +170,21 @@ setup().then(async (initializedData) => {
     }
 
     try {
-      await recordArticleSuccess(orm, {
+      await recordArticleSuccess(orm as any, {
         id: job.id,
         duration: jobDuration,
         feedId: job.meta.feedId
       }, job.meta as ArticleMeta)
 
       if (result.status > 300) {
-        await recordArticleFailure(orm, {
+        await recordArticleFailure(orm as any, {
           id: job.id,
           duration: jobDuration,
           feedId: job.meta.feedId
         }, job.meta as ArticleMeta, `Bad status code (${result.status}) | ${JSON.stringify(result.body)}`)
 
         if (result.status === 400) {
-          await disableFeed(orm, job.meta.feedId, BAD_FORMAT)
+          await disableFeed(orm as any, job.meta.feedId, BAD_FORMAT)
         }
       }
     } catch (err) {
@@ -211,7 +211,7 @@ setup().then(async (initializedData) => {
     if (!job.meta?.articleID) {
       return
     }
-    await recordArticleFailure(orm, {
+    await recordArticleFailure(orm as any, {
       id: job.id,
       duration: jobDuration,
       feedId: job.meta.feedId

@@ -225,8 +225,9 @@ describe("ScheduleHandlerService", { concurrency: true }, () => {
         (item) => item.lookupKey === lookupKey,
       );
       assert.ok(matchingItem, "Should find feed with lookup key in results");
-      assert.ok(
-        matchingItem.url.includes("oauth.reddit.com"),
+      assert.strictEqual(
+        new URL(matchingItem.url).hostname,
+        "oauth.reddit.com",
         "URL should be transformed to OAuth Reddit URL",
       );
     });

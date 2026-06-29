@@ -157,7 +157,7 @@ export async function handleArticleDeliveryResult(
   );
 
   // Update the delivery record status in the database
-  const deliveryId = deliveryResult.job.meta?.id;
+  const deliveryId = deliveryResult.job.meta?.id as string | undefined;
   if (deliveryId) {
     try {
       await deliveryRecordStore.updateDeliveryStatus(deliveryId, {

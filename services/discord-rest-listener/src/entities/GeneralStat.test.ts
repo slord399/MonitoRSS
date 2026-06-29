@@ -1,4 +1,4 @@
-import { MikroORM } from "@mikro-orm/mongodb"
+import { MikroORM } from "@mikro-orm/core"
 import testConfig from "../utils/testConfig"
 import GeneralStat from "./GeneralStat"
 

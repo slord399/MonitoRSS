@@ -2,6 +2,8 @@
  * Utility functions for services
  */
 
+import { randomInt } from "crypto";
+
 /**
  * Get numbers in range, inclusive.
  * Matches user-feeds getNumbersInRange.
@@ -25,7 +27,7 @@ export function getNumbersInRange({
 
   if (random) {
     while (numbers.length < countToGet) {
-      const randomNum = Math.floor(Math.random() * (max - min + 1)) + min;
+      const randomNum = randomInt(min, max + 1);
 
       if (!numbers.includes(randomNum)) {
         numbers.push(randomNum);
