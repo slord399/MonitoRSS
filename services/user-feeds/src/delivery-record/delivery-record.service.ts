@@ -61,7 +61,7 @@ export class DeliveryRecordService {
           content_type: articleState.contentType,
           article_id_hash: articleState.articleIdHash,
           parent: articleState.parent
-            ? ({ id: articleState.parent } as never)
+            ? ({ id: articleState.parent } as unknown as DeliveryRecord)
             : null,
           article_data: useArticleData,
         });
@@ -87,7 +87,7 @@ export class DeliveryRecordService {
           parent: articleState.parent
             ? ({
                 id: articleState.parent,
-              } as never)
+              } as unknown as DeliveryRecord)
             : null,
           content_type: articleState.contentType,
           article_id_hash: articleState.articleIdHash,

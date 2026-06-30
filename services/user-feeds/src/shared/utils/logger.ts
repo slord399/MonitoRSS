@@ -1,9 +1,10 @@
 import setupLogger from "@monitorss/logger";
 import { config } from "../../config";
+import { testConfig } from "../../config/test.config";
 import { EnvironmentVariables } from "../../config/validate";
 
 const configValues =
-  process.env.NODE_ENV === "test" ? ({} as EnvironmentVariables) : config();
+  process.env.NODE_ENV === "test" ? testConfig() : config();
 
 const datadogApiKey = configValues.USER_FEEDS_DATADOG_API_KEY as string;
 

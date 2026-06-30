@@ -2,6 +2,7 @@ import { MikroOrmModule } from "@mikro-orm/nestjs";
 import { ModuleMetadata } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { config } from "../../config";
+import { testConfig } from "../../config/test.config";
 import { EntityName, MikroORM } from "@mikro-orm/core";
 import { randomUUID } from "crypto";
 import {
@@ -34,7 +35,7 @@ export async function setupIntegrationTests(
       ...(metadata.imports || []),
       ConfigModule.forRoot({
         ignoreEnvFile: true,
-        load: [config],
+        load: [testConfig],
         isGlobal: true,
       }),
       MikroOrmModule.forFeature(options?.models || []),

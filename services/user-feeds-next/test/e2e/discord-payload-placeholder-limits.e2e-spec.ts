@@ -303,7 +303,17 @@ describe("Discord Payload Placeholder Limits (e2e)", { concurrency: true }, () =
 
         const payload = getDiscordPayload(ctx);
         const expectedLink = "https://example.com/article";
-        assert.ok(payload.content.includes(expectedLink), "Link not found in content");
+        const foundUrls = payload.content.match(/https?:\/\/[^\s<]+/g);
+        const hasExpectedLink = foundUrls?.some((u) => {
+          try {
+            const url = new URL(u);
+
+            return url.origin === "https://example.com" && url.pathname === "/article";
+          } catch (e) {
+            return false;
+          }
+        });
+        assert.ok(hasExpectedLink, `Link ${expectedLink} not found in content`);
         assert.ok(payload.content.includes("Read More"));
       } finally {
         ctx.cleanup();

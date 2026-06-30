@@ -34,7 +34,7 @@ describe("FeedsService", () => {
       ],
     }).compile();
 
-    service = module.get<FeedsService>(FeedsService);
+    service = module.get(FeedsService);
   });
 
   it("should be defined", () => {
