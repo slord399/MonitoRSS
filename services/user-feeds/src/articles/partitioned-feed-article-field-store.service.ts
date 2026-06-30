@@ -130,7 +130,7 @@ export class PartitionedFeedArticleFieldStoreService {
         [oneMonthAgo, feedId, ...ids]
       );
     } else {
-      const result = await this.orm.em.transactional(async (em) => {
+      const result = await this.orm.em.transactional(async (em: any) => {
         const temporaryTableName = `current_article_ids_${feedId}`;
         const sql =
           `CREATE TEMP TABLE ${temporaryTableName} AS` +

@@ -12,7 +12,7 @@ describe("ApiGuard", () => {
   const apiKey = "test-api-key";
 
   beforeEach(() => {
-    guard = new ApiGuard(configService as never);
+    guard = new ApiGuard(configService as any);
 
     configService.getOrThrow = (key: string) => {
       if (key === "USER_FEEDS_API_KEY") {
@@ -35,7 +35,7 @@ describe("ApiGuard", () => {
     };
 
     assert.throws(
-      () => guard.canActivate(context as never),
+      () => guard.canActivate(context as any),
       UnauthorizedException
     );
   });
@@ -51,6 +51,6 @@ describe("ApiGuard", () => {
       }),
     };
 
-    assert.strictEqual(guard.canActivate(context as never), true);
+    assert.strictEqual(guard.canActivate(context as any), true);
   });
 });

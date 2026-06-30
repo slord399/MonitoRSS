@@ -28,7 +28,7 @@ describe("DeliveryRecordService", () => {
 
     const { module } = await init();
 
-    service = module.get<DeliveryRecordService>(DeliveryRecordService);
+    service = module.get(DeliveryRecordService);
   });
 
   afterEach(async () => {

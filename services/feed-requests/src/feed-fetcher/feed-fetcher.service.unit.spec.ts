@@ -1,44 +1,56 @@
 import { ConfigService } from '@nestjs/config';
 import { FeedFetcherService } from './feed-fetcher.service';
-import nock from 'nock';
 import path from 'path';
-import { URL } from 'url';
 import { readFileSync } from 'fs';
-import { Request, Response } from './entities';
 import { RequestStatus } from './constants';
-import { EntityRepository } from '@mikro-orm/postgresql';
+import * as undici from 'undici';
+import { ObjectFileStorageService } from '../object-file-storage/object-file-storage.service';
+import { CacheStorageService } from '../cache-storage/cache-storage.service';
+import PartitionedRequestsStoreService from '../partitioned-requests-store/partitioned-requests-store.service';
 
-jest.mock('../utils/logger');
+jest.mock('../shared/utils/log-context');
+jest.mock('undici');
 
 describe('FeedFetcherService', () => {
   let service: FeedFetcherService;
   let configService: ConfigService;
   const feedUrl = 'https://rss-feed.com/feed.xml';
   const defaultUserAgent = 'default-user-agent';
-  const url = new URL(feedUrl);
   const feedFilePath = path.join(__dirname, '..', 'test', 'data', 'feed.xml');
   const feedXml = readFileSync(feedFilePath, 'utf8');
-  const requestRepo: EntityRepository<Request> = {
-    persistAndFlush: jest.fn(),
-    persist: jest.fn(),
-    findOne: jest.fn(),
+
+  const objectFileStorageService: jest.Mocked<ObjectFileStorageService> = {
+    uploadFeedHtmlContent: jest.fn(),
   } as never;
-  const responseRepo: EntityRepository<Response> = {
-    persistAndFlush: jest.fn(),
-    persist: jest.fn(),
+  const cacheStorageService: jest.Mocked<CacheStorageService> = {
+    getFeedHtmlContent: jest.fn(),
+  } as never;
+  const partitionedRequestsStore: jest.Mocked<PartitionedRequestsStoreService> = {
+    getRequests: jest.fn(),
+    getLatestRequestWithResponseBody: jest.fn(),
   } as never;
 
   beforeEach(async () => {
     configService = {
       get: jest.fn(),
-      getOrThrow: jest.fn(),
+      getOrThrow: jest.fn().mockImplementation((key) => {
+        if (key === 'FEED_REQUESTS_FEED_REQUEST_DEFAULT_USER_AGENT') {
+          return defaultUserAgent;
+        }
+        if (key === 'FEED_REQUESTS_REQUEST_TIMEOUT_MS') {
+          return 10000;
+        }
+      }),
     } as never;
-    service = new FeedFetcherService(requestRepo, responseRepo, configService);
-    service.defaultUserAgent = defaultUserAgent;
+    service = new FeedFetcherService(
+      configService,
+      objectFileStorageService,
+      cacheStorageService,
+      partitionedRequestsStore
+    );
   });
 
   afterEach(() => {
-    nock.cleanAll();
     jest.resetAllMocks();
   });
 
@@ -48,16 +60,24 @@ describe('FeedFetcherService', () => {
 
   describe('fetchFeedResponse', () => {
     it('does not throws when status code is non-200', async () => {
-      nock(url.origin).get(url.pathname).replyWithFile(401, feedFilePath, {
-        'Content-Type': 'application/xml',
+      (undici.request as jest.Mock).mockResolvedValue({
+        statusCode: 401,
+        headers: {},
+        body: {
+          arrayBuffer: jest.fn().mockResolvedValue(Buffer.from('')),
+        },
       });
 
       await expect(service.fetchFeedResponse(feedUrl)).resolves.toBeDefined();
     });
 
     it('returns the feed xml', async () => {
-      nock(url.origin).get(url.pathname).replyWithFile(200, feedFilePath, {
-        'Content-Type': 'application/xml',
+      (undici.request as jest.Mock).mockResolvedValue({
+        statusCode: 200,
+        headers: { 'content-type': 'application/xml' },
+        body: {
+          arrayBuffer: jest.fn().mockResolvedValue(Buffer.from(feedXml)),
+        },
       });
 
       const res = await service.fetchFeedResponse(feedUrl);
@@ -84,65 +104,63 @@ describe('FeedFetcherService', () => {
         }
       });
 
-      nock(url.origin)
-        .get(url.pathname)
-        .matchHeader('user-agent', userAgent)
-        .replyWithFile(200, feedFilePath, {
-          'Content-Type': 'application/xml',
-        });
+      (undici.request as jest.Mock).mockResolvedValue({
+        statusCode: 200,
+        headers: { 'content-type': 'application/xml' },
+        body: {
+          arrayBuffer: jest.fn().mockResolvedValue(Buffer.from(feedXml)),
+        },
+      });
 
       await service.fetchAndSaveResponse(feedUrl);
-    });
 
-    it('uses the default user agent if no custom user agent', async () => {
-      nock(url.origin)
-        .get(url.pathname)
-        .matchHeader('user-agent', defaultUserAgent)
-        .replyWithFile(200, feedFilePath, {
-          'Content-Type': 'application/xml',
-        });
-
-      await service.fetchAndSaveResponse(feedUrl);
+      expect(undici.request).toHaveBeenCalledWith(
+        feedUrl,
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'user-agent': userAgent,
+          }),
+        })
+      );
     });
 
     describe('if ok response', () => {
-      it('saves request correctly', async () => {
-        nock(url.origin).get(url.pathname).replyWithFile(200, feedFilePath, {
-          'Content-Type': 'application/xml',
+      it('returns request correctly', async () => {
+        (undici.request as jest.Mock).mockResolvedValue({
+          statusCode: 200,
+          headers: { 'content-type': 'application/xml' },
+          body: {
+            arrayBuffer: jest.fn().mockResolvedValue(Buffer.from(feedXml)),
+          },
         });
 
-        await service.fetchAndSaveResponse(feedUrl);
-        expect(requestRepo.persist).toHaveBeenCalledWith(
-          expect.objectContaining({
-            url: feedUrl,
-            status: RequestStatus.OK,
-            fetchOptions: {
-              userAgent,
-            },
-            response: {
-              statusCode: 200,
-              isCloudflare: false,
-              text: feedXml,
-              createdAt: expect.any(Date),
-            },
+        const { request } = await service.fetchAndSaveResponse(feedUrl);
+        expect(request).toMatchObject({
+          url: feedUrl,
+          status: RequestStatus.OK,
+          response: expect.objectContaining({
+            statusCode: 200,
           }),
-        );
+        });
       });
 
-      it('saves response with cloudflare flag correctly', async () => {
-        nock(url.origin).get(url.pathname).replyWithFile(200, feedFilePath, {
-          'Content-Type': 'application/xml',
-          Server: 'cloudflare',
+      it('returns response with cloudflare flag correctly', async () => {
+        (undici.request as jest.Mock).mockResolvedValue({
+          statusCode: 200,
+          headers: {
+            'content-type': 'application/xml',
+            'server': 'cloudflare'
+          },
+          body: {
+            arrayBuffer: jest.fn().mockResolvedValue(Buffer.from(feedXml)),
+          },
         });
 
-        await service.fetchAndSaveResponse(feedUrl);
-        expect(responseRepo.persist).toHaveBeenCalledWith(
-          expect.objectContaining({
-            isCloudflare: true,
-            statusCode: 200,
-            text: feedXml,
-          }),
-        );
+        const { request } = await service.fetchAndSaveResponse(feedUrl);
+        expect(request.response).toMatchObject({
+          isCloudflare: true,
+          statusCode: 200,
+        });
       });
     });
 
@@ -151,63 +169,36 @@ describe('FeedFetcherService', () => {
         message: 'failed',
       };
 
-      it('saves correctly', async () => {
-        nock(url.origin).get(url.pathname).reply(404, feedResponseBody, {
-          'Content-Type': 'application/xml',
+      it('returns correctly', async () => {
+        (undici.request as jest.Mock).mockResolvedValue({
+          statusCode: 404,
+          headers: { 'content-type': 'application/json' },
+          body: {
+            arrayBuffer: jest.fn().mockResolvedValue(Buffer.from(JSON.stringify(feedResponseBody))),
+          },
         });
 
-        await service.fetchAndSaveResponse(feedUrl);
-        expect(requestRepo.persist).toHaveBeenCalledWith(
-          expect.objectContaining({
-            url: feedUrl,
-            status: RequestStatus.BAD_STATUS_CODE,
-            fetchOptions: {
-              userAgent,
-            },
-            response: {
-              statusCode: 404,
-              isCloudflare: false,
-              text: JSON.stringify(feedResponseBody),
-              createdAt: expect.any(Date),
-            },
-          }),
-        );
-      });
-
-      it('saves response with cloudflare flag correctly', async () => {
-        nock(url.origin).get(url.pathname).reply(404, feedResponseBody, {
-          'Content-Type': 'application/xml',
-          Server: 'cloudflare',
-        });
-
-        await service.fetchAndSaveResponse(feedUrl);
-        expect(responseRepo.persist).toHaveBeenCalledWith(
-          expect.objectContaining({
-            isCloudflare: true,
+        const { request } = await service.fetchAndSaveResponse(feedUrl);
+        expect(request).toMatchObject({
+          url: feedUrl,
+          status: RequestStatus.BAD_STATUS_CODE,
+          response: expect.objectContaining({
             statusCode: 404,
-            text: JSON.stringify(feedResponseBody),
-            createdAt: expect.any(Date),
           }),
-        );
+        });
       });
     });
 
     describe('if fetch failed', () => {
-      it('saves request correctly', async () => {
-        nock(url.origin).get(url.pathname).replyWithError('failed');
+      it('returns request correctly', async () => {
+        (undici.request as jest.Mock).mockRejectedValue(new Error('failed'));
 
-        await service.fetchAndSaveResponse(feedUrl);
-        expect(requestRepo.persist).toHaveBeenCalledWith(
-          expect.objectContaining({
-            url: feedUrl,
-            status: RequestStatus.FETCH_ERROR,
-            fetchOptions: {
-              userAgent,
-            },
-            errorMessage: expect.any(String),
-            createdAt: expect.any(Date),
-          }),
-        );
+        const { request } = await service.fetchAndSaveResponse(feedUrl);
+        expect(request).toMatchObject({
+          url: feedUrl,
+          status: RequestStatus.FETCH_ERROR,
+          errorMessage: expect.any(String),
+        });
       });
     });
   });

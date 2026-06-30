@@ -52,10 +52,10 @@ export async function setupPostgresTests(
   const init = async () => {
     testingModule = await uncompiledModule.compile();
     orm = testingModule.get(MikroORM);
-    const generator = orm.schema;
+    const generator = (orm as any).getSchemaGenerator();
     await generator.ensureDatabase();
-    await (generator as any).dropSchema();
-    await (generator as any).createSchema();
+    await generator.dropSchema();
+    await generator.createSchema();
 
     return {
       module: testingModule,
@@ -69,18 +69,21 @@ export async function setupPostgresTests(
 }
 
 export async function clearDatabase() {
-  const generator = orm?.schema;
-  await generator.ensureDatabase();
-  await (generator as any).dropSchema();
-  await (generator as any).createSchema();
+  const generator = (orm as any)?.getSchemaGenerator();
+
+  if (generator) {
+    await generator.ensureDatabase();
+    await generator.dropSchema();
+    await generator.createSchema();
+  }
 }
 
 export async function teardownPostgresTests() {
   if (orm) {
-    const generator = orm.schema;
-    await (generator as any).dropSchema();
+    const generator = (orm as any).getSchemaGenerator();
+    await generator.dropSchema();
     // const typedEm = orm.em as SqlEntityManager;
-    await orm.em.transactional(async (em) => {
+    await orm.em.transactional(async (em: any) => {
       await (em as SqlEntityManager).execute(
         `DROP SCHEMA IF EXISTS "${postgresSchema}" CASCADE`,
       );

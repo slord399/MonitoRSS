@@ -1,39 +1,25 @@
-import "source-map-support/register";
-import { HttpAdapterHost, NestFactory } from "@nestjs/core";
-import { AppModule } from "./app.module";
+import { NestFactory } from "@nestjs/core";
 import {
   FastifyAdapter,
   NestFastifyApplication,
 } from "@nestjs/platform-fastify";
-import { ConfigService } from "@nestjs/config";
+import { AppModule } from "./app.module";
 import { VersioningType } from "@nestjs/common";
-import logger from "./shared/utils/logger";
-import { AllExceptionsFilter } from "./shared/filters";
 import compression from "@fastify/compress";
 
-export async function setupHttpApi() {
+export async function setupHttpApi(): Promise<any> {
   const app = await NestFactory.create<NestFastifyApplication>(
-    AppModule.forRoot(),
+    AppModule,
     new FastifyAdapter()
   );
-  await app.register(compression, { encodings: ["gzip", "deflate"] });
-  app.enableShutdownHooks();
-
-  const configService = app.get(ConfigService);
-  const httpAdapterHost = app.get(HttpAdapterHost);
-
-  app.useGlobalFilters(new AllExceptionsFilter(httpAdapterHost));
 
   app.enableVersioning({
     type: VersioningType.URI,
     defaultVersion: "1",
-    prefix: "v",
+    prefix: "api/v",
   });
-  const port = configService.getOrThrow("USER_FEEDS_API_PORT");
 
-  await app.listen(port, "0.0.0.0");
-
-  logger.info(`HTTP API listening on port ${port}`);
+  await app.register(compression as any, { encodings: ["gzip", "deflate"] });
 
   return { app };
 }

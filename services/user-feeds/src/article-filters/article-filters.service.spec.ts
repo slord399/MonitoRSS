@@ -21,7 +21,7 @@ describe("ArticleFiltersService", () => {
       providers: [ArticleFiltersService],
     }).compile();
 
-    service = module.get<ArticleFiltersService>(ArticleFiltersService);
+    service = module.get(ArticleFiltersService);
   });
 
   it("should be defined", () => {

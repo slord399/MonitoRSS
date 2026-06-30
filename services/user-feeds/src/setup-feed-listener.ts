@@ -13,7 +13,7 @@ export async function setupFeedListener() {
   const orm = app.get(MikroORM);
 
   setInterval(() => {
-    tryDbConnection(orm).catch(() => process.exit(1));
+    tryDbConnection(orm as any).catch(() => process.exit(1));
   }, 60000);
 
   logger.info("Feed handler service initialized");

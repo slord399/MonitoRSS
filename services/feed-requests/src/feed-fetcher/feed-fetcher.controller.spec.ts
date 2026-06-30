@@ -45,6 +45,7 @@ function createMockInsert(
           textHash: null,
           s3ObjectKey: null,
           redisCacheKey: null,
+          isCloudflare: false,
           headers: {},
           body: null,
         }
