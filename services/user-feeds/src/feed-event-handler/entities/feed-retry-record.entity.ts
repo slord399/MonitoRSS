@@ -1,4 +1,4 @@
-import { Entity, Property, PrimaryKey, Index } from "@mikro-orm/core";
+import { Entity, Property, PrimaryKey, Index } from "@mikro-orm/postgresql";
 
 /**
  * A basic entity just to track retries. Can be made more complex later on if needed.

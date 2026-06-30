@@ -1,4 +1,4 @@
-import { Entity, Property, PrimaryKey, Unique } from "@mikro-orm/core";
+import { Entity, Property, PrimaryKey, Unique } from "@mikro-orm/postgresql";
 
 @Entity()
 @Unique({ properties: ["feed_id", "field_name"], name: "unique_feed_field" })

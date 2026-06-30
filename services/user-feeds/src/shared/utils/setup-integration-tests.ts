@@ -4,7 +4,6 @@ import { ConfigModule } from "@nestjs/config";
 import { config } from "../../config";
 import { EntityName, MikroORM } from "@mikro-orm/core";
 import { randomUUID } from "crypto";
-import { PostgreSqlDriver, SqlEntityManager } from "@mikro-orm/postgresql";
 import {
   FastifyAdapter,
   NestFastifyApplication,
@@ -24,7 +23,7 @@ interface Options {
 export async function setupIntegrationTests(
   metadata: ModuleMetadata,
   options?: Options
-) {
+): Promise<any> {
   const configVals = config();
 
   const { Test } = await import("@nestjs/testing");
@@ -40,12 +39,11 @@ export async function setupIntegrationTests(
       }),
       MikroOrmModule.forFeature(options?.models || []),
       MikroOrmModule.forRoot({
-        driver: PostgreSqlDriver,
+        driver: require('@mikro-orm/postgresql').PostgreSqlDriver,
         entities: ["dist/**/*.entity.js"],
         entitiesTs: ["src/**/*.entity.ts"],
         clientUrl: configVals.USER_FEEDS_POSTGRES_URI,
         dbName: configVals.USER_FEEDS_POSTGRES_DATABASE,
-        // type: "postgresql",
         forceUtcTimezone: true,
         timezone: "UTC",
         schema: postgresSchema,
@@ -81,7 +79,7 @@ export async function setupIntegrationTests(
 }
 
 export async function clearDatabase() {
-  const generator = orm?.getSchemaGenerator();
+  const generator =  (orm as any)?.getSchemaGenerator();
   await generator.ensureDatabase();
   await generator.dropSchema();
   await generator.createSchema();
@@ -89,11 +87,10 @@ export async function clearDatabase() {
 
 export async function teardownIntegrationTests() {
   if (orm) {
-    const generator = orm.getSchemaGenerator();
+    const generator =  (orm as any).getSchemaGenerator();
     await generator.dropSchema();
-    // const typedEm = orm.em as SqlEntityManager;
-    await orm.em.transactional(async (em) => {
-      await (em as SqlEntityManager).execute(
+    await (orm.em as any).transactional(async (em: any) => {
+      await em.execute(
         `DROP SCHEMA IF EXISTS "${postgresSchema}" CASCADE`
       );
     });

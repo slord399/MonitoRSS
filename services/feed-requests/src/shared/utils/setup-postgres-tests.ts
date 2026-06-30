@@ -80,7 +80,7 @@ export async function teardownPostgresTests() {
     const generator = orm.schema;
     await (generator as any).dropSchema();
     // const typedEm = orm.em as SqlEntityManager;
-    await orm.em.transactional(async (em) => {
+    await orm.em.transactional(async (em: any) => {
       await (em as SqlEntityManager).execute(
         `DROP SCHEMA IF EXISTS "${postgresSchema}" CASCADE`,
       );

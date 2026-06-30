@@ -1,4 +1,4 @@
-import { Entity, PrimaryKey, Property, Unique } from "@mikro-orm/core";
+import { Entity, PrimaryKey, Property, Unique } from "@mikro-orm/postgresql";
 
 @Entity()
 @Unique({ properties: ["feed_id", "time_window_seconds"] })

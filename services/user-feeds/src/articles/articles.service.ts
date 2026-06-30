@@ -620,7 +620,7 @@ export class ArticlesService {
     }
 
     try {
-      await this.orm.em.transactional(async (em) => {
+      await this.orm.em.transactional(async (em: any) => {
         await this.partitionedFieldStoreService.markForPersistence(
           fieldsToSave
         );

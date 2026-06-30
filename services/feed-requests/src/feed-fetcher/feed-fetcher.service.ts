@@ -513,7 +513,6 @@ export class FeedFetcherService {
     const r = await request(url, {
       headers: useOptions.headers,
       signal: useOptions.signal,
-      maxRedirections: 10,
     });
 
     const contentTypes =

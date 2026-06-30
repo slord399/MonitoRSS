@@ -5,7 +5,7 @@ import {
   Enum,
   Index,
   OneToOne,
-} from "@mikro-orm/core";
+} from "@mikro-orm/postgresql";
 import { ArticleDeliveryStatus } from "../../shared";
 import { ArticleDeliveryContentType } from "../../shared/types/article-delivery-content-type.type";
 

@@ -147,8 +147,8 @@ export class FeedEventHandlerService {
     result,
     job,
   }: ArticleDeliveryResult) {
-    const deliveryRecordId = job.id;
-    const articleId = job.meta?.articleID;
+    const deliveryRecordId = (job as any).id;
+    const articleId = (job as any).meta?.articleID as string | undefined;
 
     if (result.state === "error") {
       await this.deliveryRecordService.updateDeliveryStatus(deliveryRecordId, {

@@ -34,13 +34,13 @@ export class DiscordMessageEnqueueService {
       "USER_FEEDS_DISCORD_CLIENT_ID"
     );
 
-    this.producer = new RESTProducer(rabbitmqUri, {
+    this.producer = new (RESTProducer as any)(rabbitmqUri, {
       clientId: discordClientId,
     });
   }
 
   async close(): Promise<void> {
-    await this.producer.close();
+    await (this.producer as any).close();
   }
 
   async enqueueMessages(
