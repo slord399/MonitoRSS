@@ -36,6 +36,19 @@
     "typescript": "^6.0.3"
   },
   "overrides": {
-    "undici": "$undici"
+    "undici": "$undici",
+    "ejs": "^3.1.10",
+    "axios": "^1.7.9",
+    "qs": "$qs",
+    "express": "^4.21.2",
+    "body-parser": "^1.20.3",
+    "path-to-regexp": "$path-to-regexp",
+    "file-type": "^21.3.4",
+    "@fastify/middie": "^9.4.0",
+    "fast-uri": "^3.1.3",
+    "fastify": "$fastify",
+    "lodash": "$lodash",
+    "ajv": "$ajv",
+    "uuid": "^11.1.1"
   }
 }
