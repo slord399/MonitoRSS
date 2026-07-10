@@ -3,6 +3,7 @@
 Delivers highly-customized news feeds to Discord!
 
 - [MonitoRSS (formerly Discord.RSS)](#monitorss-formerly-discordrss)
+  - [Note](#note)
   - [Get Started](#get-started)
     - [Use Public Instance](#use-public-instance)
     - [Self Host](#self-host)
@@ -10,9 +11,16 @@ Delivers highly-customized news feeds to Discord!
       - [Enable Email Notifications](#enable-email-notifications)
       - [Enable Reddit Authorizations](#enable-reddit-authorizations)
       - [Updating](#updating)
+        - [Update though Docker Pull](#optiona-docker-pull)
+        - [Update though Git](#optionb-git)
         - [Major Version Updates](#major-version-updates)
   - [Migrating from v6](#migrating-from-v6)
     - [Converting Legacy Feeds](#converting-legacy-feeds)
+
+## Note
+This branch is self patched and may release version of it's own than origin.
+Every minor release to be confirmed working locally.
+Check [Releases page](../../releases) for latest version of it's own build.
 
 ## Get Started
 
@@ -32,7 +40,7 @@ Docker is required to easily coordinate and run multiple services at once.
 
 1. Install [Docker Engine](https://docs.docker.com/engine/install/)
 2. Install [Docker Compose](https://docs.docker.com/compose/install/)
-3. Clone this repo's `main` (the default) branch - `git clone https://github.com/synzen/MonitoRSS.git`
+3. Clone this repo's `main` (the default) branch - `git clone https://github.com/slord399/MonitoRSS.git`
 4. Create a Discord application through [Discord's developer portal](https://discord.com/developers/applications) if you do not already have one
 5. Create a copy of the existing `.env.example` file and rename it to `.env`
 6. Replace all relevant values in the `.env` file with your own values
@@ -84,11 +92,21 @@ Make sure to opt into email notifications in the control panel's user settings p
 
 Releases follow [semantic versioning](https://semver.org/) and are published on the [Releases page](../../releases). To update:
 
+##### Option.A (Docker Pull)
 1. Back up your MongoDB data as a precaution (regular backups are a good idea regardless)
 2. Stop containers with `docker compose rm --stop -f`
 3. Set your desired version in the `.env` file by updating `MONITORSS_VERSION` (e.g., `MONITORSS_VERSION=7` for version 7)
 4. Pull latest images with `docker compose pull`
 5. Start containers with `docker compose up -d`
+
+##### Option.B (Git)
+1. Back up your MongoDB data as a precaution (regular backups are a good idea regardless)
+2. Stop containers with `docker compose rm --stop -f`
+3. Set your desired version in the `.env` file by updating `MONITORSS_VERSION` (e.g., `MONITORSS_VERSION=7` for version 7)
+4. Rename original MonitoRSS directory for backup.
+5. Pull latest images with `git clone https://github.com/slord399/MonitoRSS.git`
+6. Copy over `.env` file to new directory.
+7. Move to new directory and start containers with `docker compose up -d --build`
 
 ##### Major Version Updates
 
