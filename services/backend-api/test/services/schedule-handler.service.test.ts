@@ -225,8 +225,10 @@ describe("ScheduleHandlerService", { concurrency: true }, () => {
         (item) => item.lookupKey === lookupKey,
       );
       assert.ok(matchingItem, "Should find feed with lookup key in results");
-      assert.ok(
-        matchingItem.url.includes("oauth.reddit.com"),
+      const parsedUrl = new URL(matchingItem.url);
+      assert.strictEqual(
+        parsedUrl.hostname,
+        "oauth.reddit.com",
         "URL should be transformed to OAuth Reddit URL",
       );
     });
@@ -305,8 +307,10 @@ describe("ScheduleHandlerService", { concurrency: true }, () => {
         matchingItem,
         "Should find workspace feed with lookup key in results",
       );
-      assert.ok(
-        matchingItem.url.includes("oauth.reddit.com"),
+      const parsedUrl = new URL(matchingItem.url);
+      assert.strictEqual(
+        parsedUrl.hostname,
+        "oauth.reddit.com",
         "URL should be transformed to OAuth Reddit URL using workspace credentials",
       );
     });

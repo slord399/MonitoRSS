@@ -357,11 +357,11 @@ describe("NotificationsService", { concurrency: true }, () => {
 
       const sendMailCall = ctx.smtpTransport!.sendMail.mock.calls[0]
         ?.arguments[0] as { html: string };
-      assert.ok(
-        sendMailCall.html.includes(
-          "https://my.test.com/feeds/feed-456/discord-channel-connections/conn-123",
-        ),
-      );
+      const urlMatch = sendMailCall.html.match(/https?:\/\/[^\s"'<>]+/);
+      assert.ok(urlMatch, "Should find link in email body");
+      const parsedUrl = new URL(urlMatch[0]);
+      assert.strictEqual(parsedUrl.origin, "https://my.test.com");
+      assert.strictEqual(parsedUrl.pathname, "/feeds/feed-456/discord-channel-connections/conn-123");
     });
 
     it("does not include connection prefix when connection is not in feed connections", async () => {
@@ -378,9 +378,11 @@ describe("NotificationsService", { concurrency: true }, () => {
 
       const sendMailCall = ctx.smtpTransport!.sendMail.mock.calls[0]
         ?.arguments[0] as { html: string };
-      assert.ok(
-        sendMailCall.html.includes("https://my.test.com/feeds/feed-789"),
-      );
+      const urlMatch = sendMailCall.html.match(/https?:\/\/[^\s"'<>]+/);
+      assert.ok(urlMatch, "Should find link in email body");
+      const parsedUrl = new URL(urlMatch[0]);
+      assert.strictEqual(parsedUrl.origin, "https://my.test.com");
+      assert.strictEqual(parsedUrl.pathname, "/feeds/feed-789");
       assert.ok(!sendMailCall.html.includes("discord-channel-connections"));
     });
 
@@ -558,11 +560,11 @@ describe("NotificationsService", { concurrency: true }, () => {
       assert.ok(sendMailCall.subject.includes("Acme News"));
       assert.ok(sendMailCall.html.includes("Feed One"));
       assert.ok(sendMailCall.html.includes("Feed Two"));
-      assert.ok(
-        sendMailCall.html.includes(
-          "https://my.test.com/workspaces/acme-news/feeds",
-        ),
-      );
+      const urlMatch = sendMailCall.html.match(/https?:\/\/[^\s"'<>]+/);
+      assert.ok(urlMatch, "Should find link in email body");
+      const parsedUrl = new URL(urlMatch[0]);
+      assert.strictEqual(parsedUrl.origin, "https://my.test.com");
+      assert.strictEqual(parsedUrl.pathname, "/workspaces/acme-news/feeds");
     });
 
     it("creates delivery attempts with the digest type and workspace id", async () => {
