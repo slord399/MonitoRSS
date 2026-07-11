@@ -11,6 +11,6 @@ describe('calculateResponseFreshnessLifetime', () => {
       headers,
     });
 
-    expect(freshnessLifetime).toBeGreaterThan(0);
+    expect(freshnessLifetime.original).toBeGreaterThan(0);
   });
 });

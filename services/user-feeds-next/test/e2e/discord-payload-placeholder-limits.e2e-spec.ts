@@ -304,7 +304,7 @@ describe("Discord Payload Placeholder Limits (e2e)", { concurrency: true }, () =
         const payload = getDiscordPayload(ctx);
         const expectedLink = "https://example.com/article";
         const foundUrls = payload.content.match(/https?:\/\/[^\s<]+/g);
-        const hasExpectedLink = foundUrls?.some((u) => {
+        const hasExpectedLink = foundUrls?.some((u: string) => {
           try {
             const url = new URL(u);
 
