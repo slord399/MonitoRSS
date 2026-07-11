@@ -30,7 +30,7 @@
     "protobufjs": "^7.4.0",
     "ws": "^8.21.0",
     "vitest": "^2.1.8",
-    "lodash": "^4.17.21",
+    "lodash": "^4.18.1",
     "lodash-es": "^4.17.21",
     "fast-xml-parser": "^5.10.0",
     "@mikro-orm/core": "^6.4.6",
