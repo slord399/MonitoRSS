@@ -31,7 +31,7 @@
     "vitest": "^2.1.8",
     "lodash": "^4.17.21",
     "lodash-es": "^4.17.21",
-    "fast-xml-parser": "^4.5.2",
+    "fast-xml-parser": "^5.10.0",
     "@mikro-orm/core": "^6.4.6",
     "@mikro-orm/postgresql": "^6.4.6",
     "@mikro-orm/mongodb": "^6.4.6",
