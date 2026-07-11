@@ -43,7 +43,7 @@
     "@fastify/middie": "^9.4.0",
     "happy-dom": "^15.11.7",
     "find-my-way": "^9.1.0",
-    "minimatch": "^9.0.5",
+    "minimatch": "^10.2.5",
     "@nestjs/platform-fastify": "^11.1.27",
     "@nestjs/common": "^11.1.27",
     "@nestjs/core": "^11.1.27",
