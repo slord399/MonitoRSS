@@ -405,6 +405,7 @@ export class FeedFetcherService {
           textHash: response.textHash || null,
           s3ObjectKey: response.s3ObjectKey || null,
           redisCacheKey: response.redisCacheKey || null,
+          isCloudflare: response.isCloudflare,
           headers: response.headers,
           body:
             response.responseHashKey && response.content
@@ -513,7 +514,6 @@ export class FeedFetcherService {
     const r = await request(url, {
       headers: useOptions.headers,
       signal: useOptions.signal,
-      maxRedirections: 10,
     });
 
     const contentTypes =

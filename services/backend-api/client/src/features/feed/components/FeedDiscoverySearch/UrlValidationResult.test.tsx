@@ -41,7 +41,7 @@ vi.mock("../FixFeedRequestsCTA", () => ({
     variant?: string;
     onCorrected?: () => void;
   }) => {
-    const isReddit = /^http(s?):\/\/(www.)?(\w+\.)?reddit\.com\//i.test(url);
+    const isReddit = /^https?:\/\/(www\.)?(\w+\.)?reddit\.com\//i.test(url);
 
     if (!isReddit) return null;
 

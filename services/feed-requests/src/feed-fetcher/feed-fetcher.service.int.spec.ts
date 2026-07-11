@@ -13,6 +13,7 @@ import { getRepositoryToken } from '@mikro-orm/nestjs';
 import { ObjectFileStorageService } from '../object-file-storage/object-file-storage.service';
 import { CacheStorageService } from '../cache-storage/cache-storage.service';
 import { FastifyAdapter } from '@nestjs/platform-fastify';
+import PartitionedRequestsStoreService from '../partitioned-requests-store/partitioned-requests-store.service';
 
 jest.mock('../utils/logger');
 
@@ -39,6 +40,12 @@ describe('FeedFetcherService (Integration)', () => {
             useValue: {
               getFeedHtmlContent: jest.fn(),
               setFeedHtmlContent: jest.fn(),
+            },
+          },
+          {
+            provide: PartitionedRequestsStoreService,
+            useValue: {
+              getRequests: jest.fn(),
             },
           },
         ],
@@ -83,14 +90,13 @@ describe('FeedFetcherService (Integration)', () => {
       re3.status = RequestStatus.BAD_STATUS_CODE;
       re3.createdAt = new Date(2022);
 
-      await requestRepo.persistAndFlush([req, re2, re3]);
+      await (requestRepo as any).persist([req, re2, re3]).flush();
 
       const result = await service.getRequests({
         skip: 1,
         limit: 1,
         url,
-        select: ['id', 'status'],
-      });
+      } as any);
 
       expect(result).toHaveLength(1);
       expect(result[0]).toEqual({
@@ -123,7 +129,7 @@ describe('FeedFetcherService (Integration)', () => {
 
       req1.response = response;
 
-      await requestRepo.persistAndFlush([req1]);
+      await (requestRepo as any).persist([req1]).flush();
 
       const latestRequest = await service.getLatestRequest({
         url,

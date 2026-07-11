@@ -56,14 +56,14 @@ describe('FeedFetcherListenerService', () => {
     mockMikroOrm = await MikroORM.init(
       {
         // Get past errors related to @UseRequestContext() decorator from MikroORM
-        type: 'postgresql',
+        driver: require("@mikro-orm/postgresql").PostgreSqlDriver as any,
         dbName: 'test',
         entities: [],
         discovery: {
           warnWhenNoEntities: false,
         },
       },
-      false,
+
     );
 
     service = new FeedFetcherListenerService(

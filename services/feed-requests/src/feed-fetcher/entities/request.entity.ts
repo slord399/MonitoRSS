@@ -69,7 +69,7 @@ export class Request {
     nullable: true,
     entity: () => Response,
     index: true,
-    onDelete: 'cascade',
+    deleteRule: 'cascade',
   })
   response!: Response | null;
 }

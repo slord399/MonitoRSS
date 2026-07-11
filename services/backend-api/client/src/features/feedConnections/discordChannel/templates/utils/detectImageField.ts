@@ -48,7 +48,13 @@ function getImageDedupeKey(urlString: string): string {
 
     // For Reddit CDN URLs, normalize by using just the filename
     // since preview.redd.it and i.redd.it serve the same images
-    if (url.hostname.endsWith("redd.it") || url.hostname.endsWith("redditmedia.com")) {
+    const isRedditCdn =
+      url.hostname === "redd.it" ||
+      url.hostname.endsWith(".redd.it") ||
+      url.hostname === "redditmedia.com" ||
+      url.hostname.endsWith(".redditmedia.com");
+
+    if (isRedditCdn) {
       return `reddit:${filename}`;
     }
 
