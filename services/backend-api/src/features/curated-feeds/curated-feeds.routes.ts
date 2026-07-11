@@ -22,7 +22,7 @@ export async function curatedFeedsRoutes(app: FastifyInstance): Promise<void> {
       rateLimit: {
         max: 60,
         timeWindow: "1 minute",
-        allowList: (request) => {
+        allowList: (request: any) => {
           const { q, category } = request.query as GetCuratedFeedsQuery;
           return !!category && !q;
         },

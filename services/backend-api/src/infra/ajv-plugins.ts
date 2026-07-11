@@ -158,7 +158,7 @@ const SUPPORTED_LOCALES = new Set([
   "es-us",
 ]);
 
-export function dateLocaleKeywordPlugin(ajv: Ajv): Ajv {
+export function dateLocaleKeywordPlugin(ajv: any): any {
   ajv.addKeyword({
     keyword: AjvKeyword.IS_DATE_LOCALE,
     type: "string",
@@ -177,7 +177,7 @@ export function dateLocaleKeywordPlugin(ajv: Ajv): Ajv {
   return ajv;
 }
 
-export function timezoneKeywordPlugin(ajv: Ajv): Ajv {
+export function timezoneKeywordPlugin(ajv: any): any {
   ajv.addKeyword({
     keyword: AjvKeyword.IS_TIMEZONE,
     type: "string",
@@ -202,7 +202,7 @@ export function timezoneKeywordPlugin(ajv: Ajv): Ajv {
   return ajv;
 }
 
-export function hasAtLeastOneVisibleColumnPlugin(ajv: Ajv): Ajv {
+export function hasAtLeastOneVisibleColumnPlugin(ajv: any): any {
   ajv.addKeyword({
     keyword: AjvKeyword.HAS_AT_LEAST_ONE_VISIBLE_COLUMN,
     type: "object",
