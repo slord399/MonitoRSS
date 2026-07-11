@@ -62,6 +62,7 @@ describe('FeedFetcherListenerService', () => {
         discovery: {
           warnWhenNoEntities: false,
         },
+        connect: false,
       },
 
     );

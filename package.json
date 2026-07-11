@@ -17,6 +17,10 @@
     "e2e:paddle": "npm run e2e:paddle --workspace=e2e",
     "e2e:web": "npm run e2e:web --workspace=e2e"
   },
+  "devDependencies": {
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.0"
+  },
   "overrides": {
     "ip": "^2.0.1",
     "form-data": "^4.0.15",
@@ -60,6 +64,6 @@
     "cookie": "^0.7.1",
     "@tootallnate/once": "^2.0.0",
     "@babel/core": "^7.25.2",
-    "undici": "^6.27.0"
+    "undici": "^8.7.0"
   }
 }
