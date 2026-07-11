@@ -77,7 +77,7 @@ async function expandAccordion(
   name: string,
 ) {
   await page
-    .getByRole("button", { name: new RegExp(name.replace(/[{}]/g, "\\$&")) })
+    .getByRole("button", { name: new RegExp(name.replace(/[|\\{}()[\]^$+*?.-]/g, "\\$&")) })
     .click();
 }
 

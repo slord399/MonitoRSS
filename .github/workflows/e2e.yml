@@ -12,6 +12,9 @@ env:
   BACKEND_API_PADDLE_WEBHOOK_SECRET: ${{ secrets.BACKEND_API_PADDLE_WEBHOOK_SECRET }}
   VITE_PADDLE_CLIENT_TOKEN: ${{ secrets.VITE_PADDLE_CLIENT_TOKEN }}
 
+permissions:
+  contents: read
+
 jobs:
   e2e-web:
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
