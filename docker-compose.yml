@@ -74,6 +74,7 @@ services:
       file: ./docker-compose.base.yml
       service: user-feeds-next-service
     image: ghcr.io/synzen/monitorss-user-feeds:${MONITORSS_VERSION:-7}
+    command: ["node", "dist/index.js"]
     env_file: *env-files
     environment:
       - NODE_ENV=${NODE_ENV:-production}

@@ -113,7 +113,7 @@ async function pruneAndCreatePartitions(app: INestApplicationContext) {
     // prune old partitions
     const currentPartitions = await getCurrentPartitions(
       'request_partitioned',
-      orm,
+      orm as any,
     );
 
     const numberOfPartitionsToKeep = configService.getOrThrow<number>(

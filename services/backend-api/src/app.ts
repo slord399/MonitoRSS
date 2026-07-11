@@ -15,7 +15,7 @@ import {
   ApiErrorCode,
 } from "./infra/error-handler";
 import addFormats from "ajv-formats";
-import type Ajv from "ajv";
+import type { Ajv } from "ajv";
 import {
   timezoneKeywordPlugin,
   dateLocaleKeywordPlugin,

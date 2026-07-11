@@ -6,7 +6,7 @@ import { RequestStatus } from './constants';
 import dayjs from 'dayjs';
 import { AmqpConnection, RabbitSubscribe } from '@golevelup/nestjs-rabbitmq';
 import { EntityManager } from '@mikro-orm/postgresql';
-import { MikroORM, UseRequestContext } from '@mikro-orm/core';
+import { MikroORM, CreateRequestContext } from '@mikro-orm/core';
 import { FeedFetcherService } from './feed-fetcher.service';
 import { RequestSource } from './constants/request-source.constants';
 import PartitionedRequestsStoreService from '../partitioned-requests-store/partitioned-requests-store.service';
@@ -79,7 +79,7 @@ export class FeedFetcherListenerService {
     await this.onBrokerFetchRequestBatchHandler(message);
   }
 
-  @UseRequestContext()
+  @CreateRequestContext()
   private async onBrokerFetchRequestBatchHandler(
     batchRequest: BatchRequestMessage,
   ): Promise<void> {
@@ -459,9 +459,7 @@ export class FeedFetcherListenerService {
         },
       );
 
-      this.amqpConnection.publish<{
-        data: { url: string; lookupKey?: string; status: RequestStatus };
-      }>('', 'url.rejected.disable-feeds', {
+      this.amqpConnection.publish('', 'url.rejected.disable-feeds', {
         data: {
           url,
           status: RequestStatus.REFUSED_LARGE_FEED,
@@ -482,9 +480,7 @@ export class FeedFetcherListenerService {
         `Disabling feeds with lookup key "${lookupKey}" and url ${url} due to failure threshold `,
       );
 
-      this.amqpConnection.publish<{
-        data: { lookupKey?: string; url: string };
-      }>('', 'url.failed.disable-feeds', {
+      this.amqpConnection.publish('', 'url.failed.disable-feeds', {
         data: {
           lookupKey,
           url,
@@ -500,9 +496,7 @@ export class FeedFetcherListenerService {
 
   emitFailingUrl({ lookupKey, url }: { lookupKey?: string; url: string }) {
     try {
-      this.amqpConnection.publish<{
-        data: { lookupKey?: string; url: string };
-      }>('', 'url.failing', {
+      this.amqpConnection.publish('', 'url.failing', {
         data: {
           lookupKey,
           url,
@@ -539,14 +533,7 @@ export class FeedFetcherListenerService {
         );
       }
 
-      this.amqpConnection.publish<{
-        data: {
-          lookupKey?: string;
-          url: string;
-          rateSeconds: number;
-          debug?: boolean;
-        };
-      }>('', 'url.fetch.completed', {
+      this.amqpConnection.publish('', 'url.fetch.completed', {
         data: {
           lookupKey,
           url,

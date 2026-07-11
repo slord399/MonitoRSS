@@ -6,6 +6,7 @@ import config from './config';
 import { FeedFetcherModule } from './feed-fetcher/feed-fetcher.module';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { MikroORM } from '@mikro-orm/core';
+import { PostgreSqlDriver } from '@mikro-orm/postgresql';
 import logger from './utils/logger';
 import { CacheStorageService } from './cache-storage/cache-storage.service';
 import { CacheStorageModule } from './cache-storage/cache-storage.module';
@@ -40,10 +41,10 @@ export class AppModule implements OnApplicationShutdown {
           load: [config],
         }),
         MikroOrmModule.forRoot({
+          driver: PostgreSqlDriver,
           entities: ['dist/**/*.entity.js'],
           entitiesTs: ['src/**/*.entity.ts'],
           clientUrl: configVals.FEED_REQUESTS_POSTGRES_URI,
-          type: 'postgresql',
           forceUtcTimezone: true,
           timezone: 'UTC',
           // loadStrategy: LoadStrategy.JOINED,

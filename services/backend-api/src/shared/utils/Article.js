@@ -381,7 +381,15 @@ module.exports = class Article {
     this.feed = feed;
     this.profile = profile;
     this.raw = raw;
-    this.reddit = raw.meta.link && raw.meta.link.includes("www.reddit.com");
+    try {
+      const redditUrl = raw.meta.link ? new URL(raw.meta.link) : null;
+      this.reddit =
+        redditUrl &&
+        (redditUrl.hostname === "www.reddit.com" ||
+          redditUrl.hostname === "reddit.com");
+    } catch {
+      this.reddit = false;
+    }
     this.youtube = !!(
       raw.guid &&
       raw.guid.startsWith("yt:video") &&
@@ -715,7 +723,7 @@ module.exports = class Article {
         continue;
       }
 
-      const placeholder = arr[0].replace(/{|}/, "");
+      const placeholder = arr[0].replace(/{|}/g, "");
       const placeholderImgs = this[placeholder + "Images"];
 
       if (
@@ -746,9 +754,9 @@ module.exports = class Article {
   // {imageX} and {placeholder:imageX}
   convertImgs(content) {
     const imgDictionary = {};
-    const imgLocs = content.match(/{image[1-9](\|\|(.+))*}/g);
+    const imgLocs = content.match(/{image[1-9](\|\|([^}]+))?}/g);
     const phImageLocs = content.match(
-      /({(description|title|summary):image[1-9](\|\|(.+))*})/gi,
+      /({(description|title|summary):image[1-9](\|\|([^}]+))?})/gi,
     );
 
     if (imgLocs) {
@@ -815,7 +823,7 @@ module.exports = class Article {
       return "";
     }
 
-    const placeholder = arr[0].replace(/{|}/, "");
+    const placeholder = arr[0].replace(/{|}/g, "");
     const placeholderAnchors = this[placeholder + "Anchors"];
 
     if (
@@ -837,7 +845,7 @@ module.exports = class Article {
 
   convertAnchors(content) {
     const phAnchorLocs = content.match(
-      /({(description|title|summary):anchor[1-5](\|\|(.+))*})/gi,
+      /({(description|title|summary):anchor[1-5](\|\|([^}]+))?})/gi,
     );
 
     if (!phAnchorLocs) {
@@ -845,12 +853,9 @@ module.exports = class Article {
     }
 
     for (var h in phAnchorLocs) {
-      content = this.resolvePlaceholderAnchor(phAnchorLocs[h])
-        ? content.replace(
-            phAnchorLocs[h],
-            this.resolvePlaceholderAnchor(phAnchorLocs[h]),
-          )
-        : content.replace(phAnchorLocs[h], "");
+      const anchorPlaceholder = phAnchorLocs[h];
+      const replacement = this.resolvePlaceholderAnchor(anchorPlaceholder) || "";
+      content = content.split(anchorPlaceholder).join(replacement);
     }
 
     return content;

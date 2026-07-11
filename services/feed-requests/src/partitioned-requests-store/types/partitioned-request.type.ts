@@ -17,6 +17,7 @@ export interface PartitionedRequestInsert {
     textHash: string | null;
     s3ObjectKey: string | null;
     redisCacheKey: string | null;
+    isCloudflare: boolean;
     headers: object;
     body: {
       hashKey: string;
