@@ -62,7 +62,7 @@ export async function createApp(
         // Passed by reference (its function name is "formatsPlugin") so
         // @fastify/ajv-compiler detects it and skips its own duplicate
         // ajv-formats registration. This enables `format: "email"` validation.
-        addFormats as unknown as (ajv: Ajv) => Ajv,
+        addFormats as any,
         timezoneKeywordPlugin,
         dateLocaleKeywordPlugin,
         hasAtLeastOneVisibleColumnPlugin,
@@ -300,7 +300,7 @@ export async function createApp(
     return reply.sendFile("index.html");
   });
 
-  return app;
+  return app as any;
 }
 
 export async function startApp(

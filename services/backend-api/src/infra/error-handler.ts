@@ -120,8 +120,8 @@ export function sendError(
 
 export function errorHandler(
   error: FastifyError,
-  request: FastifyRequest,
-  reply: FastifyReply,
+  request: any,
+  reply: any,
 ) {
   const discordId = getAccessTokenFromRequest(request)?.discord?.id;
 
@@ -210,7 +210,7 @@ export function errorHandler(
     .send(createErrorResponse(ApiErrorCode.INTERNAL_ERROR));
 }
 
-export function notFoundHandler(request: FastifyRequest, reply: FastifyReply) {
+export function notFoundHandler(request: any, reply: any) {
   sendError(reply, 404, ApiErrorCode.ROUTE_NOT_FOUND, "Not Found");
 }
 
