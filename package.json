@@ -57,7 +57,7 @@
     "braces": "^3.0.3",
     "@remix-run/router": "^1.21.0",
     "path-to-regexp": "^0.1.10",
-    "fast-uri": "^2.4.0",
+    "fast-uri": "^4.1.0",
     "picomatch": "^4.0.5",
     "nodemailer": "^9.0.3",
     "validator": "^13.12.0",
