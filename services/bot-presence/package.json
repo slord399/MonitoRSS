@@ -20,8 +20,11 @@
     "amqp-connection-manager": "^4.1.14",
     "amqplib": "^0.10.3",
     "bufferutil": "^4.0.8",
-    "undici": "^6.24.1",
+    "undici": "^6.27.0",
     "utf-8-validate": "^6.0.3"
+  },
+  "overrides": {
+    "undici": "$undici"
   },
   "devDependencies": {
     "@types/node": "^24.9.2",
