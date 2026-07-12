@@ -44,7 +44,7 @@
     "@mikro-orm/cli": "^6.4.6",
     "@mikro-orm/nestjs": "^6.1.1",
     "flatted": "^3.4.2",
-    "@fastify/middie": "^9.4.0",
+    "@fastify/middie": "^9.3.3",
     "happy-dom": "^15.11.7",
     "find-my-way": "^9.1.0",
     "minimatch": "^10.2.5",
