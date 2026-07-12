@@ -1,6 +1,12 @@
 {
   "name": "@monitorss/control-panel",
   "version": "0.0.0",
+  "overrides": {
+    "minimatch": "3.1.4",
+    "glob": {
+      "minimatch": "^9.0.7"
+    }
+  },
   "scripts": {
     "dev-mockapi": "cross-env ENV=development-mockapi vite --host --mode development-mockapi",
     "dev": "vite",
