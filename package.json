@@ -68,6 +68,9 @@
     "cookie": "^0.7.1",
     "@tootallnate/once": "^2.0.0",
     "@babel/core": "^7.25.2",
-    "undici": "^6.27.0"
+    "undici": "^6.27.0",
+    "backend-api": {
+      "undici": "^7.28.0"
+    }
   }
 }
