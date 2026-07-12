@@ -22,7 +22,7 @@
     "html-to-text": "^8.2.1",
     "lodash": "^4.18.1",
     "moment-timezone": "^0.5.46",
-    "mongoose": "^7.6.2",
+    "mongoose": "^6.13.9",
     "nodemailer": "^9.0.3",
     "qs": "^6.15.3",
     "rabbitmq-client": "^5.0.8",
