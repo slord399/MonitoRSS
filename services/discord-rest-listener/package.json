@@ -21,13 +21,14 @@
     "dayjs": "^1.11.2",
     "dotenv": "^16.0.1",
     "source-map-support": "^0.5.21",
-    "undici": "^6.24.1",
+    "undici": "^6.27.0",
     "winston": "^3.3.3",
     "zod": "^3.22.4"
   },
   "overrides": {
     "amqp-connection-manager": "^5.0.0",
-    "amqplib": "^0.10.9"
+    "amqplib": "^0.10.9",
+    "undici": "$undici"
   },
   "devDependencies": {
     "@types/amqplib": "^0.10.0",

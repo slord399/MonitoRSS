@@ -21,13 +21,14 @@
     "qs": "^6.15.3",
     "rabbitmq-client": "^5.0.8",
     "redis": "^4.6.12",
-    "undici": "^8.7.0",
+    "undici": "^6.27.0",
     "workerpool": "^10.0.1",
     "zod": "^4.1.13"
   },
   "overrides": {
     "amqp-connection-manager": "5.0.0",
-    "amqplib": "0.10.9"
+    "amqplib": "0.10.9",
+    "undici": "$undici"
   },
   "scripts": {
     "build": "tsc",

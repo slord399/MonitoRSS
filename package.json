@@ -19,7 +19,8 @@
   },
   "devDependencies": {
     "class-transformer": "^0.5.1",
-    "class-validator": "^0.14.0"
+    "class-validator": "^0.14.0",
+    "@types/amqplib": "^0.10.6"
   },
   "overrides": {
     "fastify": "^5.10.0",
@@ -66,6 +67,6 @@
     "cookie": "^0.7.1",
     "@tootallnate/once": "^2.0.0",
     "@babel/core": "^7.25.2",
-    "undici": "^8.7.0"
+    "undici": "^6.27.0"
   }
 }
