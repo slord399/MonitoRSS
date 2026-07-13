@@ -5,7 +5,8 @@
     "minimatch": "3.1.4",
     "glob": {
       "minimatch": "^9.0.7"
-    }
+    },
+    "esbuild": "^0.28.1"
   },
   "scripts": {
     "dev-mockapi": "cross-env ENV=development-mockapi vite --host --mode development-mockapi",
@@ -49,7 +50,7 @@
     "react-virtuoso": "^4.14.1",
     "simple-markdown": "^0.7.3",
     "twemoji": "^14.0.2",
-    "uuid": "^9.0.1",
+    "uuid": "^11.1.1",
     "yup": "^1.4.0"
   },
   "devDependencies": {
