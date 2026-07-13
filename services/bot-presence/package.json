@@ -24,7 +24,8 @@
     "utf-8-validate": "^6.0.3"
   },
   "overrides": {
-    "undici": "$undici"
+    "undici": "$undici",
+    "minimatch": "9.0.9"
   },
   "devDependencies": {
     "@types/node": "^24.9.2",
