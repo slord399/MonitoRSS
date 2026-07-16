@@ -414,7 +414,7 @@ export const DiscordMessageEmbedForm = ({ index }: Props) => {
                     </Table.Header>
                     <Table.Body>
                       <AnimatedComponent>
-                        {embed.fields?.map((f, fieldIndex) => {
+                        {embed?.fields?.map((f, fieldIndex) => {
                           return (
                             <Table.Row key={f.id} asChild>
                               <motion.tr
