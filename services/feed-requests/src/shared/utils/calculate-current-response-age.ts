@@ -7,13 +7,15 @@
  */
 const calculateCurrentResponseAge = ({
   headers,
-  requestTime,
-  responseTime,
+  requestTime: inputRequestTime,
+  responseTime: inputResponseTime,
 }: {
   headers: Record<string, string>;
-  requestTime: Date | null;
-  responseTime: Date | null;
+  requestTime: Date | string | null;
+  responseTime: Date | string | null;
 }) => {
+  const requestTime = inputRequestTime ? new Date(inputRequestTime) : null;
+  const responseTime = inputResponseTime ? new Date(inputResponseTime) : null;
   const headerDate = headers['date'] ? new Date(headers['date']) : null;
   let apparentAgeMs = 0;
 
