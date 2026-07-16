@@ -139,8 +139,8 @@ services:
       file: docker-compose.base.yml
       service: user-feeds-next-postgres-migration
     build:
-      context: services/user-feeds-next
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: services/user-feeds-next/Dockerfile.dev
     command: npx tsx ./src/scripts/run-migrations.ts
     env_file:
       - ./.env.local
@@ -152,8 +152,8 @@ services:
       file: docker-compose.base.yml
       service: user-feeds-next-service
     build:
-      context: services/user-feeds-next
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: services/user-feeds-next/Dockerfile.dev
     env_file:
       - ./.env.local
     environment:
@@ -165,7 +165,7 @@ services:
       watch:
         - action: sync+restart
           path: ./services/user-feeds-next
-          target: /usr/src/app
+          target: /usr/src/app/services/user-feeds-next
           ignore:
             - node_modules/
 
@@ -174,8 +174,8 @@ services:
       file: docker-compose.base.yml
       service: user-feeds-next-service
     build:
-      context: services/user-feeds-next
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: services/user-feeds-next/Dockerfile.dev
     ports:
       - "5001:5000"
     env_file:
@@ -189,7 +189,7 @@ services:
       watch:
         - action: sync+restart
           path: ./services/user-feeds-next
-          target: /usr/src/app
+          target: /usr/src/app/services/user-feeds-next
           ignore:
             - node_modules/
 
