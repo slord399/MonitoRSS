@@ -25,7 +25,7 @@ RUN npm run build
 
 FROM build AS build-prod
 WORKDIR /usr/src/app/services/user-feeds-next
-RUN npm prune --production
+RUN npm prune --omit=dev --ignore-scripts
 
 FROM node:24-alpine AS prod
 WORKDIR /usr/src/app

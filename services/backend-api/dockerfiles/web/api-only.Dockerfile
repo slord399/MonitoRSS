@@ -12,7 +12,7 @@ COPY --from=build /usr/src/app ./
 
 RUN npm run build
 
-RUN npm prune --production
+RUN npm prune --omit=dev --ignore-scripts
 
 # Alpine will cause the app to mysteriously exit when attempting to register @fastify/secure-session
 FROM node:24-slim AS prod
