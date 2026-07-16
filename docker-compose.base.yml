@@ -199,8 +199,8 @@ services:
   user-feeds-next-service:
     restart: on-failure:5
     build:
-      context: services/user-feeds-next
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/user-feeds-next/Dockerfile
       target: build-prod
     depends_on:
       - feed-requests-postgres-db
@@ -226,8 +226,8 @@ services:
   user-feeds-next-postgres-migration:
     restart: on-failure:5
     build:
-      context: services/user-feeds-next
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/user-feeds-next/Dockerfile
       target: build-prod
     command: node ./dist/src/scripts/run-migrations.js
     depends_on:

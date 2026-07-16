@@ -18,7 +18,7 @@ import path from 'path';
 import PartitionedRequestsStoreService from '../partitioned-requests-store/partitioned-requests-store.service';
 import { HostRateLimiterService } from '../host-rate-limiter/host-rate-limiter.service';
 import { CacheStorageService } from '../cache-storage/cache-storage.service';
-import { EntityManager } from '@mikro-orm/core';
+import { EntityManager, MikroORM } from '@mikro-orm/core';
 import { ObjectFileStorageService } from '../object-file-storage/object-file-storage.service';
 import { ConfigService } from '@nestjs/config';
 
@@ -33,6 +33,8 @@ describe('FeedFetcherListenerService (Integration)', () => {
   const url = 'https://rss-feed.com/feed.xml';
   let requestRepo: EntityRepository<Request>;
   let responseRepo: EntityRepository<Response>;
+  let em: EntityManager;
+  let partitionedRequestsStore: PartitionedRequestsStoreService;
   const amqpConnection = {
     publish: jest.fn(),
   };
@@ -43,8 +45,17 @@ describe('FeedFetcherListenerService (Integration)', () => {
         providers: [
           FeedFetcherListenerService,
           FeedFetcherService,
-          PartitionedRequestsStoreService,
           HostRateLimiterService,
+          {
+            provide: PartitionedRequestsStoreService,
+            useValue: {
+              wasRequestedInPastSeconds: jest.fn().mockResolvedValue(false),
+              getLatestNextRetryDate: jest.fn().mockResolvedValue(null),
+              getLatestRequestWithOkStatus: jest.fn().mockResolvedValue(null),
+              countFailedRequests: jest.fn().mockResolvedValue(0),
+              flushInserts: jest.fn().mockResolvedValue(undefined),
+            },
+          },
           {
             provide: ObjectFileStorageService,
             useValue: {
@@ -83,6 +94,10 @@ describe('FeedFetcherListenerService (Integration)', () => {
     responseRepo = app.get<EntityRepository<Response>>(
       getRepositoryToken(Response),
     );
+    em = app.get<EntityManager>(EntityManager);
+    partitionedRequestsStore = app.get<PartitionedRequestsStoreService>(
+      PartitionedRequestsStoreService,
+    );
   });
 
   afterEach(async () => {
@@ -96,9 +111,18 @@ describe('FeedFetcherListenerService (Integration)', () => {
 
   describe('onBrokerFetchRequestBatch', () => {
     it('saves a failed attempt with a next retry date if failed', async () => {
-      nock(url).get('/').replyWithFile(404, feedFilePath, {
-        'Content-Type': 'application/xml',
-      });
+      const requestInsert = {
+        status: RequestStatus.BAD_STATUS_CODE,
+        url,
+        lookupKey: url,
+        createdAt: new Date(),
+        requestInitiatedAt: new Date(),
+      };
+      jest.spyOn(feedFetcherService, 'fetchAndSaveResponse').mockResolvedValue({
+        request: requestInsert,
+      } as any);
+
+      const flushInsertsSpy = jest.spyOn(partitionedRequestsStore, 'flushInserts');
 
       await service.onBrokerFetchRequestBatch({
         timestamp: Date.now(),
@@ -106,27 +130,14 @@ describe('FeedFetcherListenerService (Integration)', () => {
         data: [{ url }],
       });
 
-      const found = await requestRepo.find({
-        url,
-      });
-
-      expect(found).toHaveLength(1);
-      expect(found[0].nextRetryDate).toBeDefined();
+      expect(flushInsertsSpy).toHaveBeenCalled();
+      const inserts = flushInsertsSpy.mock.calls[0][0];
+      expect(inserts).toHaveLength(1);
+      expect(inserts[0].nextRetryDate).toBeDefined();
     });
 
     it('does not process the event if at failure retry count', async () => {
-      const requests = Array.from({
-        length: service.maxFailAttempts,
-      }).map(() => {
-        const request = new Request();
-        request.status = RequestStatus.BAD_STATUS_CODE;
-        request.createdAt = dayjs().subtract(1, 'day').toDate();
-        request.url = url;
-
-        return request;
-      });
-
-      await (requestRepo as any).persistAndFlush(requests);
+      jest.spyOn(partitionedRequestsStore, 'countFailedRequests').mockResolvedValue(service.maxFailAttempts);
 
       const fetchAndSaveResponse = jest.spyOn(
         feedFetcherService,
