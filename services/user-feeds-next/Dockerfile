@@ -13,14 +13,14 @@ COPY services/user-feeds-next ./services/user-feeds-next/
 
 # Build packages first so they are available
 WORKDIR /usr/src/app/packages/contracts
-RUN npm install && npm run build
+RUN npm install --legacy-peer-deps --no-workspaces && npm run build
 
 WORKDIR /usr/src/app/packages/logger
-RUN npm install && npm run build
+RUN npm install --legacy-peer-deps --no-workspaces && npm run build
 
 # Install and build the service
 WORKDIR /usr/src/app/services/user-feeds-next
-RUN npm install
+RUN npm install --legacy-peer-deps --no-workspaces
 RUN npm run build
 
 FROM build AS build-prod

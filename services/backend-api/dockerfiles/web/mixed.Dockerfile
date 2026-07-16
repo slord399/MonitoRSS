@@ -13,14 +13,14 @@ COPY services/backend-api ./services/backend-api/
 
 # Build packages first so they are available
 WORKDIR /usr/src/app/packages/contracts
-RUN npm install && npm run build
+RUN npm install --legacy-peer-deps --no-workspaces && npm run build
 
 WORKDIR /usr/src/app/packages/logger
-RUN npm install && npm run build
+RUN npm install --legacy-peer-deps --no-workspaces && npm run build
 
 # Install dependencies for service and client
 WORKDIR /usr/src/app/services/backend-api
-RUN npm install && cd client && npm install
+RUN npm install --legacy-peer-deps --no-workspaces && cd client && npm install --legacy-peer-deps --no-workspaces
 
 FROM node:24 AS build-prod
 
