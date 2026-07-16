@@ -1,12 +1,26 @@
 FROM node:24 AS build
+
+# Update npm
+RUN npm install -g npm@12.0.1
+
 WORKDIR /usr/src/app
 
+# Copy packages and service
 COPY package*.json ./
-COPY client/package*.json client/
+COPY packages/contracts ./packages/contracts/
+COPY packages/logger ./packages/logger/
+COPY services/backend-api ./services/backend-api/
 
+# Build packages first so they are available
+WORKDIR /usr/src/app/packages/contracts
+RUN npm install && npm run build
+
+WORKDIR /usr/src/app/packages/logger
+RUN npm install && npm run build
+
+# Install dependencies for service and client
+WORKDIR /usr/src/app/services/backend-api
 RUN npm install && cd client && npm install
-
-COPY . ./
 
 FROM node:24 AS build-prod
 
@@ -20,6 +34,7 @@ ARG SENTRY_AUTH_TOKEN
 ARG SENTRY_RELEASE
 
 WORKDIR /usr/src/app
+# Copy the built packages and services
 COPY --from=build /usr/src/app ./
 
 ENV SKIP_PREFLIGHT_CHECK=true
@@ -31,6 +46,7 @@ ENV SENTRY_ORG=$SENTRY_ORG
 ENV SENTRY_PROJECT=$SENTRY_PROJECT
 ENV SENTRY_RELEASE=$SENTRY_RELEASE
 
+WORKDIR /usr/src/app/services/backend-api
 RUN npm run build && cd client && npm run build
 
 RUN npm prune --production
@@ -38,12 +54,19 @@ RUN npm prune --production
 # Alpine will cause the app to mysteriously exit when attempting to register @fastify/secure-session
 FROM node:24-slim AS prod
 
+# Update npm
+RUN npm install -g npm@12.0.1
+
 RUN apt-get update && apt-get install -y wget
 WORKDIR /usr/src/app
 
-COPY --from=build-prod /usr/src/app/package*.json ./
-COPY --from=build-prod /usr/src/app/node_modules node_modules
-COPY --from=build-prod /usr/src/app/dist dist
-COPY --from=build-prod /usr/src/app/client/dist /usr/src/backend-api/client/dist
+COPY --from=build-prod /usr/src/app/packages /usr/src/app/packages
+COPY --from=build-prod /usr/src/app/services/backend-api/package*.json ./
+COPY --from=build-prod /usr/src/app/services/backend-api/node_modules node_modules
+COPY --from=build-prod /usr/src/app/services/backend-api/dist dist
+COPY --from=build-prod /usr/src/app/services/backend-api/client/dist /usr/src/app/services/backend-api/client/dist
+
+# Ensure the workdir is set to backend-api inside prod so running main.js can access client/dist relatively via process.cwd()
+WORKDIR /usr/src/app/services/backend-api
 
 ENV BACKEND_API_PORT=3000

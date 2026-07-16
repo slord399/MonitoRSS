@@ -198,8 +198,8 @@ services:
       file: docker-compose.base.yml
       service: schedule-emitter-service
     build:
-      context: services/backend-api
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: services/backend-api/Dockerfile.dev
       target: ""
     env_file:
       - ./.env.local
@@ -218,12 +218,12 @@ services:
       watch:
         - action: sync+restart
           path: ./services/backend-api/src
-          target: /usr/src/app/src
+          target: /usr/src/app/services/backend-api/src
 
   web-api:
     build:
-      context: services/backend-api
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: services/backend-api/Dockerfile.dev
     restart: on-failure:5
     depends_on:
       - mongo
@@ -256,15 +256,15 @@ services:
       watch:
         - action: sync+restart
           path: ./services/backend-api/src
-          target: /usr/src/app/src
+          target: /usr/src/app/services/backend-api/src
     networks:
       - monitorss-default
 
   web-client:
     build:
-      context: services/backend-api
-      dockerfile: Dockerfile.dev
-    working_dir: /usr/src/app/client
+      context: .
+      dockerfile: services/backend-api/Dockerfile.dev
+    working_dir: /usr/src/app/services/backend-api/client
     restart: on-failure:3
     depends_on:
       web-api:
@@ -278,13 +278,13 @@ services:
       watch:
         - action: sync
           path: ./services/backend-api/client/src
-          target: /usr/src/app/client/src
+          target: /usr/src/app/services/backend-api/client/src
         - action: sync
           path: ./services/backend-api/client/public
-          target: /usr/src/app/client/public
+          target: /usr/src/app/services/backend-api/client/public
         - action: sync
           path: ./services/backend-api/client/index.html
-          target: /usr/src/app/client/index.html
+          target: /usr/src/app/services/backend-api/client/index.html
         - action: rebuild
           path: ./services/backend-api/client/package.json
     networks:

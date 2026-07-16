@@ -16,17 +16,17 @@ import { FormProvider, useFieldArray, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { PrimaryActionButton } from "@/components/PrimaryActionButton";
 import { DestructiveActionButton } from "@/components/DestructiveActionButton";
-import { DiscordMessageFormData, discordMessageFormSchema } from "@/types/discord";
 import { DiscordMessageContentFormLegacy } from "./DiscordMessageContentFormLegacy";
 import { DiscordMessageEmbedFormLegacy } from "./DiscordMessageEmbedFormLegacy";
 import { notifyError } from "@/utils/notifyError";
 import {
   DiscordMessageEmbedFormDataLegacy,
   DiscordMessageFormDataLegacy,
+  discordMessageFormLegacySchema,
 } from "@/types/discord/DiscordMessageFormDataLegacy";
 
 interface Props {
-  defaultValues?: DiscordMessageFormData;
+  defaultValues?: DiscordMessageFormDataLegacy;
   onClickSave: (data: DiscordMessageFormDataLegacy) => Promise<void>;
 }
 
@@ -39,7 +39,7 @@ export const DiscordMessageFormLegacy = ({ defaultValues, onClickSave }: Props) 
   const [activeEmbedIndex, setActiveEmbedIndex] = useState(defaultIndex);
 
   const formMethods = useForm<DiscordMessageFormDataLegacy>({
-    resolver: yupResolver(discordMessageFormSchema),
+    resolver: yupResolver(discordMessageFormLegacySchema),
     defaultValues,
     mode: "all",
   });

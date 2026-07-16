@@ -240,8 +240,8 @@ services:
   # Schedule emitter
   schedule-emitter-service:
     build:
-      context: services/backend-api
-      dockerfile: dockerfiles/web/mixed.Dockerfile
+      context: .
+      dockerfile: services/backend-api/dockerfiles/web/mixed.Dockerfile
       target: build-prod
     restart: on-failure:10
     depends_on:
