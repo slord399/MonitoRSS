@@ -49,7 +49,7 @@ ENV SENTRY_RELEASE=$SENTRY_RELEASE
 WORKDIR /usr/src/app/services/backend-api
 RUN npm run build && cd client && npm run build
 
-RUN npm prune --omit=dev --ignore-scripts
+RUN npm prune --omit=dev --ignore-scripts --no-workspaces
 
 # Alpine will cause the app to mysteriously exit when attempting to register @fastify/secure-session
 FROM node:24-slim AS prod
