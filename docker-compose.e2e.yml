@@ -33,7 +33,7 @@ services:
 
   rabbitmq-broker:
     image: rabbitmq:3-management-alpine
-    restart: "no"
+    restart: "always"
     tmpfs:
       - /var/lib/rabbitmq/mnesia
     healthcheck:
