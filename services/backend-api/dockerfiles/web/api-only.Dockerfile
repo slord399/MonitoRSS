@@ -3,7 +3,12 @@ FROM node:24 AS build
 WORKDIR /usr/src/app
 
 COPY package*.json ./
-RUN npm install -g npm@12.0.1 && npm config set foreground-scripts true && npm install --legacy-peer-deps --foreground-scripts
+
+RUN npm install -g npm@12.0.1 && npm config set foreground-scripts true
+
+RUN mv package.json package.json.bak && \
+    npm install --legacy-peer-deps --foreground-scripts && \
+    mv package.json.bak package.json
 
 COPY . ./
 
@@ -13,7 +18,9 @@ COPY --from=build /usr/src/app ./
 
 RUN npm run build
 
-RUN npm prune --omit=dev --ignore-scripts
+RUN mv package.json package.json.bak && \
+    npm prune --omit=dev --ignore-scripts && \
+    mv package.json.bak package.json
 
 # Alpine will cause the app to mysteriously exit when attempting to register @fastify/secure-session
 FROM node:24-slim AS prod

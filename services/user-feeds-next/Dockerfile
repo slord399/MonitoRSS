@@ -8,28 +8,24 @@ COPY packages/contracts ./packages/contracts/
 COPY packages/logger ./packages/logger/
 COPY services/user-feeds-next ./services/user-feeds-next/
 
-# Build packages first so they are available
+RUN npm install -g npm@12.0.1 && npm config set foreground-scripts true
+
+# Build packages first so they are available (each in clean separate layers)
 WORKDIR /usr/src/app/packages/contracts
-RUN npm install -g npm@12.0.1 && \
-    npm config set foreground-scripts true && \
-    mv ../../package.json ../../package.json.bak && \
+RUN mv ../../package.json ../../package.json.bak && \
     npm install --legacy-peer-deps --foreground-scripts && \
     mv ../../package.json.bak ../../package.json && \
     npm run build
 
 WORKDIR /usr/src/app/packages/logger
-RUN npm install -g npm@12.0.1 && \
-    npm config set foreground-scripts true && \
-    mv ../../package.json ../../package.json.bak && \
+RUN mv ../../package.json ../../package.json.bak && \
     npm install --legacy-peer-deps --foreground-scripts && \
     mv ../../package.json.bak ../../package.json && \
     npm run build
 
 # Install and build the service
 WORKDIR /usr/src/app/services/user-feeds-next
-RUN npm install -g npm@12.0.1 && \
-    npm config set foreground-scripts true && \
-    mv ../../package.json ../../package.json.bak && \
+RUN mv ../../package.json ../../package.json.bak && \
     npm install --legacy-peer-deps --foreground-scripts && \
     mv ../../package.json.bak ../../package.json && \
     npm run build
