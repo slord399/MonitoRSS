@@ -13,27 +13,27 @@ RUN npm install -g npm@12.0.1 && npm config set foreground-scripts true
 
 # Build packages first so they are available (each in clean separate layers)
 WORKDIR /usr/src/app/packages/contracts
-RUN mv ../../package.json ../../package.json.bak && \
+RUN mv ../../package.json ../../package.json.bak || true && \
     npm install --legacy-peer-deps --foreground-scripts && \
-    mv ../../package.json.bak ../../package.json && \
+    mv ../../package.json.bak ../../package.json || true && \
     npm run build
 
 WORKDIR /usr/src/app/packages/logger
-RUN mv ../../package.json ../../package.json.bak && \
+RUN mv ../../package.json ../../package.json.bak || true && \
     npm install --legacy-peer-deps --foreground-scripts && \
-    mv ../../package.json.bak ../../package.json && \
+    mv ../../package.json.bak ../../package.json || true && \
     npm run build
 
 # Install dependencies for service and client
 WORKDIR /usr/src/app/services/backend-api
-RUN mv ../../package.json ../../package.json.bak && \
+RUN mv ../../package.json ../../package.json.bak || true && \
     npm install --legacy-peer-deps --foreground-scripts && \
-    mv ../../package.json.bak ../../package.json
+    mv ../../package.json.bak ../../package.json || true
 
 WORKDIR /usr/src/app/services/backend-api/client
-RUN mv ../../../package.json ../../../package.json.bak && \
+RUN mv ../../../package.json ../../../package.json.bak || true && \
     npm install --legacy-peer-deps --foreground-scripts && \
-    mv ../../../package.json.bak ../../../package.json
+    mv ../../../package.json.bak ../../../package.json || true
 
 FROM node:24 AS build-prod
 
@@ -62,9 +62,9 @@ ENV SENTRY_RELEASE=$SENTRY_RELEASE
 WORKDIR /usr/src/app/services/backend-api
 RUN npm run build && cd client && npm run build
 
-RUN mv ../../package.json ../../package.json.bak && \
+RUN mv ../../package.json ../../package.json.bak || true && \
     npm prune --omit=dev --ignore-scripts && \
-    mv ../../package.json.bak ../../package.json
+    mv ../../package.json.bak ../../package.json || true
 
 # Alpine will cause the app to mysteriously exit when attempting to register @fastify/secure-session
 FROM node:24-slim AS prod
