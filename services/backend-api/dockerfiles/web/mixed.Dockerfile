@@ -10,14 +10,32 @@ COPY services/backend-api ./services/backend-api/
 
 # Build packages first so they are available
 WORKDIR /usr/src/app/packages/contracts
-RUN npm install -g npm@12.0.1 && npm config set foreground-scripts true && npm install --legacy-peer-deps --foreground-scripts && npm run build
+RUN npm install -g npm@12.0.1 && \
+    npm config set foreground-scripts true && \
+    mv ../../package.json ../../package.json.bak && \
+    npm install --legacy-peer-deps --foreground-scripts && \
+    mv ../../package.json.bak ../../package.json && \
+    npm run build
 
 WORKDIR /usr/src/app/packages/logger
-RUN npm install -g npm@12.0.1 && npm config set foreground-scripts true && npm install --legacy-peer-deps --foreground-scripts && npm run build
+RUN npm install -g npm@12.0.1 && \
+    npm config set foreground-scripts true && \
+    mv ../../package.json ../../package.json.bak && \
+    npm install --legacy-peer-deps --foreground-scripts && \
+    mv ../../package.json.bak ../../package.json && \
+    npm run build
 
 # Install dependencies for service and client
 WORKDIR /usr/src/app/services/backend-api
-RUN npm install -g npm@12.0.1 && npm config set foreground-scripts true && npm install --legacy-peer-deps --foreground-scripts && cd client && npm install -g npm@12.0.1 && npm config set foreground-scripts true && npm install --legacy-peer-deps --foreground-scripts
+RUN npm install -g npm@12.0.1 && \
+    npm config set foreground-scripts true && \
+    mv ../../package.json ../../package.json.bak && \
+    npm install --legacy-peer-deps --foreground-scripts && \
+    mv ../../package.json.bak ../../package.json && \
+    cd client && \
+    mv ../../../package.json ../../../package.json.bak && \
+    npm install --legacy-peer-deps --foreground-scripts && \
+    mv ../../../package.json.bak ../../../package.json
 
 FROM node:24 AS build-prod
 
@@ -46,7 +64,9 @@ ENV SENTRY_RELEASE=$SENTRY_RELEASE
 WORKDIR /usr/src/app/services/backend-api
 RUN npm run build && cd client && npm run build
 
-RUN npm prune --omit=dev --ignore-scripts
+RUN mv ../../package.json ../../package.json.bak && \
+    npm prune --omit=dev --ignore-scripts && \
+    mv ../../package.json.bak ../../package.json
 
 # Alpine will cause the app to mysteriously exit when attempting to register @fastify/secure-session
 FROM node:24-slim AS prod
