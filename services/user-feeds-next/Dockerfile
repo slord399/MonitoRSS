@@ -1,8 +1,5 @@
 FROM node:24 AS build
 
-# Update npm
-RUN npm install -g npm@12.0.1
-
 WORKDIR /usr/src/app
 
 # Copy packages and service
@@ -13,14 +10,14 @@ COPY services/user-feeds-next ./services/user-feeds-next/
 
 # Build packages first so they are available
 WORKDIR /usr/src/app/packages/contracts
-RUN npm install --legacy-peer-deps --no-workspaces --foreground-scripts && npm run build
+RUN npm install -g npm@12.0.1 && npm config set foreground-scripts true && npm install --legacy-peer-deps --no-workspaces --foreground-scripts && npm run build
 
 WORKDIR /usr/src/app/packages/logger
-RUN npm install --legacy-peer-deps --no-workspaces --foreground-scripts && npm run build
+RUN npm install -g npm@12.0.1 && npm config set foreground-scripts true && npm install --legacy-peer-deps --no-workspaces --foreground-scripts && npm run build
 
 # Install and build the service
 WORKDIR /usr/src/app/services/user-feeds-next
-RUN npm install --legacy-peer-deps --no-workspaces --foreground-scripts
+RUN npm install -g npm@12.0.1 && npm config set foreground-scripts true && npm install --legacy-peer-deps --no-workspaces --foreground-scripts
 RUN npm run build
 
 FROM build AS build-prod
@@ -31,7 +28,7 @@ FROM node:24-alpine AS prod
 WORKDIR /usr/src/app
 
 # Update npm in the prod image too
-RUN npm install -g npm@12.0.1
+RUN npm install -g npm@12.0.1 && npm config set foreground-scripts true
 
 COPY --from=build-prod /usr/src/app/packages /usr/src/app/packages
 COPY --from=build-prod /usr/src/app/services/user-feeds-next/package*.json ./
