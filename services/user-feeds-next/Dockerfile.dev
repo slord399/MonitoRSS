@@ -13,13 +13,13 @@ COPY services/user-feeds-next ./services/user-feeds-next/
 
 # Build packages first so they are available
 WORKDIR /usr/src/app/packages/contracts
-RUN npm install && npm run build
+RUN npm install --foreground-scripts && npm run build
 
 WORKDIR /usr/src/app/packages/logger
-RUN npm install && npm run build
+RUN npm install --foreground-scripts && npm run build
 
 # Install dependencies for the service
 WORKDIR /usr/src/app/services/user-feeds-next
-RUN npm install
+RUN npm install --foreground-scripts
 
 CMD ["npx", "tsx", "--watch", "index.ts"]
