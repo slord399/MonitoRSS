@@ -13,27 +13,27 @@ RUN npm install -g npm@12.0.1 && npm config set foreground-scripts true
 
 # Build packages first so they are available (each in clean separate layers)
 WORKDIR /usr/src/app/packages/contracts
-RUN mv ../../package.json ../../package.json.bak && \
+RUN mv ../../package.json ../../package.json.bak || true && \
     npm install --foreground-scripts && \
-    mv ../../package.json.bak ../../package.json && \
+    mv ../../package.json.bak ../../package.json || true && \
     npm run build
 
 WORKDIR /usr/src/app/packages/logger
-RUN mv ../../package.json ../../package.json.bak && \
+RUN mv ../../package.json ../../package.json.bak || true && \
     npm install --foreground-scripts && \
-    mv ../../package.json.bak ../../package.json && \
+    mv ../../package.json.bak ../../package.json || true && \
     npm run build
 
 # Install dependencies for service and client
 WORKDIR /usr/src/app/services/backend-api
-RUN mv ../../package.json ../../package.json.bak && \
+RUN mv ../../package.json ../../package.json.bak || true && \
     npm install --foreground-scripts && \
-    mv ../../package.json.bak ../../package.json
+    mv ../../package.json.bak ../../package.json || true
 
 WORKDIR /usr/src/app/services/backend-api/client
-RUN mv ../../../package.json ../../../package.json.bak && \
+RUN mv ../../../package.json ../../../package.json.bak || true && \
     npm install --foreground-scripts && \
-    mv ../../../package.json.bak ../../../package.json
+    mv ../../../package.json.bak ../../../package.json || true
 
 WORKDIR /usr/src/app
 CMD ["npm", "run", "dev"]
