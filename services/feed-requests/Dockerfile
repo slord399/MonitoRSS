@@ -10,7 +10,7 @@ RUN npm install -g npm@12.0.1
 
 COPY package*.json ./
 
-RUN npm install
+RUN npm install --foreground-scripts
 
 COPY . ./
 
