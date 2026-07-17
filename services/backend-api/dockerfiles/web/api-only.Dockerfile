@@ -1,12 +1,9 @@
 FROM node:24 AS build
 
-# Update npm
-RUN npm install -g npm@12.0.1
-
 WORKDIR /usr/src/app
 
 COPY package*.json ./
-RUN npm install --legacy-peer-deps --no-workspaces
+RUN npm install -g npm@12.0.1 && npm config set foreground-scripts true && npm install --legacy-peer-deps --ignore-workspace --foreground-scripts
 
 COPY . ./
 
@@ -16,13 +13,13 @@ COPY --from=build /usr/src/app ./
 
 RUN npm run build
 
-RUN npm prune --omit=dev --ignore-scripts --no-workspaces
+RUN npm prune --omit=dev --ignore-scripts --ignore-workspace
 
 # Alpine will cause the app to mysteriously exit when attempting to register @fastify/secure-session
 FROM node:24-slim AS prod
 
 # Update npm
-RUN npm install -g npm@12.0.1
+RUN npm install -g npm@12.0.1 && npm config set foreground-scripts true
 
 RUN apt-get update && apt-get install -y wget
 WORKDIR /usr/src/app

@@ -10,19 +10,19 @@ COPY services/user-feeds-next ./services/user-feeds-next/
 
 # Build packages first so they are available
 WORKDIR /usr/src/app/packages/contracts
-RUN npm install -g npm@12.0.1 && npm config set foreground-scripts true && npm install --legacy-peer-deps --no-workspaces --foreground-scripts && npm run build
+RUN npm install -g npm@12.0.1 && npm config set foreground-scripts true && npm install --legacy-peer-deps --ignore-workspace --foreground-scripts && npm run build
 
 WORKDIR /usr/src/app/packages/logger
-RUN npm install -g npm@12.0.1 && npm config set foreground-scripts true && npm install --legacy-peer-deps --no-workspaces --foreground-scripts && npm run build
+RUN npm install -g npm@12.0.1 && npm config set foreground-scripts true && npm install --legacy-peer-deps --ignore-workspace --foreground-scripts && npm run build
 
 # Install and build the service
 WORKDIR /usr/src/app/services/user-feeds-next
-RUN npm install -g npm@12.0.1 && npm config set foreground-scripts true && npm install --legacy-peer-deps --no-workspaces --foreground-scripts
+RUN npm install -g npm@12.0.1 && npm config set foreground-scripts true && npm install --legacy-peer-deps --ignore-workspace --foreground-scripts
 RUN npm run build
 
 FROM build AS build-prod
 WORKDIR /usr/src/app/services/user-feeds-next
-RUN npm prune --omit=dev --ignore-scripts --no-workspaces
+RUN npm prune --omit=dev --ignore-scripts --ignore-workspace
 
 FROM node:24-alpine AS prod
 WORKDIR /usr/src/app
