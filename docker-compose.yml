@@ -97,6 +97,7 @@ services:
     command: ["node", "dist/scripts/schedule-emitter.js"]
     env_file: *env-files
     environment:
+      - BACKEND_API_MONGODB_URI=${BACKEND_API_MONGODB_URI:-mongodb://mongo:27017/rss}
       - NODE_ENV=${NODE_ENV:-production}
 
   monolith:
@@ -119,6 +120,7 @@ services:
       - BACKEND_API_RABBITMQ_BROKER_URL=${BACKEND_API_RABBITMQ_BROKER_URL:-amqp://guest:guest@rabbitmq-broker:5672/}
       - BACKEND_API_USER_FEEDS_API_KEY=${BACKEND_API_USER_FEEDS_API_KEY:-user-feeds-api-key}
       - BACKEND_API_FEED_REQUESTS_API_KEY=${BACKEND_API_FEED_REQUESTS_API_KEY:-feed-requests-api-key}
+      - BACKEND_API_MONGODB_URI=${BACKEND_API_MONGODB_URI:-mongodb://mongo:27017/rss}
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - NODE_ENV=${NODE_ENV:-production}
     command: ["node", "dist/main.js"]
