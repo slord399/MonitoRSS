@@ -18,9 +18,9 @@
     "e2e:web": "npm run e2e:web --workspace=e2e"
   },
   "devDependencies": {
+    "@types/amqplib": "^0.10.6",
     "class-transformer": "^0.5.1",
-    "class-validator": "^0.14.0",
-    "@types/amqplib": "^0.10.6"
+    "class-validator": "^0.14.0"
   },
   "overrides": {
     "js-yaml": "^4.3.0",
@@ -70,8 +70,17 @@
     "nodemailer": "^9.0.3",
     "validator": "^13.12.0",
     "postcss": "^8.4.43",
-    "ajv": "^8.17.1",
+    "ajv": "^8.20.0",
     "ajv-keywords": "^5.1.0",
+    "eslint": {
+      "ajv": "^6.12.6"
+    },
+    "@eslint/eslintrc": {
+      "ajv": "^6.12.6"
+    },
+    "fork-ts-checker-webpack-plugin": {
+      "schema-utils": "^4.3.0"
+    },
     "glob": "^13.0.6",
     "rimraf": "^5.0.5",
     "nanoid": "^5.0.9",
@@ -83,5 +92,8 @@
     "backend-api": {
       "undici": "^7.28.0"
     }
+  },
+  "dependencies": {
+    "deepmerge": "^4.3.1"
   }
 }
