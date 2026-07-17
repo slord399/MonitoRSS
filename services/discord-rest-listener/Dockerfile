@@ -15,7 +15,7 @@ COPY --from=build /usr/src/app ./
 
 RUN npm run build
 
-RUN npm prune --omit=dev --ignore-scripts --workspaces=false --include-workspace-root=false
+RUN npm prune --omit=dev --ignore-scripts
 
 FROM node:24-alpine AS prod
 
