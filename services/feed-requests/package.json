@@ -27,7 +27,7 @@
     "migration:blank": "npx mikro-orm migration:create --blank"
   },
   "overrides": {
-    "eslint": "^8.57.1",
+    "eslint": "$eslint",
     "rimraf": "^5.0.5",
     "glob": "^10.3.10",
     "inflight": {
