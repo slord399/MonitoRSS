@@ -79,7 +79,7 @@
     "fork-ts-checker-webpack-plugin": {
       "schema-utils": "^4.3.0"
     },
-    "glob": "^11.0.0",
+    "glob": "^12.0.0",
     "rimraf": "^6.0.1",
     "inflight": {
       "once": "^1.4.0"

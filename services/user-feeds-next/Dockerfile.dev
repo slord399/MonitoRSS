@@ -1,8 +1,5 @@
 FROM node:24
 
-# Update npm
-RUN npm install -g npm@12.0.1
-
 WORKDIR /usr/src/app
 
 # Copy packages and service
@@ -13,13 +10,13 @@ COPY services/user-feeds-next ./services/user-feeds-next/
 
 # Build packages first so they are available
 WORKDIR /usr/src/app/packages/contracts
-RUN npm install --foreground-scripts && npm run build
+RUN npm install -g npm@12.0.1 && npm config set foreground-scripts true && npm install --foreground-scripts && npm run build
 
 WORKDIR /usr/src/app/packages/logger
-RUN npm install --foreground-scripts && npm run build
+RUN npm install -g npm@12.0.1 && npm config set foreground-scripts true && npm install --foreground-scripts && npm run build
 
 # Install dependencies for the service
 WORKDIR /usr/src/app/services/user-feeds-next
-RUN npm install --foreground-scripts
+RUN npm install -g npm@12.0.1 && npm config set foreground-scripts true && npm install --foreground-scripts
 
 CMD ["npx", "tsx", "--watch", "index.ts"]
