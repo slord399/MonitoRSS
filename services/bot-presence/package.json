@@ -29,7 +29,6 @@
   },
   "overrides": {
     "eslint": "$eslint",
-    "rimraf": "^5.0.5",
     "glob": "^12.0.0",
     "inflight": {
       "once": "^1.4.0"

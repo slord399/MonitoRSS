@@ -12,29 +12,29 @@ RUN npm install -g npm@12.0.1 && npm config set foreground-scripts true
 
 # Build packages first so they are available (each in clean separate layers)
 WORKDIR /usr/src/app/packages/contracts
-RUN mv ../../package.json ../../package.json.bak || true && \
+RUN mv ../../package.json ../../package.json.bak && \
     npm install --legacy-peer-deps --foreground-scripts && \
-    mv ../../package.json.bak ../../package.json || true && \
+    mv ../../package.json.bak ../../package.json && \
     npm run build
 
 WORKDIR /usr/src/app/packages/logger
-RUN mv ../../package.json ../../package.json.bak || true && \
+RUN mv ../../package.json ../../package.json.bak && \
     npm install --legacy-peer-deps --foreground-scripts && \
-    mv ../../package.json.bak ../../package.json || true && \
+    mv ../../package.json.bak ../../package.json && \
     npm run build
 
 # Install and build the service
 WORKDIR /usr/src/app/services/user-feeds-next
-RUN mv ../../package.json ../../package.json.bak || true && \
+RUN mv ../../package.json ../../package.json.bak && \
     npm install --legacy-peer-deps --foreground-scripts && \
-    mv ../../package.json.bak ../../package.json || true && \
+    mv ../../package.json.bak ../../package.json && \
     npm run build
 
 FROM build AS build-prod
 WORKDIR /usr/src/app/services/user-feeds-next
-RUN mv ../../package.json ../../package.json.bak || true && \
+RUN mv ../../package.json ../../package.json.bak && \
     npm prune --omit=dev --ignore-scripts && \
-    mv ../../package.json.bak ../../package.json || true
+    mv ../../package.json.bak ../../package.json
 
 FROM node:24-alpine AS prod
 WORKDIR /usr/src/app

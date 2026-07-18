@@ -7,7 +7,6 @@
   },
   "overrides": {
     "eslint": "$eslint",
-    "rimraf": "^5.0.5",
     "inflight": {
       "once": "^1.4.0"
     },
