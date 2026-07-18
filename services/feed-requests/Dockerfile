@@ -10,7 +10,7 @@ COPY package*.json ./
 RUN npm install -g npm@12.0.1
 
 RUN echo "allow-scripts=true" > .npmrc && \
-    npm install --foreground-scripts && \
+    npm install --legacy-peer-deps --foreground-scripts && \
     rm -f .npmrc
 
 COPY . ./
@@ -27,7 +27,7 @@ COPY --from=build /usr/src/app ./
 
 RUN npm install -g npm@12.0.1
 
-RUN npm prune --omit=dev --ignore-scripts
+RUN npm prune --legacy-peer-deps --omit=dev --ignore-scripts
 
 FROM node:24-slim AS prod
 

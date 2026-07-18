@@ -40,7 +40,7 @@ FROM build AS build-prod
 WORKDIR /usr/src/app/services/user-feeds-next
 RUN npm install -g npm@12.0.1
 RUN mv ../../package.json ../../package.json.bak || true && \
-    npm prune --omit=dev --ignore-scripts && \
+    npm prune --legacy-peer-deps --omit=dev --ignore-scripts && \
     mv ../../package.json.bak ../../package.json || true
 
 FROM node:24-alpine AS prod
