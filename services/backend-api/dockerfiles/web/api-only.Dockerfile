@@ -4,10 +4,10 @@ WORKDIR /usr/src/app
 
 COPY package*.json ./
 
-RUN npm install -g npm@12.0.1 && npm config set foreground-scripts true
+RUN npm install -g npm@12.0.1
 
 RUN mv package.json package.json.bak || true && \
-    npm install --legacy-peer-deps --foreground-scripts && \
+    npm install --legacy-peer-deps --foreground-scripts --allow-scripts && \
     mv package.json.bak package.json || true
 
 COPY . ./
@@ -26,7 +26,7 @@ RUN mv package.json package.json.bak || true && \
 FROM node:24-slim AS prod
 
 # Update npm
-RUN npm install -g npm@12.0.1 && npm config set foreground-scripts true
+RUN npm install -g npm@12.0.1
 
 RUN apt-get update && apt-get install -y wget
 WORKDIR /usr/src/app

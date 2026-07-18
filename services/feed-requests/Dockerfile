@@ -7,9 +7,9 @@ WORKDIR /usr/src/app
 
 COPY package*.json ./
 
-RUN npm install -g npm@12.0.1 && npm config set foreground-scripts true
+RUN npm install -g npm@12.0.1
 
-RUN npm install --foreground-scripts
+RUN npm install --foreground-scripts --allow-scripts
 
 COPY . ./
 
