@@ -18,6 +18,8 @@ FROM node:24 AS build-prod
 WORKDIR /usr/src/app
 COPY --from=build /usr/src/app ./
 
+RUN npm install -g npm@12.0.1
+
 RUN npm run build
 
 RUN mv package.json package.json.bak || true && \
