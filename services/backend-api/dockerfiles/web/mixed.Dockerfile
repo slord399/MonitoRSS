@@ -73,7 +73,7 @@ WORKDIR /usr/src/app/services/backend-api
 RUN npm run build && cd client && npm run build
 
 RUN mv ../../package.json ../../package.json.bak || true && \
-    npm prune --omit=dev --ignore-scripts && \
+    npm prune --legacy-peer-deps --omit=dev --ignore-scripts && \
     mv ../../package.json.bak ../../package.json || true
 
 # Alpine will cause the app to mysteriously exit when attempting to register @fastify/secure-session
