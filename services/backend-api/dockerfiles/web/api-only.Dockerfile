@@ -6,9 +6,11 @@ COPY package*.json ./
 
 RUN npm install -g npm@12.0.1
 
-RUN mv package.json package.json.bak || true && \
-    npm install --legacy-peer-deps --foreground-scripts --allow-scripts && \
-    mv package.json.bak package.json || true
+RUN echo "allow-scripts=true" > .npmrc && \
+    mv package.json package.json.bak || true && \
+    npm install --legacy-peer-deps --foreground-scripts && \
+    mv package.json.bak package.json || true && \
+    rm -f .npmrc
 
 COPY . ./
 

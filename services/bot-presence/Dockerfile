@@ -6,7 +6,9 @@ COPY package*.json ./
 
 RUN npm install -g npm@12.0.1
 
-RUN npm install --foreground-scripts --allow-scripts
+RUN echo "allow-scripts=true" > .npmrc && \
+    npm install --foreground-scripts && \
+    rm -f .npmrc
 
 COPY . ./
 
