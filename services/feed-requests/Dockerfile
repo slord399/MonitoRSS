@@ -25,6 +25,8 @@ FROM build AS build-prod
 WORKDIR /usr/src/app
 COPY --from=build /usr/src/app ./
 
+RUN npm install -g npm@12.0.1
+
 RUN npm prune --omit=dev --ignore-scripts
 
 FROM node:24-slim AS prod

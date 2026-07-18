@@ -45,6 +45,8 @@ RUN echo "allow-scripts=true" > .npmrc && \
 
 FROM node:24 AS build-prod
 
+RUN npm install -g npm@12.0.1
+
 ARG VITE_FRESHDESK_WIDGET_ID
 ARG VITE_PADDLE_PW_AUTH
 ARG VITE_SENTRY_DSN
