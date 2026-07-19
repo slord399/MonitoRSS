@@ -1,6 +1,8 @@
+/// <reference types="vitest/config" />
 /// <reference types="vitest" />
+import { sentryVitePlugin } from "@sentry/vite-plugin";
 import { defineConfig, ProxyOptions } from "vite";
-import react from "@vitejs/plugin-react";
+import react from "@vitejs/plugin-react-swc";
 import { resolve } from "path";
 
 const VITE_ENV = process.env.ENV || "development";
@@ -9,7 +11,6 @@ const VITE_ENV = process.env.ENV || "development";
 const API_PROXY_URL = process.env.API_PROXY_URL || "http://localhost:8000";
 // Cannot get non-polling to work with Docker, so this is a workaround
 const VITE_USE_POLLING = Boolean(process.env.VITE_USE_POLLING) || false;
-
 const proxyOptionsByEnv: Record<string, Record<string, ProxyOptions>> = {
   development: {
     "/api": {
@@ -19,7 +20,7 @@ const proxyOptionsByEnv: Record<string, Record<string, ProxyOptions>> = {
   },
   production: {
     "/api": {
-      target: "https://cp.monitorss.xyz",
+      target: "https://my.monitorss.xyz",
       changeOrigin: true,
     },
   },
@@ -27,7 +28,17 @@ const proxyOptionsByEnv: Record<string, Record<string, ProxyOptions>> = {
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    sentryVitePlugin({
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      release: {
+        name: process.env.SENTRY_RELEASE,
+      },
+      telemetry: !process.env.CI,
+    }),
+  ],
   publicDir: "./public",
   resolve: {
     alias: {
@@ -43,6 +54,18 @@ export default defineConfig({
   },
   build: {
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/highlight.js/")) {
+            return "vendor-hljs";
+          }
+          if (id.includes("node_modules/@sentry/")) {
+            return "vendor-sentry";
+          }
+        },
+      },
+    },
   },
   test: {
     setupFiles: ["setupTests.ts"],

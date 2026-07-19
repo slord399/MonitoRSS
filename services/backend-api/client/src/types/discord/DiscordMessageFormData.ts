@@ -1,10 +1,11 @@
 import { array, boolean, InferType, number, object, string } from "yup";
-import { CustomPlaceholderSchema } from "../CustomPlaceholder";
+import { CustomPlaceholderSchema } from "@/types/CustomPlaceholder";
 import { DiscordComponentButtonStyle, DiscordComponentType } from "../FeedConnection";
+import { ExternalPropertySchema } from "../ArticleInjection";
 
 export const discordMessageEmbedFieldFormSchema = object({
-  name: string().max(256).required(),
-  value: string().max(1024).required(),
+  name: string().required(),
+  value: string().required(),
   inline: boolean().default(false).required(),
   id: string().required(),
 });
@@ -15,11 +16,11 @@ export const discordMessageEmbedFormSchema = object({
     .test(
       "color",
       "Must be a valid color",
-      (v) => !v || (!!v && /^\d+$/.test(v) && Number(v) < 16777216)
+      (v) => !v || (!!v && /^\d+$/.test(v) && Number(v) < 16777216),
     )
     .optional(),
   author: object({
-    name: string().nullable().max(256),
+    name: string().nullable(),
     url: string()
       .nullable()
       .when("name", ([name], schema) => {
@@ -42,7 +43,7 @@ export const discordMessageEmbedFormSchema = object({
   })
     .optional()
     .nullable(),
-  title: string().nullable().max(256),
+  title: string().nullable(),
   url: string()
     .nullable()
     .when("title", ([title], schema) => {
@@ -52,7 +53,7 @@ export const discordMessageEmbedFormSchema = object({
 
       return schema;
     }),
-  description: string().nullable().max(4096),
+  description: string().nullable(),
   thumbnail: object({
     url: string().nullable(),
   })
@@ -64,7 +65,7 @@ export const discordMessageEmbedFormSchema = object({
     .optional()
     .nullable(),
   footer: object({
-    text: string().nullable().max(2048),
+    text: string().nullable(),
     iconUrl: string()
       .nullable()
       .when("text", ([text], schema) => {
@@ -84,7 +85,7 @@ export const discordMessageEmbedFormSchema = object({
 const DiscordButtonSchema = object({
   id: string().required(),
   type: number().oneOf([DiscordComponentType.Button]).required(),
-  label: string().max(80, "Must be at most 80 characters").required("This is a required field"),
+  label: string().required("This is a required field"),
   style: number()
     .oneOf(Object.values(DiscordComponentButtonStyle) as DiscordComponentButtonStyle[])
     .required(),
@@ -92,17 +93,19 @@ const DiscordButtonSchema = object({
 });
 
 export const discordMessageFormSchema = object({
-  content: string().max(2000),
+  content: string(),
   embeds: array().of(discordMessageEmbedFormSchema).max(10),
   componentRows: array(
     object({
       id: string().required(),
       components: array(DiscordButtonSchema.required()).required().max(5),
-    }).required()
+    }).required(),
   )
     .max(5)
     .nullable(),
-  forumThreadTitle: string().optional().max(100),
+  channelNewThreadTitle: string().optional(),
+  channelNewThreadExcludesPreview: boolean().optional().nullable().default(false),
+  forumThreadTitle: string().optional(),
   forumThreadTags: array(
     object({
       id: string().required(),
@@ -111,7 +114,7 @@ export const discordMessageFormSchema = object({
       })
         .nullable()
         .default(null),
-    }).required()
+    }).required(),
   )
     .optional()
     .nullable()
@@ -126,7 +129,7 @@ export const discordMessageFormSchema = object({
         })
           .nullable()
           .default(null),
-      }).required()
+      }).required(),
     )
       .optional()
       .nullable(),
@@ -134,12 +137,13 @@ export const discordMessageFormSchema = object({
     .optional()
     .nullable(),
   customPlaceholders: array(CustomPlaceholderSchema.required()).nullable(),
+  externalProperties: array(ExternalPropertySchema.required()).nullable(),
   placeholderLimits: array(
     object({
       characterCount: number().min(1).positive().integer().required(),
       placeholder: string().min(1).required(),
       appendString: string().optional().nullable(),
-    }).required()
+    }).required(),
   )
     .nullable()
     .default(undefined),
@@ -156,11 +160,12 @@ export const discordMessageFormSchema = object({
     stripImages: boolean().default(false),
     formatTables: boolean().default(false),
     disableImageLinkPreviews: boolean().default(false),
+    ignoreNewLines: boolean().default(false),
   })
     .optional()
     .nullable(),
   enablePlaceholderFallback: boolean().optional(),
-});
+}).noUnknown();
 
 export type DiscordMessageFormData = InferType<typeof discordMessageFormSchema>;
 export type DiscordMessageEmbedFormData = InferType<typeof discordMessageEmbedFormSchema>;

@@ -1,25 +1,20 @@
-import { Alert, AlertDescription, AlertTitle, Box, Stack } from "@chakra-ui/react";
-import { useTranslation } from "react-i18next";
-import { FiHash, FiMessageCircle } from "react-icons/fi";
-import { BsMegaphoneFill } from "react-icons/bs";
+import { Box, Field } from "@chakra-ui/react";
 import { ThemedSelect } from "@/components";
+import { getChannelIcon } from "@/features/feedConnections";
 import { useDiscordServerChannels } from "../../hooks";
 import { GetDiscordChannelType } from "../../constants";
 
 interface Props {
   serverId?: string;
-  onChange: (channelId: string, channelName: string) => void;
+  onChange: (channelId: string, channelName: string, channelType?: string | null) => void;
   onBlur: () => void;
   value?: string;
   isDisabled?: boolean;
-  include?: GetDiscordChannelType[];
+  inputId?: string;
+  isInvalid: boolean;
+  ariaLabelledBy: string;
+  types?: GetDiscordChannelType[];
 }
-
-const iconsByChannelType: Record<GetDiscordChannelType, React.ReactNode> = {
-  text: <FiHash />,
-  forum: <FiMessageCircle />,
-  announcement: <BsMegaphoneFill />,
-};
 
 export const DiscordChannelDropdown: React.FC<Props> = ({
   serverId,
@@ -27,39 +22,43 @@ export const DiscordChannelDropdown: React.FC<Props> = ({
   onBlur,
   value,
   isDisabled,
-  include,
+  inputId,
+  isInvalid,
+  ariaLabelledBy,
+  types,
 }) => {
-  const { data, error, isFetching } = useDiscordServerChannels({ serverId, include });
-  const { t } = useTranslation();
+  const { data, error, isFetching } = useDiscordServerChannels({ serverId, types });
 
   const options =
     data?.results.map((channel) => ({
       label: `${channel.category ? `[${channel.category.name}] ` : ""}${channel.name}`,
       value: channel.id,
       data: channel,
-      icon: channel.type ? iconsByChannelType[channel.type] : iconsByChannelType.text,
+      icon: getChannelIcon(channel.type),
     })) || [];
 
   return (
-    <Stack>
+    <Box w="100%">
       <ThemedSelect
         loading={isFetching}
-        isDisabled={isDisabled || isFetching || !!error}
+        isDisabled={isDisabled || !!error}
         options={options}
-        onChange={(val, optionData) => onChange(val, optionData.name)}
+        onChange={(val, optionData) => onChange(val, optionData.name, optionData.type)}
         onBlur={onBlur}
         value={value}
+        isInvalid={isInvalid}
+        selectProps={{
+          inputId,
+          "aria-labelledby": ariaLabelledBy,
+          openMenuOnClick: !isFetching,
+          openMenuOnFocus: !isFetching,
+        }}
+        placeholder={!serverId ? "Must select a Discord server first" : "Select a channel"}
       />
-      {serverId && error && (
-        <Alert status="error">
-          <Box>
-            <AlertTitle>
-              {t("features.feed.components.addDiscordChannelConnectionDialog.failedToGetChannels")}
-            </AlertTitle>
-            <AlertDescription>{error?.message}</AlertDescription>
-          </Box>
-        </Alert>
+      {(!serverId || !error) && (
+        <Field.HelperText>Only channels that the bot can view will appear.</Field.HelperText>
       )}
-    </Stack>
+      {serverId && error && <Field.ErrorText>{error?.message}</Field.ErrorText>}
+    </Box>
   );
 };

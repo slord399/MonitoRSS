@@ -8,11 +8,12 @@ import {
   teardownPostgresTests,
 } from '../shared/utils/setup-postgres-tests';
 import { Request, Response } from './entities';
-import { EntityRepository } from '@mikro-orm/postgresql';
+import { EntityRepository, EntityManager } from '@mikro-orm/postgresql';
 import { getRepositoryToken } from '@mikro-orm/nestjs';
 import { ObjectFileStorageService } from '../object-file-storage/object-file-storage.service';
 import { CacheStorageService } from '../cache-storage/cache-storage.service';
 import { FastifyAdapter } from '@nestjs/platform-fastify';
+import PartitionedRequestsStoreService from '../partitioned-requests-store/partitioned-requests-store.service';
 
 jest.mock('../utils/logger');
 
@@ -21,6 +22,8 @@ describe('FeedFetcherService (Integration)', () => {
   let service: FeedFetcherService;
   const url = 'https://rss-feed.com/feed.xml';
   let requestRepo: EntityRepository<Request>;
+  let em: EntityManager;
+  let partitionedRequestsStore: PartitionedRequestsStoreService;
 
   beforeAll(async () => {
     const setupData = await setupPostgresTests(
@@ -41,6 +44,13 @@ describe('FeedFetcherService (Integration)', () => {
               setFeedHtmlContent: jest.fn(),
             },
           },
+          {
+            provide: PartitionedRequestsStoreService,
+            useValue: {
+              getRequests: jest.fn(),
+              getLatestRequestWithResponseBody: jest.fn(),
+            },
+          },
         ],
       },
       {
@@ -57,6 +67,10 @@ describe('FeedFetcherService (Integration)', () => {
     requestRepo = app.get<EntityRepository<Request>>(
       getRepositoryToken(Request),
     );
+    em = app.get<EntityManager>(EntityManager);
+    partitionedRequestsStore = app.get<PartitionedRequestsStoreService>(
+      PartitionedRequestsStoreService,
+    );
   });
 
   afterEach(async () => {
@@ -70,27 +84,20 @@ describe('FeedFetcherService (Integration)', () => {
 
   describe('getRequests', () => {
     it('returns correctly according to input params', async () => {
-      const req = new Request();
-      req.url = url;
-      req.status = RequestStatus.OK;
-      req.createdAt = new Date(2020);
-      const re2 = new Request();
-      re2.url = url;
-      re2.status = RequestStatus.BAD_STATUS_CODE;
-      re2.createdAt = new Date(2021);
-      const re3 = new Request();
-      re3.url = url;
-      re3.status = RequestStatus.BAD_STATUS_CODE;
-      re3.createdAt = new Date(2022);
+      const re2 = {
+        id: 2,
+        status: RequestStatus.BAD_STATUS_CODE,
+      };
 
-      await requestRepo.persistAndFlush([req, re2, re3]);
+      jest.spyOn(partitionedRequestsStore, 'getRequests').mockResolvedValue([
+        re2
+      ] as any);
 
       const result = await service.getRequests({
         skip: 1,
         limit: 1,
         url,
-        select: ['id', 'status'],
-      });
+      } as any);
 
       expect(result).toHaveLength(1);
       expect(result[0]).toEqual({
@@ -100,6 +107,8 @@ describe('FeedFetcherService (Integration)', () => {
     });
 
     it('returns an empty array if nothing matches', async () => {
+      jest.spyOn(partitionedRequestsStore, 'getRequests').mockResolvedValue([] as any);
+
       const result = await service.getRequests({
         skip: 0,
         limit: 10,
@@ -113,6 +122,7 @@ describe('FeedFetcherService (Integration)', () => {
   describe('getLatestRequest', () => {
     it('returns the request with the response', async () => {
       const req1 = new Request();
+      req1.id = 1;
       req1.status = RequestStatus.BAD_STATUS_CODE;
       req1.url = url;
       req1.createdAt = new Date(2020, 1, 6);
@@ -123,9 +133,12 @@ describe('FeedFetcherService (Integration)', () => {
 
       req1.response = response;
 
-      await requestRepo.persistAndFlush([req1]);
+      jest.spyOn(partitionedRequestsStore, 'getLatestRequestWithResponseBody').mockResolvedValue(req1);
 
-      const latestRequest = await service.getLatestRequest(url);
+      const latestRequest = await service.getLatestRequest({
+        url,
+        lookupKey: url,
+      });
 
       expect(latestRequest?.request.id).toEqual(req1.id);
       expect(latestRequest?.request.response).toMatchObject({

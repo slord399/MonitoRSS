@@ -7,6 +7,7 @@ export interface CreateUserFeedManagementInviteInput {
     feedId: string;
     discordUserId: string;
     type: UserFeedManagerInviteType;
+    connections: Array<{ connectionId: string }>;
   };
 }
 
@@ -21,7 +22,7 @@ export type CreateUserFeedManagementInviteOutput = InferType<
 >;
 
 export const createUserFeedManagementInvite = async (
-  options: CreateUserFeedManagementInviteInput
+  options: CreateUserFeedManagementInviteInput,
 ): Promise<CreateUserFeedManagementInviteOutput> => {
   const res = await fetchRest(`/api/v1/user-feed-management-invites`, {
     validateSchema: CreateUserFeedManagementInviteOutputSchema,

@@ -1,29 +1,26 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import ApiAdapterError from "../../../utils/ApiAdapterError";
 import { getServerChannels, GetServerChannelsOutput } from "../api";
 import { useDiscordServerAccessStatus } from "./useDiscordServerAccessStatus";
-import { GetDiscordChannelType } from "../constants";
+import { GetDiscordChannelType, discordServerQueryKeys } from "../constants";
 
 interface Props {
   serverId?: string;
-  include?: GetDiscordChannelType[];
+  types?: GetDiscordChannelType[];
 }
 
-export const useDiscordServerChannels = ({ serverId, include }: Props) => {
+export const useDiscordServerChannels = ({ serverId, types }: Props) => {
   const { data: accessData, isFetching: isFetchingAccessData } = useDiscordServerAccessStatus({
     serverId,
   });
   const [hadError, setHadError] = useState(false);
-  const queryKey = [
-    "server-channels",
-    {
-      serverId,
-      include,
-    },
-  ];
+  const queryKey = discordServerQueryKeys.serverChannels(serverId || "", types);
 
-  const { data, status, error, isFetching } = useQuery<GetServerChannelsOutput, ApiAdapterError>(
+  const { data, status, error, isFetching, refetch } = useQuery<
+    GetServerChannelsOutput,
+    ApiAdapterError
+  >(
     queryKey,
     async () => {
       if (!serverId) {
@@ -32,14 +29,32 @@ export const useDiscordServerChannels = ({ serverId, include }: Props) => {
 
       return getServerChannels({
         serverId,
-        include,
+        types,
       });
     },
     {
       enabled: !!accessData?.result.authorized && !hadError && !!serverId,
       onError: () => setHadError(true),
-    }
+    },
   );
+
+  // New channels may be created when window is out-of-focus
+  // react-query's built-in refetchOnWindowFocus isn't working as expected
+  useEffect(() => {
+    function onFocus() {
+      if (isFetching) {
+        return;
+      }
+
+      refetch();
+    }
+
+    window.addEventListener("focus", onFocus);
+
+    return () => {
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [refetch, isFetching]);
 
   return {
     data,

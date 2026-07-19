@@ -1,20 +1,61 @@
-import { FaCircleExclamation, FaPause } from "react-icons/fa6";
-import { FaCheckCircle } from "react-icons/fa";
+import { Icon } from "@chakra-ui/react";
+import { FaCircleExclamation, FaClock, FaCircleMinus } from "react-icons/fa6";
+import { FaCheckCircle, FaPauseCircle } from "react-icons/fa";
 import { UserFeedComputedStatus } from "../../types";
-import getChakraColor from "../../../../utils/getChakraColor";
 
 interface Props {
   status: UserFeedComputedStatus;
+  ariaHidden?: boolean;
 }
 
-export const UserFeedStatusTag: React.FC<Props> = ({ status }) => {
+export const UserFeedStatusTag: React.FC<Props> = ({ status, ariaHidden }) => {
   if (status === UserFeedComputedStatus.RequiresAttention) {
-    return <FaCircleExclamation fontSize={18} color={getChakraColor("red.300")} />;
+    return (
+      <Icon
+        as={FaCircleExclamation}
+        aria-label="Requires attention"
+        boxSize={5}
+        color="text.error"
+        aria-hidden={ariaHidden}
+      />
+    );
+  }
+
+  if (status === UserFeedComputedStatus.Retrying) {
+    return (
+      <Icon
+        as={FaClock}
+        aria-label="Currently retrying after failed requests"
+        boxSize={5}
+        color="text.warning"
+        aria-hidden={ariaHidden}
+      />
+    );
   }
 
   if (status === UserFeedComputedStatus.ManuallyDisabled) {
-    return <FaPause opacity="0.5" fontSize={18} />;
+    return (
+      <Icon
+        as={FaPauseCircle}
+        aria-label="Manually disabled"
+        boxSize={5}
+        color="fg"
+        aria-hidden={ariaHidden}
+      />
+    );
   }
 
-  return <FaCheckCircle color={getChakraColor("green.500")} fontSize={18} />;
+  if (status === UserFeedComputedStatus.FeedLimitExceeded) {
+    return (
+      <Icon
+        as={FaCircleMinus}
+        aria-label="Feed limit exceeded"
+        boxSize={5}
+        color="text.warning"
+        aria-hidden={ariaHidden}
+      />
+    );
+  }
+
+  return <Icon as={FaCheckCircle} aria-label="Ok" boxSize={5} color="text.success" />;
 };

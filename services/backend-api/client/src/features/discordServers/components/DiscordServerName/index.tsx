@@ -1,5 +1,5 @@
-import { Text, Tooltip } from "@chakra-ui/react";
-import { Loading } from "@/components";
+import { Text, Skeleton } from "@chakra-ui/react";
+import { Tooltip } from "@/components/ui/tooltip";
 import { useDiscordServers } from "../../hooks";
 
 interface Props {
@@ -15,13 +15,16 @@ export const DiscordServerName = ({ serverId, textStyle }: Props) => {
   });
 
   if (status === "loading") {
-    return <Loading size="sm" />;
+    return <Skeleton height="1em" width="80px" display="inline-block" />;
   }
 
   if (error) {
     return (
-      <Tooltip placement="bottom-start" label={`Unable to get server name (${error?.message})`}>
-        <Text color="orange.500">{serverId}</Text>
+      <Tooltip
+        positioning={{ placement: "bottom-start" }}
+        content={`Unable to get server name (${error?.message})`}
+      >
+        <Text color="text.warning">{serverId}</Text>
       </Tooltip>
     );
   }

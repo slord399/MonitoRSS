@@ -1,6 +1,6 @@
 import { array, boolean, InferType, number, object, string } from "yup";
 import { FeedEmbedSchema } from "./FeedEmbed";
-import { CustomPlaceholderSchema } from "./CustomPlaceholder";
+import { CustomPlaceholderSchema } from "@/types/CustomPlaceholder";
 
 export enum FeedConnectionType {
   DiscordChannel = "DISCORD_CHANNEL",
@@ -11,10 +11,15 @@ export enum FeedConnectionDisabledCode {
   BadFormat = "BAD_FORMAT",
   MissingPermissions = "MISSING_PERMISSIONS",
   MissingMedium = "MISSING_MEDIUM",
+  NotPaidSubscriber = "NOT_PAID_SUBSCRIBER",
 }
 
 export enum DiscordComponentType {
+  ActionRow = 1,
   Button = 2,
+  Section = 9,
+  TextDisplay = 10,
+  Thumbnail = 11,
 }
 
 export enum DiscordComponentButtonStyle {
@@ -40,16 +45,19 @@ const DiscordChannelConnectionDetailsSchema = object({
   channel: object({
     id: string().required(),
     guildId: string().required(),
-    type: string().optional().nullable().oneOf(["forum", "thread"]),
+    type: string().optional().nullable().oneOf(["forum", "thread", "new-thread", "forum-thread"]),
+    parentChannelId: string().optional().nullable(),
   })
     .optional()
     .nullable(),
+  channelNewThreadTitle: string().optional(),
+  channelNewThreadExcludesPreview: boolean().optional(),
   webhook: object({
     id: string().required(),
     name: string().optional(),
     iconUrl: string().optional(),
     guildId: string().required(),
-    type: string().nullable().oneOf(["forum", "thread"]),
+    type: string().nullable().oneOf(["forum", "thread", "forum-thread"]),
     threadId: string(),
     isApplicationOwned: boolean(),
     channelId: string(),
@@ -60,8 +68,69 @@ const DiscordChannelConnectionDetailsSchema = object({
     object({
       id: string().required(),
       components: array(DiscordButtonSchema.required()).required().max(5),
-    }).required()
+    }).required(),
   ).max(5),
+  componentsV2: array(
+    object({
+      type: string().required(),
+      content: string().optional(),
+      divider: boolean().optional(),
+      spacing: number().optional(),
+      accent_color: number().optional().nullable(),
+      spoiler: boolean().optional(),
+      items: array(
+        object({
+          media: object({
+            url: string().required(),
+          }).required(),
+          description: string().optional().nullable(),
+          spoiler: boolean().optional(),
+        }),
+      ).optional(),
+      components: array(
+        object({
+          type: string().required(),
+          content: string().optional(),
+          style: number().optional(),
+          label: string().optional(),
+          url: string().optional().nullable(),
+          disabled: boolean().optional(),
+          divider: boolean().optional(),
+          spacing: number().optional(),
+          emoji: object({
+            id: string().optional().nullable(),
+            name: string().required(),
+            animated: boolean().optional(),
+          })
+            .optional()
+            .nullable(),
+        }),
+      ).optional(),
+      accessory: object({
+        type: string().required(),
+        style: number().optional(),
+        label: string().optional(),
+        url: string().optional().nullable(),
+        disabled: boolean().optional(),
+        media: object({
+          url: string().required(),
+        }).optional(),
+        description: string().optional().nullable(),
+        spoiler: boolean().optional(),
+        emoji: object({
+          id: string().optional().nullable(),
+          name: string().required(),
+          animated: boolean().optional(),
+        })
+          .optional()
+          .nullable(),
+      })
+        .optional()
+        .nullable(),
+    }).required(),
+  )
+    .optional()
+    .nullable(),
   content: string().optional(),
   forumThreadTitle: string().optional(),
   forumThreadTags: array(
@@ -72,7 +141,7 @@ const DiscordChannelConnectionDetailsSchema = object({
       })
         .nullable()
         .default(null),
-    }).required()
+    }).required(),
   )
     .optional()
     .nullable(),
@@ -80,13 +149,14 @@ const DiscordChannelConnectionDetailsSchema = object({
     formatTables: boolean().default(false),
     stripImages: boolean().default(false),
     disableImageLinkPreviews: boolean().default(false),
+    ignoreNewLines: boolean().default(false),
   }),
   placeholderLimits: array(
     object({
       characterCount: number().min(1).positive().integer().required(),
       placeholder: string().min(1).required(),
       appendString: string().optional().nullable(),
-    }).required()
+    }).required(),
   )
     .optional()
     .nullable()
@@ -115,7 +185,7 @@ const DiscordWebhookConnectionDetailsSchema = object({
       characterCount: number().min(1).positive().integer().required(),
       placeholder: string().min(1).required(),
       appendString: string().optional().nullable(),
-    }).required()
+    }).required(),
   )
     .optional()
     .nullable()
@@ -147,7 +217,7 @@ export const FeedConnectionSchema = object({
       id: string().required(),
       limit: number().positive().integer().required(),
       timeWindowSeconds: number().positive().integer().required(),
-    }).required()
+    }).required(),
   )
     .default(undefined)
     .nullable(),
@@ -159,7 +229,7 @@ export const FeedConnectionSchema = object({
         filters: object({
           expression: object().required(),
         }).nullable(),
-      }).required()
+      }).required(),
     )
       .nullable()
       .default(undefined),

@@ -8,8 +8,11 @@ interface Request {
 
 interface Result {
   requests: Request[];
-  totalRequests: number;
   nextRetryTimestamp: number | null;
+  feedHostGlobalRateLimit: null | {
+    requestLimit: number;
+    intervalSec: number;
+  };
 }
 
 export interface GetFeedRequestsOutputDto {

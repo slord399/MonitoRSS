@@ -1,0 +1,433 @@
+import {
+  useState,
+  useRef,
+  useCallback,
+  useEffect,
+  RefObject,
+  MutableRefObject,
+  FormEvent,
+} from "react";
+import {
+  Alert,
+  Box,
+  HStack,
+  Text,
+  Input,
+  InputGroup,
+  IconButton,
+  Button,
+  Skeleton,
+  Stack,
+  VisuallyHidden,
+} from "@chakra-ui/react";
+import { FaMagnifyingGlass, FaXmark } from "react-icons/fa6";
+import { FeedCard } from "../FeedCard";
+import { useCuratedFeeds } from "../../hooks";
+import type { CuratedFeed } from "../../types";
+import { useCreateUserFeedUrlValidation } from "../../hooks/useCreateUserFeedUrlValidation";
+import { UrlValidationResult } from "./UrlValidationResult";
+import type { FeedActionState } from "../../types/FeedActionState";
+import {
+  PlatformHint,
+  SearchOwnFeedHint,
+  getNoResultsAnnouncement,
+  getPlatformHint,
+} from "./PlatformHint";
+import { getFeedCardPropsFromState } from "../../types/FeedActionState";
+import { createDiscoverySearchEvent } from "../../api/createDiscoverySearchEvent";
+import { parseSearchInputAsUrl } from "../../utils/normalizeUrlInput";
+
+/* eslint-disable react/no-unused-prop-types --
+   These props are consumed via useFeedDiscoverySearchState(props); react/no-unused-prop-types
+   cannot trace usage through the custom hook, so it false-positives on each field. */
+interface FeedDiscoverySearchProps {
+  feedActionStates: Record<string, FeedActionState>;
+  isAtLimit: boolean;
+  onAdd: (feed: CuratedFeed) => void;
+  onRemove?: (feedKey: string) => void;
+  searchInputRef?: RefObject<HTMLInputElement>;
+  onSearchChange?: (query: string) => void;
+  onFeedAdded?: (feedId: string, feedUrl: string) => void;
+  onFeedRemoved?: (feedUrl: string) => void;
+}
+/* eslint-enable react/no-unused-prop-types */
+
+const BATCH_SIZE = 20;
+
+export function useFeedDiscoverySearchState({
+  feedActionStates,
+  isAtLimit,
+  onAdd,
+  onRemove,
+  searchInputRef,
+  onSearchChange,
+  onFeedAdded,
+  onFeedRemoved,
+}: FeedDiscoverySearchProps) {
+  const [inputValue, setInputValue] = useState("");
+  const [activeQuery, setActiveQuery] = useState("");
+  const [visibleCount, setVisibleCount] = useState(BATCH_SIZE);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const {
+    mutateAsync: validateUrl,
+    status: validationStatus,
+    error: validationError,
+    data: validationData,
+    reset: resetValidation,
+  } = useCreateUserFeedUrlValidation();
+
+  const { isUrl: isUrlInput, url: normalizedUrl } = parseSearchInputAsUrl(activeQuery);
+  const hasPlatformHint = !!activeQuery && !isUrlInput && !!getPlatformHint(activeQuery);
+  const shouldFetchCurated = !!activeQuery && !isUrlInput && !hasPlatformHint;
+
+  let curatedParams: Parameters<typeof useCuratedFeeds>[0];
+
+  if (shouldFetchCurated) {
+    curatedParams = { search: activeQuery };
+  } else if (hasPlatformHint) {
+    curatedParams = { search: activeQuery, enabled: false };
+  }
+
+  const {
+    data,
+    isFetching: isCuratedFetching,
+    error: curatedError,
+    refetch: refetchCurated,
+  } = useCuratedFeeds(curatedParams);
+  const isSearching = isCuratedFetching && shouldFetchCurated;
+  const hasCuratedError = !!curatedError && shouldFetchCurated;
+
+  const hasActiveSearch = activeQuery.length > 0;
+  // Only count curated feeds when we actually fetch+display them. When the input is a URL or
+  // matches a platform hint, the curated query is disabled but keepPreviousData retains the prior
+  // browse list — counting that stale data would suppress the UrlValidationResult / PlatformHint.
+  const totalResults = shouldFetchCurated ? (data?.feeds.length ?? 0) : 0;
+  const visibleResults = shouldFetchCurated ? (data?.feeds.slice(0, visibleCount) ?? []) : [];
+
+  useEffect(() => {
+    if (!activeQuery || isUrlInput) return;
+
+    createDiscoverySearchEvent({
+      searchTerm: activeQuery,
+      resultCount: totalResults,
+    }).catch(() => {});
+    // Fire one analytics event per committed search term, not on every result-count change
+  }, [activeQuery]);
+
+  const setInputRef = useCallback(
+    (node: HTMLInputElement | null) => {
+      (inputRef as MutableRefObject<HTMLInputElement | null>).current = node;
+
+      if (searchInputRef) {
+        // Forwarded ref: assigning .current is the standard ref-merge pattern
+        // eslint-disable-next-line no-param-reassign
+        (searchInputRef as MutableRefObject<HTMLInputElement | null>).current = node;
+      }
+    },
+    [searchInputRef],
+  );
+
+  const getCategoryLabel = (categoryId: string) =>
+    data?.categories.find((c) => c.id === categoryId)?.label || categoryId;
+
+  const handleSearch = async (e: FormEvent) => {
+    e.preventDefault();
+    const trimmed = inputValue.trim();
+
+    if (!trimmed) {
+      if (activeQuery) {
+        handleClear();
+      }
+
+      return;
+    }
+
+    setActiveQuery(trimmed);
+    setVisibleCount(BATCH_SIZE);
+    onSearchChange?.(trimmed);
+
+    const { isUrl, url } = parseSearchInputAsUrl(trimmed);
+
+    if (isUrl) {
+      resetValidation();
+
+      try {
+        await validateUrl({ details: { url } });
+      } catch {
+        // Error state is handled by the hook's error property
+      }
+    }
+  };
+
+  const handleClear = () => {
+    setInputValue("");
+    setActiveQuery("");
+    setVisibleCount(BATCH_SIZE);
+    resetValidation();
+    onSearchChange?.("");
+    inputRef.current?.focus();
+  };
+
+  const handleTrySearchByName = () => {
+    setInputValue("");
+    setActiveQuery("");
+    resetValidation();
+    onSearchChange?.("");
+    inputRef.current?.focus();
+  };
+
+  const handleRetryValidation = async () => {
+    resetValidation();
+
+    try {
+      await validateUrl({ details: { url: normalizedUrl } });
+    } catch {
+      // Error state is handled by the hook's error property
+    }
+  };
+
+  const handleShowMore = () => {
+    const previousCount = visibleCount;
+    setVisibleCount((prev) => prev + BATCH_SIZE);
+
+    requestAnimationFrame(() => {
+      const nextItem = document.querySelector(
+        `[data-feed-index="${previousCount}"] button`,
+      ) as HTMLElement | null;
+
+      nextItem?.focus();
+    });
+  };
+
+  const initializeWithQuery = useCallback(
+    async (query: string) => {
+      const trimmed = query.trim();
+      if (!trimmed) return;
+
+      setInputValue(trimmed);
+      setActiveQuery(trimmed);
+      setVisibleCount(BATCH_SIZE);
+      onSearchChange?.(trimmed);
+
+      const { isUrl, url } = parseSearchInputAsUrl(trimmed);
+
+      if (isUrl) {
+        resetValidation();
+
+        try {
+          await validateUrl({ details: { url } });
+        } catch {
+          // Error state handled by hook
+        }
+      }
+    },
+    [onSearchChange, resetValidation, validateUrl],
+  );
+
+  return {
+    inputValue,
+    setInputValue,
+    activeQuery,
+    isUrlInput,
+    normalizedUrl,
+    hasActiveSearch,
+    totalResults,
+    visibleResults,
+    visibleCount,
+    isSearching,
+    hasCuratedError,
+    refetchCurated,
+    setInputRef,
+    getCategoryLabel,
+    handleSearch,
+    handleClear,
+    handleTrySearchByName,
+    handleRetryValidation,
+    handleShowMore,
+    initializeWithQuery,
+    validationStatus,
+    validationError,
+    validationData,
+    feedActionStates,
+    isAtLimit,
+    onAdd,
+    onRemove,
+    onFeedAdded,
+    onFeedRemoved,
+  };
+}
+
+type SearchStateReturn = ReturnType<typeof useFeedDiscoverySearchState>;
+
+function getSearchAnnouncement(state: SearchStateReturn): string {
+  if (!state.hasActiveSearch || state.isUrlInput) return "";
+  if (state.isSearching) return `Loading search results for ${state.activeQuery}`;
+
+  if (state.hasCuratedError) {
+    return `Failed to load search results for ${state.activeQuery}`;
+  }
+
+  if (state.totalResults === 0) return getNoResultsAnnouncement(state.activeQuery);
+
+  return `${state.totalResults} result${state.totalResults !== 1 ? "s" : ""} for ${
+    state.activeQuery
+  }`;
+}
+
+export const FeedDiscoverySearchInput = ({ state }: { state: SearchStateReturn }) => (
+  <Box>
+    <VisuallyHidden role="status" aria-live="polite" aria-atomic="true">
+      {getSearchAnnouncement(state)}
+    </VisuallyHidden>
+    <form role="search" onSubmit={state.handleSearch}>
+      <HStack>
+        <InputGroup
+          flex={1}
+          startElement={<FaMagnifyingGlass color="fg.muted" />}
+          endElement={
+            state.inputValue ? (
+              <IconButton
+                aria-label="Clear search"
+                size="xs"
+                variant="ghost"
+                onClick={state.handleClear}
+              >
+                <FaXmark />
+              </IconButton>
+            ) : undefined
+          }
+        >
+          <Input
+            ref={state.setInputRef}
+            value={state.inputValue}
+            onChange={(e) => state.setInputValue(e.target.value)}
+            placeholder="Search popular feeds or paste a URL"
+            aria-label="Search popular feeds or paste a URL"
+          />
+        </InputGroup>
+        <Button type="submit">Go</Button>
+      </HStack>
+    </form>
+  </Box>
+);
+
+export const FeedDiscoverySearchResults = ({ state }: { state: SearchStateReturn }) => {
+  if (!state.hasActiveSearch) return null;
+
+  if (state.isSearching) {
+    return (
+      <Box mt={3} aria-busy="true" aria-hidden="true">
+        <Stack gap={2}>
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} height="64px" borderRadius="l3" />
+          ))}
+        </Stack>
+      </Box>
+    );
+  }
+
+  if (state.hasCuratedError) {
+    return (
+      <Alert.Root status="error" mt={3}>
+        <Alert.Indicator />
+        <Alert.Description>
+          Failed to load search results.{" "}
+          <Button variant="plain" colorPalette="brand" onClick={() => state.refetchCurated()}>
+            Retry
+          </Button>
+        </Alert.Description>
+      </Alert.Root>
+    );
+  }
+
+  return (
+    <>
+      {state.totalResults > 0 && (
+        <Box mt={3}>
+          <Text fontSize="sm" color="fg.muted">
+            {state.totalResults} result{state.totalResults !== 1 ? "s" : ""} for &ldquo;
+            {state.activeQuery}&rdquo;
+          </Text>
+        </Box>
+      )}
+      <Box mt={3}>
+        {state.totalResults > 0 && (
+          <Stack
+            as="ul"
+            role="list"
+            aria-label={`Search results, showing ${Math.min(
+              state.visibleCount,
+              state.totalResults,
+            )} of ${state.totalResults}`}
+            gap={2}
+            listStyleType="none"
+          >
+            {state.visibleResults.map((feed, index) => {
+              const cardProps = getFeedCardPropsFromState(
+                state.feedActionStates,
+                feed.id,
+                state.isAtLimit,
+              );
+
+              return (
+                <Box as="li" key={feed.id} data-feed-index={index}>
+                  <FeedCard
+                    feed={feed}
+                    state={cardProps.state}
+                    onAdd={() => state.onAdd(feed)}
+                    onRemove={state.onRemove ? () => state.onRemove!(feed.id) : undefined}
+                    errorMessage={cardProps.errorMessage}
+                    errorCode={cardProps.errorCode}
+                    isCurated
+                    showCategoryTag={state.getCategoryLabel(feed.category)}
+                    feedSettingsUrl={cardProps.feedSettingsUrl}
+                    previewEnabled
+                    searchQuery={state.activeQuery}
+                  />
+                </Box>
+              );
+            })}
+          </Stack>
+        )}
+        {state.isUrlInput && (
+          <UrlValidationResult
+            url={state.normalizedUrl}
+            validationStatus={state.validationStatus}
+            validationData={state.validationData}
+            validationError={state.validationError}
+            isAtLimit={state.isAtLimit}
+            onTrySearchByName={state.handleTrySearchByName}
+            onRetryValidation={state.handleRetryValidation}
+            onFeedAdded={state.onFeedAdded}
+            onFeedRemoved={state.onFeedRemoved}
+          />
+        )}
+        {!state.isUrlInput && state.totalResults === 0 && (
+          <PlatformHint query={state.activeQuery} />
+        )}
+      </Box>
+      {state.totalResults > state.visibleCount && (
+        <Button mt={3} onClick={state.handleShowMore} variant="outline" width="full">
+          Show more
+        </Button>
+      )}
+      {state.totalResults > 0 && (
+        <Box mt={4}>
+          <SearchOwnFeedHint />
+        </Box>
+      )}
+    </>
+  );
+};
+
+export const FeedDiscoverySearch = (props: FeedDiscoverySearchProps) => {
+  const state = useFeedDiscoverySearchState(props);
+
+  return (
+    <Box>
+      <FeedDiscoverySearchInput state={state} />
+      <FeedDiscoverySearchResults state={state} />
+    </Box>
+  );
+};

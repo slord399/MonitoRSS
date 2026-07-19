@@ -1,6 +1,6 @@
-export const getNestedField = <T>(object: Record<string, any>, key: string): T | undefined => {
+export const getNestedField = <T>(object: Record<string, any> | undefined | null, key: string): T | undefined => {
   // Check if object is an actual JSON object
-  if (typeof object !== "object" || Array.isArray(object)) {
+  if (!object || typeof object !== "object" || Array.isArray(object)) {
     return undefined;
   }
 

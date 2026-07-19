@@ -5,7 +5,7 @@ import { ConfigModule } from '@nestjs/config';
 import type { TestingModule } from '@nestjs/testing';
 import { MikroORM } from '@mikro-orm/core';
 import { randomUUID } from 'crypto';
-import { SqlEntityManager } from '@mikro-orm/postgresql';
+import { PostgreSqlDriver, SqlEntityManager } from '@mikro-orm/postgresql';
 import config from '../../config';
 import { testConfig } from '../../config/test.config';
 
@@ -37,10 +37,10 @@ export async function setupPostgresTests(
       }),
       MikroOrmModule.forFeature(options?.models || []),
       MikroOrmModule.forRoot({
+        driver: PostgreSqlDriver,
         entities: ['dist/**/*.entity.js'],
         entitiesTs: ['src/**/*.entity.ts'],
         clientUrl: configVals.FEED_REQUESTS_POSTGRES_URI,
-        type: 'postgresql',
         forceUtcTimezone: true,
         timezone: 'UTC',
         schema: postgresSchema,
@@ -52,7 +52,7 @@ export async function setupPostgresTests(
   const init = async () => {
     testingModule = await uncompiledModule.compile();
     orm = testingModule.get(MikroORM);
-    const generator = orm.getSchemaGenerator();
+    const generator = (orm as any).getSchemaGenerator();
     await generator.ensureDatabase();
     await generator.dropSchema();
     await generator.createSchema();
@@ -69,18 +69,20 @@ export async function setupPostgresTests(
 }
 
 export async function clearDatabase() {
-  const generator = orm?.getSchemaGenerator();
-  await generator.ensureDatabase();
-  await generator.dropSchema();
-  await generator.createSchema();
+  const generator = (orm as any)?.getSchemaGenerator();
+  if (generator) {
+    await generator.ensureDatabase();
+    await generator.dropSchema();
+    await generator.createSchema();
+  }
 }
 
 export async function teardownPostgresTests() {
   if (orm) {
-    const generator = orm.getSchemaGenerator();
+    const generator = (orm as any).getSchemaGenerator();
     await generator.dropSchema();
     // const typedEm = orm.em as SqlEntityManager;
-    await orm.em.transactional(async (em) => {
+    await orm.em.transactional(async (em: any) => {
       await (em as SqlEntityManager).execute(
         `DROP SCHEMA IF EXISTS "${postgresSchema}" CASCADE`,
       );

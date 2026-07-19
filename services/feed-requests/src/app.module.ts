@@ -6,6 +6,7 @@ import config from './config';
 import { FeedFetcherModule } from './feed-fetcher/feed-fetcher.module';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { MikroORM } from '@mikro-orm/core';
+import { PostgreSqlDriver } from '@mikro-orm/postgresql';
 import logger from './utils/logger';
 import { CacheStorageService } from './cache-storage/cache-storage.service';
 import { CacheStorageModule } from './cache-storage/cache-storage.module';
@@ -26,6 +27,9 @@ export class AppModule implements OnApplicationShutdown {
       replicaUris.push(replica1);
     }
 
+    const prefetchCount = configVals.FEED_REQUESTS_RABBITMQ_PREFETCH_COUNT;
+    const poolMax = prefetchCount * 3;
+
     logger.info(`${replicaUris.length} read replicas discovered`);
 
     return {
@@ -37,15 +41,16 @@ export class AppModule implements OnApplicationShutdown {
           load: [config],
         }),
         MikroOrmModule.forRoot({
+          driver: PostgreSqlDriver,
           entities: ['dist/**/*.entity.js'],
           entitiesTs: ['src/**/*.entity.ts'],
           clientUrl: configVals.FEED_REQUESTS_POSTGRES_URI,
-          type: 'postgresql',
           forceUtcTimezone: true,
           timezone: 'UTC',
           // loadStrategy: LoadStrategy.JOINED,
           pool: {
             min: 0,
+            max: poolMax,
           },
           preferReadReplicas: replicaUris.length > 0,
           replicas: replicaUris.map((url) => ({

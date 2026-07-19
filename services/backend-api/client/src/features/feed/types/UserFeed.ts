@@ -1,24 +1,41 @@
 import { array, bool, InferType, number, object, string } from "yup";
-import { FeedConnectionSchema } from "../../../types";
+import { ExternalPropertySchema, FeedConnectionSchema } from "../../../types";
 import { UserFeedDisabledCode } from "./UserFeedDisabledCode";
 import { UserFeedHealthStatus } from "./UserFeedHealthStatus";
 import { UserFeedManagerInviteType, UserFeedManagerStatus } from "../../../constants";
 
 export const UserFeedSchema = object({
   id: string().required(),
-  allowLegacyReversion: bool(),
   title: string().required(),
   url: string().required(),
+  inputUrl: string(),
+  /**
+   * Optional workspace ownership. Null/undefined = personal feed; set = the workspace
+   * that owns the feed.
+   */
+  workspaceId: string().nullable().optional(),
+  /**
+   * Authoritative flag for workspace-owned feeds. Per-user feed management invites
+   * are disabled for these; access is managed through workspace membership instead.
+   */
+  isWorkspaceFeed: bool(),
   sharedAccessDetails: object({
     inviteId: string().required(),
   }).optional(),
   passingComparisons: array(string().required()).optional().default(undefined),
   blockingComparisons: array(string().required()).optional().default(undefined),
+  externalProperties: array(ExternalPropertySchema.required()).nullable(),
   createdAt: string()
     .transform((value) => (value ? new Date(value).toISOString() : value))
     .required(),
   updatedAt: string().transform((value) => (value ? new Date(value).toISOString() : value)),
   disabledCode: string().oneOf(Object.values(UserFeedDisabledCode)).optional(),
+  refreshRateOptions: array(
+    object({
+      rateSeconds: number().required(),
+      disabledCode: string().default(undefined),
+    }).required(),
+  ).required(),
   healthStatus: string().oneOf(Object.values(UserFeedHealthStatus)).required(),
   connections: array(FeedConnectionSchema).required(),
   refreshRateSeconds: number().required(),
@@ -26,6 +43,7 @@ export const UserFeedSchema = object({
   formatOptions: object({
     dateFormat: string().optional().default(undefined),
     dateTimezone: string().optional().default(undefined),
+    dateLocale: string().optional().default(undefined),
   })
     .optional()
     .notRequired()
@@ -44,7 +62,12 @@ export const UserFeedSchema = object({
         createdAt: string()
           .transform((value) => (value ? new Date(value).toISOString() : value))
           .required(),
-      }).required()
+        connections: array(
+          object({
+            connectionId: string().required(),
+          }).required(),
+        ).nullable(),
+      }).required(),
     ).required(),
   })
     .optional()

@@ -1,0 +1,1021 @@
+import { describe, it, before, after, mock } from "node:test";
+import assert from "node:assert";
+import dayjs from "dayjs";
+import {
+  SubscriptionProductKey,
+  LegacySubscriptionProductKey,
+  SubscriptionStatus,
+} from "../../src/repositories/shared/enums";
+import { createPaddleWebhooksHarness } from "../helpers/paddle-webhooks.harness";
+import { PaddleSubscriptionStatus } from "../../src/services/paddle-webhooks/types";
+import logger from "../../src/infra/logger";
+
+describe("PaddleWebhooksService", { concurrency: true }, () => {
+  const harness = createPaddleWebhooksHarness();
+
+  before(() => harness.setup());
+  after(() => harness.teardown());
+
+  describe("isVerifiedWebhookEvent", () => {
+    it("returns false when signature is missing", async () => {
+      const ctx = harness.createContext();
+
+      const result = await ctx.service.isVerifiedWebhookEvent({
+        signature: undefined,
+        requestBody: '{"test": true}',
+      });
+
+      assert.strictEqual(result, false);
+    });
+
+    it("returns false when signature format is invalid (missing timestamp)", async () => {
+      const ctx = harness.createContext();
+
+      const result = await ctx.service.isVerifiedWebhookEvent({
+        signature: "h1=abc123",
+        requestBody: '{"test": true}',
+      });
+
+      assert.strictEqual(result, false);
+    });
+
+    it("returns false when signature format is invalid (missing h1)", async () => {
+      const ctx = harness.createContext();
+
+      const result = await ctx.service.isVerifiedWebhookEvent({
+        signature: "ts=12345",
+        requestBody: '{"test": true}',
+      });
+
+      assert.strictEqual(result, false);
+    });
+
+    it("returns false when timestamp is missing value", async () => {
+      const ctx = harness.createContext();
+
+      const result = await ctx.service.isVerifiedWebhookEvent({
+        signature: "ts=;h1=abc123",
+        requestBody: '{"test": true}',
+      });
+
+      assert.strictEqual(result, false);
+    });
+
+    it("returns false when h1 is missing value", async () => {
+      const ctx = harness.createContext();
+
+      const result = await ctx.service.isVerifiedWebhookEvent({
+        signature: "ts=12345;h1=",
+        requestBody: '{"test": true}',
+      });
+
+      assert.strictEqual(result, false);
+    });
+
+    it("throws error when webhook secret is not configured", async () => {
+      const ctx = harness.createContext({
+        config: { BACKEND_API_PADDLE_WEBHOOK_SECRET: undefined },
+      });
+
+      await assert.rejects(
+        () =>
+          ctx.service.isVerifiedWebhookEvent({
+            signature: "ts=12345;h1=abc123",
+            requestBody: '{"test": true}',
+          }),
+        {
+          message:
+            "Missing webhook secret in config while verifying paddle webhook event",
+        },
+      );
+    });
+
+    it("returns false when HMAC does not match", async () => {
+      const ctx = harness.createContext();
+
+      const result = await ctx.service.isVerifiedWebhookEvent({
+        signature: "ts=12345;h1=invalidhmac",
+        requestBody: '{"test": true}',
+      });
+
+      assert.strictEqual(result, false);
+    });
+
+    it("returns true when HMAC matches", async () => {
+      const ctx = harness.createContext();
+      const requestBody = '{"test": true}';
+      const signature = ctx.createWebhookSignature(requestBody);
+
+      const result = await ctx.service.isVerifiedWebhookEvent({
+        signature,
+        requestBody,
+      });
+
+      assert.strictEqual(result, true);
+    });
+  });
+
+  describe("handleSubscriptionUpdatedEvent", () => {
+    it('returns early when status is "canceled"', async () => {
+      const ctx = harness.createContext();
+      const event = ctx.createSubscriptionUpdatedEvent({
+        status: "canceled" as PaddleSubscriptionStatus,
+      });
+
+      await ctx.service.handleSubscriptionUpdatedEvent(event);
+
+      assert.strictEqual(ctx.paddleService.getProduct.mock.callCount(), 0);
+    });
+
+    it("throws when product not found", async () => {
+      const ctx = harness.createContext({
+        paddleService: {
+          getProduct: async () => ({
+            paddleProductId: "prod-123",
+            id: undefined,
+          }),
+        },
+      });
+      const event = ctx.createSubscriptionUpdatedEvent();
+
+      await assert.rejects(
+        () => ctx.service.handleSubscriptionUpdatedEvent(event),
+        {
+          message: /Could not find product key for product ids/,
+        },
+      );
+    });
+
+    it("throws when benefits not found for product key", async () => {
+      const ctx = harness.createContext({
+        paddleService: {
+          getProduct: async () => ({
+            paddleProductId: "prod-123",
+            id: "unknown-tier" as SubscriptionProductKey,
+          }),
+        },
+      });
+      const event = ctx.createSubscriptionUpdatedEvent();
+
+      await assert.rejects(
+        () => ctx.service.handleSubscriptionUpdatedEvent(event),
+        {
+          message: /Could not find benefits in BENEFITS_BY_TIER/,
+        },
+      );
+    });
+
+    it("throws when userId missing in custom_data and email lookup fails", async () => {
+      const ctx = harness.createContext();
+      const event = ctx.createSubscriptionActivatedEvent({
+        custom_data: { userId: undefined },
+      });
+
+      await assert.rejects(
+        () => ctx.service.handleSubscriptionUpdatedEvent(event),
+        {
+          message: /Could not resolve discord user ID/,
+        },
+      );
+    });
+
+    it("throws when user not found by id or email", async () => {
+      const ctx = harness.createContext();
+      const event = ctx.createSubscriptionUpdatedEvent();
+
+      await assert.rejects(
+        () => ctx.service.handleSubscriptionUpdatedEvent(event),
+        {
+          message: /Could not resolve discord user ID/,
+        },
+      );
+    });
+
+    it("successfully upserts supporter with paddle customer data", async () => {
+      const ctx = harness.createContext();
+      const user = await ctx.createUser();
+      const billingEmail = "billing@test.com";
+      const now = new Date();
+      const endDate = dayjs(now).add(1, "month").toDate();
+
+      ctx.paddleService.getCustomer.mock.mockImplementation(async () => ({
+        email: billingEmail,
+      }));
+
+      const event = ctx.createSubscriptionUpdatedEvent({
+        custom_data: { userId: user.id },
+        customer_id: "ctm_123",
+        currency_code: "EUR",
+        created_at: now.toISOString(),
+        updated_at: now.toISOString(),
+        current_billing_period: {
+          starts_at: now.toISOString(),
+          ends_at: endDate.toISOString(),
+        },
+        next_billed_at: endDate.toISOString(),
+        billing_cycle: {
+          interval: "year",
+          frequency: 1,
+        },
+      });
+
+      await ctx.service.handleSubscriptionUpdatedEvent(event);
+
+      const supporter = await ctx.supporterRepository.findById(
+        user.discordUserId,
+      );
+      assert.ok(supporter);
+      assert.ok(supporter.paddleCustomer);
+      assert.strictEqual(supporter.paddleCustomer.customerId, "ctm_123");
+      assert.strictEqual(supporter.paddleCustomer.email, billingEmail);
+      assert.strictEqual(supporter.paddleCustomer.lastCurrencyCodeUsed, "EUR");
+      assert.ok(supporter.paddleCustomer.subscription);
+      assert.strictEqual(
+        supporter.paddleCustomer.subscription.productKey,
+        SubscriptionProductKey.Tier1,
+      );
+      assert.strictEqual(
+        supporter.paddleCustomer.subscription.status,
+        SubscriptionStatus.Active,
+      );
+      assert.strictEqual(
+        supporter.paddleCustomer.subscription.billingInterval,
+        "year",
+      );
+    });
+
+    it("bills a personal subscription to the Paddle billing email even when the user has a verified email", async () => {
+      const ctx = harness.createContext({
+        paddleService: {
+          getCustomer: async () => ({ email: "personal-billing@test.com" }),
+        },
+      });
+      const user = await ctx.createUser({
+        verifiedEmail: "personal-verified@example.com",
+      });
+      const now = new Date();
+
+      const event = ctx.createSubscriptionUpdatedEvent({
+        custom_data: { userId: user.id },
+        current_billing_period: {
+          starts_at: now.toISOString(),
+          ends_at: now.toISOString(),
+        },
+      });
+
+      await ctx.service.handleSubscriptionUpdatedEvent(event);
+
+      const supporter = await ctx.supporterRepository.findById(
+        user.discordUserId,
+      );
+      assert.strictEqual(
+        supporter?.paddleCustomer?.email,
+        "personal-billing@test.com",
+      );
+    });
+
+    it("bills a workspace subscription to the owner's verified email, not the Paddle billing email", async () => {
+      const ctx = harness.createContext({
+        paddleService: {
+          getProduct: async () => ({
+            paddleProductId: "prod-tier2",
+            id: SubscriptionProductKey.Tier2,
+          }),
+          getCustomer: async () => ({ email: "discord-or-typed@paddle.com" }),
+        },
+      });
+      const owner = await ctx.createUser({
+        verifiedEmail: "owner-verified@example.com",
+      });
+      const workspace = await ctx.createWorkspaceWithOwner({
+        ownerUserId: owner.id,
+      });
+      const now = new Date();
+
+      const event = ctx.createSubscriptionUpdatedEvent({
+        custom_data: { workspaceId: workspace.id },
+        current_billing_period: {
+          starts_at: now.toISOString(),
+          ends_at: now.toISOString(),
+        },
+      });
+
+      await ctx.service.handleSubscriptionUpdatedEvent(event);
+
+      const updated = await ctx.workspaceRepository.findById(workspace.id);
+      assert.ok(updated?.paddleCustomer);
+      assert.strictEqual(
+        updated.paddleCustomer.email,
+        "owner-verified@example.com",
+      );
+    });
+
+    it("throws when a workspace's owner has no verified email", async () => {
+      const ctx = harness.createContext({
+        paddleService: {
+          getProduct: async () => ({
+            paddleProductId: "prod-tier2",
+            id: SubscriptionProductKey.Tier2,
+          }),
+        },
+      });
+      const owner = await ctx.createUser();
+      const workspace = await ctx.createWorkspaceWithOwner({
+        ownerUserId: owner.id,
+      });
+      const now = new Date();
+
+      const event = ctx.createSubscriptionUpdatedEvent({
+        custom_data: { workspaceId: workspace.id },
+        current_billing_period: {
+          starts_at: now.toISOString(),
+          ends_at: now.toISOString(),
+        },
+      });
+
+      await assert.rejects(
+        () => ctx.service.handleSubscriptionUpdatedEvent(event),
+        /verified email/i,
+      );
+
+      const updated = await ctx.workspaceRepository.findById(workspace.id);
+      assert.strictEqual(updated?.paddleCustomer, null);
+    });
+
+    // A subscription routed to a workspace id that no longer exists is always
+    // acknowledged, but a fresh activation (customer just paid) must escalate to
+    // error-level so it pages, while the benign post-delete cancellation tail
+    // (subscription.updated) stays at warn. Serialized because they spy on the
+    // shared logger singleton.
+    describe("missing workspace severity", { concurrency: false }, () => {
+      it("logs an ERROR when a subscription is ACTIVATED against a missing workspace", async () => {
+        const ctx = harness.createContext({
+          paddleService: {
+            getProduct: async () => ({
+              paddleProductId: "prod-tier2",
+              id: SubscriptionProductKey.Tier2,
+            }),
+          },
+        });
+        const now = new Date();
+        const missingWorkspaceId = ctx.generateId();
+
+        const event = ctx.createSubscriptionActivatedEvent({
+          custom_data: { workspaceId: missingWorkspaceId },
+          current_billing_period: {
+            starts_at: now.toISOString(),
+            ends_at: now.toISOString(),
+          },
+        });
+
+        const errorSpy = mock.method(logger, "error", () => {});
+        const warnSpy = mock.method(logger, "warn", () => {});
+
+        try {
+          await ctx.service.handleSubscriptionUpdatedEvent(event);
+
+          // Filter by this event's ids: the suite runs concurrently and a
+          // sibling test could independently log at either level.
+          const errorCall = errorSpy.mock.calls.find(
+            (call) =>
+              (
+                call.arguments[1] as { workspaceId?: string } | undefined
+              )?.workspaceId === missingWorkspaceId,
+          );
+          assert.ok(errorCall, "expected an error log for the missing workspace");
+          const meta = errorCall.arguments[1] as {
+            workspaceId: string;
+            customerId: string;
+            subscriptionId: string;
+          };
+          assert.strictEqual(meta.customerId, event.data.customer_id);
+          assert.strictEqual(meta.subscriptionId, event.data.id);
+
+          const warnedForThis = warnSpy.mock.calls.some((call) =>
+            String(call.arguments[0]).includes(missingWorkspaceId),
+          );
+          assert.strictEqual(warnedForThis, false);
+        } finally {
+          errorSpy.mock.restore();
+          warnSpy.mock.restore();
+        }
+      });
+
+      it("logs only a WARN when an UPDATE arrives for a missing workspace (cancellation tail)", async () => {
+        const ctx = harness.createContext({
+          paddleService: {
+            getProduct: async () => ({
+              paddleProductId: "prod-tier2",
+              id: SubscriptionProductKey.Tier2,
+            }),
+          },
+        });
+        const now = new Date();
+
+        const missingWorkspaceId = ctx.generateId();
+        const event = ctx.createSubscriptionUpdatedEvent({
+          custom_data: { workspaceId: missingWorkspaceId },
+          current_billing_period: {
+            starts_at: now.toISOString(),
+            ends_at: now.toISOString(),
+          },
+        });
+
+        const errorSpy = mock.method(logger, "error", () => {});
+        const warnSpy = mock.method(logger, "warn", () => {});
+
+        try {
+          await ctx.service.handleSubscriptionUpdatedEvent(event);
+
+          const warnedForThis = warnSpy.mock.calls.some((call) =>
+            String(call.arguments[0]).includes(missingWorkspaceId),
+          );
+          assert.ok(warnedForThis, "expected a warn log for the missing workspace");
+
+          const erroredForThis = errorSpy.mock.calls.some(
+            (call) =>
+              (
+                call.arguments[1] as { workspaceId?: string } | undefined
+              )?.workspaceId === missingWorkspaceId,
+          );
+          assert.strictEqual(erroredForThis, false);
+        } finally {
+          errorSpy.mock.restore();
+          warnSpy.mock.restore();
+        }
+      });
+    });
+
+    it("correctly calculates benefits including extra feeds addon", async () => {
+      const ctx = harness.createContext({
+        paddleService: {
+          getProduct: async (productId: string) => {
+            if (productId === "prod-tier3") {
+              return {
+                paddleProductId: productId,
+                id: SubscriptionProductKey.Tier3,
+              };
+            }
+            return {
+              paddleProductId: productId,
+              id: SubscriptionProductKey.Tier3AdditionalFeed,
+            };
+          },
+        },
+      });
+      const user = await ctx.createUser();
+      const now = new Date();
+
+      const event = ctx.createSubscriptionUpdatedEvent({
+        custom_data: { userId: user.id },
+        items: [
+          { quantity: 1, price: { id: "price-1", product_id: "prod-tier3" } },
+          { quantity: 10, price: { id: "price-2", product_id: "prod-addon" } },
+        ],
+        current_billing_period: {
+          starts_at: now.toISOString(),
+          ends_at: now.toISOString(),
+        },
+      });
+
+      await ctx.service.handleSubscriptionUpdatedEvent(event);
+
+      const supporter = await ctx.supporterRepository.findById(
+        user.discordUserId,
+      );
+      assert.ok(supporter?.paddleCustomer?.subscription);
+      assert.strictEqual(
+        supporter.paddleCustomer.subscription.benefits.maxUserFeeds,
+        140 + 10,
+      );
+      assert.strictEqual(
+        supporter.paddleCustomer.subscription.addons?.length,
+        1,
+      );
+      assert.strictEqual(
+        supporter.paddleCustomer.subscription.addons?.[0]?.key,
+        SubscriptionProductKey.Tier3AdditionalFeed,
+      );
+      assert.strictEqual(
+        supporter.paddleCustomer.subscription.addons?.[0]?.quantity,
+        10,
+      );
+    });
+
+    it('sets cancellation date when scheduled_change action is "cancel"', async () => {
+      const ctx = harness.createContext();
+      const user = await ctx.createUser();
+      const now = new Date();
+      const endDate = dayjs(now).add(1, "month").toDate();
+
+      const event = ctx.createSubscriptionUpdatedEvent({
+        custom_data: { userId: user.id },
+        current_billing_period: {
+          starts_at: now.toISOString(),
+          ends_at: endDate.toISOString(),
+        },
+        scheduled_change: {
+          action: "cancel",
+          resume_at: null,
+          effective_at: endDate.toISOString(),
+        },
+      });
+
+      await ctx.service.handleSubscriptionUpdatedEvent(event);
+
+      const supporter = await ctx.supporterRepository.findById(
+        user.discordUserId,
+      );
+      assert.ok(supporter?.paddleCustomer?.subscription?.cancellationDate);
+      assert.strictEqual(
+        supporter.paddleCustomer.subscription.cancellationDate.getTime(),
+        endDate.getTime(),
+      );
+    });
+
+    it("calls enforceUserFeedLimit after upsert", async () => {
+      const ctx = harness.createContext();
+      const user = await ctx.createUser();
+      const now = new Date();
+
+      const event = ctx.createSubscriptionUpdatedEvent({
+        custom_data: { userId: user.id },
+        current_billing_period: {
+          starts_at: now.toISOString(),
+          ends_at: now.toISOString(),
+        },
+      });
+
+      await ctx.service.handleSubscriptionUpdatedEvent(event);
+
+      assert.strictEqual(
+        ctx.userFeedsService.enforceUserFeedLimit.mock.callCount(),
+        1,
+      );
+      assert.strictEqual(
+        ctx.userFeedsService.enforceUserFeedLimit.mock.calls[0]?.arguments[0],
+        user.discordUserId,
+      );
+    });
+
+    it("calls syncDiscordSupporterRoles after upsert (error-safe)", async () => {
+      const ctx = harness.createContext({
+        supportersService: {
+          syncDiscordSupporterRoles: async () => {
+            throw new Error("Discord API error");
+          },
+        },
+      });
+      const user = await ctx.createUser();
+      const now = new Date();
+
+      const event = ctx.createSubscriptionUpdatedEvent({
+        custom_data: { userId: user.id },
+        current_billing_period: {
+          starts_at: now.toISOString(),
+          ends_at: now.toISOString(),
+        },
+      });
+
+      await assert.doesNotReject(() =>
+        ctx.service.handleSubscriptionUpdatedEvent(event),
+      );
+    });
+
+    it("maps past_due status correctly", async () => {
+      const ctx = harness.createContext();
+      const user = await ctx.createUser();
+      const now = new Date();
+
+      const event = ctx.createSubscriptionUpdatedEvent({
+        custom_data: { userId: user.id },
+        status: PaddleSubscriptionStatus.PastDue,
+        current_billing_period: {
+          starts_at: now.toISOString(),
+          ends_at: now.toISOString(),
+        },
+      });
+
+      await ctx.service.handleSubscriptionUpdatedEvent(event);
+
+      const supporter = await ctx.supporterRepository.findById(
+        user.discordUserId,
+      );
+      assert.ok(supporter?.paddleCustomer?.subscription);
+      assert.strictEqual(
+        supporter.paddleCustomer.subscription.status,
+        SubscriptionStatus.PastDue,
+      );
+    });
+
+    it("maps paused status correctly", async () => {
+      const ctx = harness.createContext();
+      const user = await ctx.createUser();
+      const now = new Date();
+
+      const event = ctx.createSubscriptionUpdatedEvent({
+        custom_data: { userId: user.id },
+        status: PaddleSubscriptionStatus.Paused,
+        current_billing_period: {
+          starts_at: now.toISOString(),
+          ends_at: now.toISOString(),
+        },
+      });
+
+      await ctx.service.handleSubscriptionUpdatedEvent(event);
+
+      const supporter = await ctx.supporterRepository.findById(
+        user.discordUserId,
+      );
+      assert.ok(supporter?.paddleCustomer?.subscription);
+      assert.strictEqual(
+        supporter.paddleCustomer.subscription.status,
+        SubscriptionStatus.Paused,
+      );
+    });
+
+    it("correctly sets month billing interval", async () => {
+      const ctx = harness.createContext();
+      const user = await ctx.createUser();
+      const now = new Date();
+
+      const event = ctx.createSubscriptionUpdatedEvent({
+        custom_data: { userId: user.id },
+        billing_cycle: {
+          interval: "month",
+          frequency: 1,
+        },
+        current_billing_period: {
+          starts_at: now.toISOString(),
+          ends_at: now.toISOString(),
+        },
+      });
+
+      await ctx.service.handleSubscriptionUpdatedEvent(event);
+
+      const supporter = await ctx.supporterRepository.findById(
+        user.discordUserId,
+      );
+      assert.ok(supporter?.paddleCustomer?.subscription);
+      assert.strictEqual(
+        supporter.paddleCustomer.subscription.billingInterval,
+        "month",
+      );
+    });
+
+    it("correctly applies Tier2 benefits", async () => {
+      const ctx = harness.createContext({
+        paddleService: {
+          getProduct: async () => ({
+            paddleProductId: "prod-tier2",
+            id: SubscriptionProductKey.Tier2,
+          }),
+        },
+      });
+      const user = await ctx.createUser();
+      const now = new Date();
+
+      const event = ctx.createSubscriptionUpdatedEvent({
+        custom_data: { userId: user.id },
+        current_billing_period: {
+          starts_at: now.toISOString(),
+          ends_at: now.toISOString(),
+        },
+      });
+
+      await ctx.service.handleSubscriptionUpdatedEvent(event);
+
+      const supporter = await ctx.supporterRepository.findById(
+        user.discordUserId,
+      );
+      assert.ok(supporter?.paddleCustomer?.subscription);
+      assert.strictEqual(
+        supporter.paddleCustomer.subscription.productKey,
+        SubscriptionProductKey.Tier2,
+      );
+      assert.strictEqual(
+        supporter.paddleCustomer.subscription.benefits.maxUserFeeds,
+        70,
+      );
+      assert.strictEqual(
+        supporter.paddleCustomer.subscription.benefits.refreshRateSeconds,
+        120,
+      );
+    });
+
+    it("correctly applies Tier1Legacy benefits", async () => {
+      const ctx = harness.createContext({
+        paddleService: {
+          getProduct: async () => ({
+            paddleProductId: "prod-tier1-legacy",
+            id: LegacySubscriptionProductKey.Tier1Legacy,
+          }),
+        },
+      });
+      const user = await ctx.createUser();
+      const now = new Date();
+
+      const event = ctx.createSubscriptionUpdatedEvent({
+        custom_data: { userId: user.id },
+        current_billing_period: {
+          starts_at: now.toISOString(),
+          ends_at: now.toISOString(),
+        },
+      });
+
+      await ctx.service.handleSubscriptionUpdatedEvent(event);
+
+      const supporter = await ctx.supporterRepository.findById(
+        user.discordUserId,
+      );
+      assert.ok(supporter?.paddleCustomer?.subscription);
+      assert.strictEqual(
+        supporter.paddleCustomer.subscription.benefits.maxUserFeeds,
+        5,
+      );
+      assert.strictEqual(
+        supporter.paddleCustomer.subscription.benefits.refreshRateSeconds,
+        600,
+      );
+    });
+
+    it("correctly applies Tier3Legacy benefits", async () => {
+      const ctx = harness.createContext({
+        paddleService: {
+          getProduct: async () => ({
+            paddleProductId: "prod-tier3-legacy",
+            id: LegacySubscriptionProductKey.Tier3Legacy,
+          }),
+        },
+      });
+      const user = await ctx.createUser();
+      const now = new Date();
+
+      const event = ctx.createSubscriptionUpdatedEvent({
+        custom_data: { userId: user.id },
+        current_billing_period: {
+          starts_at: now.toISOString(),
+          ends_at: now.toISOString(),
+        },
+      });
+
+      await ctx.service.handleSubscriptionUpdatedEvent(event);
+
+      const supporter = await ctx.supporterRepository.findById(
+        user.discordUserId,
+      );
+      assert.ok(supporter?.paddleCustomer?.subscription);
+      assert.strictEqual(
+        supporter.paddleCustomer.subscription.benefits.maxUserFeeds,
+        35,
+      );
+      assert.strictEqual(
+        supporter.paddleCustomer.subscription.benefits.refreshRateSeconds,
+        120,
+      );
+    });
+
+    it("correctly applies Tier6Legacy benefits", async () => {
+      const ctx = harness.createContext({
+        paddleService: {
+          getProduct: async () => ({
+            paddleProductId: "prod-tier6-legacy",
+            id: LegacySubscriptionProductKey.Tier6Legacy,
+          }),
+        },
+      });
+      const user = await ctx.createUser();
+      const now = new Date();
+
+      const event = ctx.createSubscriptionUpdatedEvent({
+        custom_data: { userId: user.id },
+        current_billing_period: {
+          starts_at: now.toISOString(),
+          ends_at: now.toISOString(),
+        },
+      });
+
+      await ctx.service.handleSubscriptionUpdatedEvent(event);
+
+      const supporter = await ctx.supporterRepository.findById(
+        user.discordUserId,
+      );
+      assert.ok(supporter?.paddleCustomer?.subscription);
+      assert.strictEqual(
+        supporter.paddleCustomer.subscription.benefits.maxUserFeeds,
+        140,
+      );
+      assert.strictEqual(
+        supporter.paddleCustomer.subscription.benefits.refreshRateSeconds,
+        120,
+      );
+    });
+
+    it("sets nextBillDate to null when not provided", async () => {
+      const ctx = harness.createContext();
+      const user = await ctx.createUser();
+      const now = new Date();
+
+      const event = ctx.createSubscriptionUpdatedEvent({
+        custom_data: { userId: user.id },
+        next_billed_at: null,
+        current_billing_period: {
+          starts_at: now.toISOString(),
+          ends_at: now.toISOString(),
+        },
+      });
+
+      await ctx.service.handleSubscriptionUpdatedEvent(event);
+
+      const supporter = await ctx.supporterRepository.findById(
+        user.discordUserId,
+      );
+      assert.ok(supporter?.paddleCustomer?.subscription);
+      assert.strictEqual(
+        supporter.paddleCustomer.subscription.nextBillDate,
+        null,
+      );
+    });
+
+    it("does not set cancellationDate when no scheduled_change", async () => {
+      const ctx = harness.createContext();
+      const user = await ctx.createUser();
+      const now = new Date();
+
+      const event = ctx.createSubscriptionUpdatedEvent({
+        custom_data: { userId: user.id },
+        scheduled_change: null,
+        current_billing_period: {
+          starts_at: now.toISOString(),
+          ends_at: now.toISOString(),
+        },
+      });
+
+      await ctx.service.handleSubscriptionUpdatedEvent(event);
+
+      const supporter = await ctx.supporterRepository.findById(
+        user.discordUserId,
+      );
+      assert.ok(supporter?.paddleCustomer?.subscription);
+      assert.strictEqual(
+        supporter.paddleCustomer.subscription.cancellationDate,
+        null,
+      );
+    });
+  });
+
+  describe("handleSubscriptionCancelledEvent", () => {
+    it("nullifies subscription by subscription ID", async () => {
+      const ctx = harness.createContext();
+      const subscriptionId = ctx.generateId();
+      const discordUserId = ctx.generateId();
+
+      await ctx.createSupporter({
+        id: discordUserId,
+        paddleCustomer: {
+          customerId: ctx.generateId(),
+          email: "test@test.com",
+          lastCurrencyCodeUsed: "USD",
+          subscription: {
+            id: subscriptionId,
+            productKey: SubscriptionProductKey.Tier1,
+            status: SubscriptionStatus.Active,
+            currencyCode: "USD",
+            billingPeriodStart: new Date(),
+            billingPeriodEnd: dayjs().add(1, "month").toDate(),
+            billingInterval: "month",
+            benefits: {
+              maxUserFeeds: 35,
+              allowWebhooks: true,
+              dailyArticleLimit: 1000,
+              refreshRateSeconds: 120,
+            },
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+
+      const event = ctx.createSubscriptionCanceledEvent({ id: subscriptionId });
+
+      await ctx.service.handleSubscriptionCancelledEvent(event);
+
+      const supporter = await ctx.supporterRepository.findById(discordUserId);
+      assert.ok(supporter?.paddleCustomer);
+      assert.strictEqual(supporter.paddleCustomer.subscription, null);
+    });
+
+    it("does nothing when supporter not found", async () => {
+      const ctx = harness.createContext();
+      const event = ctx.createSubscriptionCanceledEvent();
+
+      await assert.doesNotReject(() =>
+        ctx.service.handleSubscriptionCancelledEvent(event),
+      );
+
+      assert.strictEqual(
+        ctx.userFeedsService.enforceUserFeedLimit.mock.callCount(),
+        0,
+      );
+      assert.strictEqual(
+        ctx.supportersService.syncDiscordSupporterRoles.mock.callCount(),
+        0,
+      );
+    });
+
+    it("calls enforceUserFeedLimit when supporter found", async () => {
+      const ctx = harness.createContext();
+      const subscriptionId = ctx.generateId();
+      const discordUserId = ctx.generateId();
+
+      await ctx.createSupporter({
+        id: discordUserId,
+        paddleCustomer: {
+          customerId: ctx.generateId(),
+          email: "test@test.com",
+          lastCurrencyCodeUsed: "USD",
+          subscription: {
+            id: subscriptionId,
+            productKey: SubscriptionProductKey.Tier1,
+            status: SubscriptionStatus.Active,
+            currencyCode: "USD",
+            billingPeriodStart: new Date(),
+            billingPeriodEnd: dayjs().add(1, "month").toDate(),
+            billingInterval: "month",
+            benefits: {
+              maxUserFeeds: 35,
+              allowWebhooks: true,
+              dailyArticleLimit: 1000,
+              refreshRateSeconds: 120,
+            },
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+
+      const event = ctx.createSubscriptionCanceledEvent({ id: subscriptionId });
+
+      await ctx.service.handleSubscriptionCancelledEvent(event);
+
+      assert.strictEqual(
+        ctx.userFeedsService.enforceUserFeedLimit.mock.callCount(),
+        1,
+      );
+      assert.strictEqual(
+        ctx.userFeedsService.enforceUserFeedLimit.mock.calls[0]?.arguments[0],
+        discordUserId,
+      );
+    });
+
+    it("calls syncDiscordSupporterRoles when supporter found (error-safe)", async () => {
+      const ctx = harness.createContext({
+        supportersService: {
+          syncDiscordSupporterRoles: async () => {
+            throw new Error("Discord API error");
+          },
+        },
+      });
+      const subscriptionId = ctx.generateId();
+      const discordUserId = ctx.generateId();
+
+      await ctx.createSupporter({
+        id: discordUserId,
+        paddleCustomer: {
+          customerId: ctx.generateId(),
+          email: "test@test.com",
+          lastCurrencyCodeUsed: "USD",
+          subscription: {
+            id: subscriptionId,
+            productKey: SubscriptionProductKey.Tier1,
+            status: SubscriptionStatus.Active,
+            currencyCode: "USD",
+            billingPeriodStart: new Date(),
+            billingPeriodEnd: dayjs().add(1, "month").toDate(),
+            billingInterval: "month",
+            benefits: {
+              maxUserFeeds: 35,
+              allowWebhooks: true,
+              dailyArticleLimit: 1000,
+              refreshRateSeconds: 120,
+            },
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+
+      const event = ctx.createSubscriptionCanceledEvent({ id: subscriptionId });
+
+      await assert.doesNotReject(() =>
+        ctx.service.handleSubscriptionCancelledEvent(event),
+      );
+    });
+  });
+});

@@ -1,8 +1,9 @@
 /* eslint-disable react/no-unstable-nested-components */
-import { Avatar, HStack, Text, useColorModeValue } from "@chakra-ui/react";
-import Select, { GroupBase, StylesConfig, components } from "react-select";
-import { ChevronDownIcon } from "@chakra-ui/icons";
-import StateManagedSelect from "react-select/dist/declarations/src/stateManager";
+import { HStack, Text } from "@chakra-ui/react";
+import Select, { AriaOnFocusProps, GroupBase, StylesConfig, components } from "react-select";
+import { FaChevronDown } from "react-icons/fa6";
+import { Avatar } from "@/components/ui/avatar";
+import { useColorModeValue } from "@/components/ui/color-mode";
 import { REACT_SELECT_STYLES } from "@/constants/reactSelectStyles";
 
 const { Option, DropdownIndicator } = components;
@@ -27,8 +28,10 @@ interface Props<T> {
   isClearable?: boolean;
   onInputChange?: (value: string) => void;
   placeholder?: string | React.ReactNode;
-  selectProps?: React.ComponentProps<typeof StateManagedSelect>;
+  selectProps?: React.ComponentProps<typeof Select>;
   inputRef?: React.ComponentProps<typeof Select>["ref"];
+  isInvalid: boolean;
+  invertBg?: boolean;
 }
 
 export const ThemedSelect = <T,>({
@@ -45,11 +48,18 @@ export const ThemedSelect = <T,>({
   onInputChange,
   selectProps,
   inputRef,
+  isInvalid,
+  invertBg,
 }: Props<T>) => {
   // @ts-ignore
-  const styles = useColorModeValue<SelectStyles, SelectStyles>({}, REACT_SELECT_STYLES);
-
+  const styles = useColorModeValue<SelectStyles>({}, REACT_SELECT_STYLES({ invertBg, isInvalid }));
   const selectedOption = options.find((option) => option.value === value);
+
+  const onFocus = ({ focused }: AriaOnFocusProps<SelectOption<T>, GroupBase<SelectOption<T>>>) => {
+    const msg = `You are currently focused on option ${focused.label}`;
+
+    return msg;
+  };
 
   return (
     <Select
@@ -59,25 +69,28 @@ export const ThemedSelect = <T,>({
       options={options}
       onBlur={onBlur}
       name={name}
+      aria-invalid={isInvalid}
+      ariaLiveMessages={{ onFocus: onFocus as never }}
       placeholder={placeholder}
       isClearable={isClearable}
       ref={inputRef}
+      menuPosition="fixed"
       // @ts-ignore
       styles={styles}
       value={selectedOption || ""}
-      onChange={(option) => {
+      onChange={(option: any) => {
         onChange((option as SelectOption<T>)?.value || "", (option as SelectOption<T>)?.data);
       }}
       components={{
         Option: IconOption as never,
-        NoOptionsMessage: (props) => (
+        NoOptionsMessage: (props: any) => (
           <components.NoOptionsMessage {...props}>
             <span>No results found</span>
           </components.NoOptionsMessage>
         ),
         DropdownIndicator: ChakraDropdownIndicator as never,
       }}
-      onInputChange={(input) => onInputChange?.(input)}
+      onInputChange={(input: any) => onInputChange?.(input)}
       {...selectProps}
     />
   );
@@ -95,7 +108,7 @@ const IconOption = <T,>(props: IconOptionProps) => {
     <Option {...props}>
       <HStack alignItems="center">
         {typeof castedData.icon === "string" && (
-          <Avatar src={castedData.icon} name={castedData.value} size="xs" />
+          <Avatar aria-hidden src={castedData.icon} name={castedData.value} size="xs" />
         )}
         {typeof castedData.icon === "object" && castedData.icon}
         <Text>{castedData.label}</Text>
@@ -107,7 +120,7 @@ const IconOption = <T,>(props: IconOptionProps) => {
 const ChakraDropdownIndicator = (props: Parameters<typeof DropdownIndicator>[0]) => {
   return (
     <components.DropdownIndicator {...props}>
-      <ChevronDownIcon fontSize="lg" />
+      <FaChevronDown size={14} />
     </components.DropdownIndicator>
   );
 };

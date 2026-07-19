@@ -1,4 +1,5 @@
 import { RequestFetchOptions, RequestStatus } from '../constants';
+import { RequestSource } from '../constants/request-source.constants';
 import { Response } from './response.entity';
 import {
   Entity,
@@ -10,7 +11,10 @@ import {
 } from '@mikro-orm/core';
 
 @Entity()
-@Index({ properties: ['url', 'createdAt'], name: 'url_created_at_index' })
+@Index({
+  properties: ['lookupKey', 'createdAt', 'status'],
+  name: 'lookupkey_created_at_status_index',
+})
 export class Request {
   @PrimaryKey({
     autoincrement: true,
@@ -19,6 +23,9 @@ export class Request {
 
   @Enum(() => RequestStatus)
   status!: RequestStatus;
+
+  @Enum({ items: () => RequestSource, nullable: true, default: null })
+  source?: string | null;
 
   @Property({
     nullable: true,
@@ -31,6 +38,12 @@ export class Request {
     type: 'text',
   })
   url!: string;
+
+  @Property({
+    type: 'text',
+    nullable: true,
+  })
+  lookupKey!: string | null;
 
   @Property({
     type: 'timestamp with time zone',
@@ -56,6 +69,7 @@ export class Request {
     nullable: true,
     entity: () => Response,
     index: true,
+    deleteRule: 'cascade',
   })
   response!: Response | null;
 }

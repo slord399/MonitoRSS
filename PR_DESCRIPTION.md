@@ -1,62 +1,63 @@
 # Pull Request Description
 
 ## 📋 Summary of Changes
-This PR squashes and integrates all massive updates from the `dev2-dev` branch into MonitoRSS. It migrates the legacy architecture into a modular, service-based framework featuring a next-generation feed delivery engine powered by Fastify, MikroORM, Redis, and RabbitMQ. Furthermore, it completely revamps the Web UI with improved feed list views, advanced connection options, Reddit auth, custom placeholders, and granular billing controls.
+This Pull Request migrates MonitoRSS from a legacy NestJS monolithic codebase into a highly optimized, service-oriented architecture. It completely decommissions the legacy Discord bot and user-feeds delivery services, replacing them with a high-performance Fastify delivery runner (`services/user-feeds-next`), a dedicated host-rate-limited fetch service (`services/feed-requests`), and a centralized shared events system (`packages/contracts`).
+
+Furthermore, it incorporates comprehensive dependency upgrades, overrides standardization, and critical framework bug fixes to guarantee maximum stability, type safety, and resistance to security vulnerabilities.
 
 ---
 
 ## 🗂️ Architectural & Structural Breakdown
 
-### 🖥️ Next-Gen Feed Delivery Engine (`services/user-feeds-next`)
-Built on Fastify for ultra-low overhead and peak performance, this service replaces the legacy NestJS `user-feeds` service to orchestrate robust, modern feed parsing and delivery.
-- `services/user-feeds-next/package.json` -> Manages workspace dependencies and runs the fast Fastify app using custom build tools.
-- `services/user-feeds-next/src/main.ts` -> Serves as the microservice entry point, configuring Fastify HTTP APIs and starting the app.
-- `services/user-feeds-next/src/articles/parser/article-parser.ts` -> Parses XML/RSS feeds into consistent, structured article payloads.
-- `services/user-feeds-next/src/delivery/discord/delivery-routing.ts` -> Evaluates medium-level filters and routes formatted articles directly to Discord channels or webhooks.
-- `services/user-feeds-next/src/formatting/placeholder-engine.ts` -> Parses and resolves standard and custom placeholder patterns dynamically during formatting.
-- `services/user-feeds-next/src/stores/postgres/migrations.ts` -> Contains SQL schema definitions and self-healing mechanisms for user feed delivery logs.
+### 🤖 Decoupled Microservices
+- **`services/user-feeds-next`**: Replaces the legacy `user-feeds` service. Built on Fastify with TypeScript, it implements a lean, schema-validated event router that processes article deliveries, handles custom placeholders, and formats HTML-to-Discord content with extreme speed.
+- **`services/feed-requests`**: A robust, standalone network service designed to execute, partition, and rate-limit HTTP feed requests. It stores request histories in partitioned PostgreSQL tables and manages host-level request locks via Redis.
+- **`services/bot-presence` & `services/discord-rest-listener`**: Retained and standardized to align with Node.js 22 and updated RabbitMQ event pipelines.
 
-### 🌐 Core Request Broker (`services/feed-requests`)
-Dedicated to managing outgoing network requests for feed URLs, utilizing advanced caching, status tracking, and request partitions.
-- `services/feed-requests/src/partitioned-requests-store/partitioned-requests-store.service.ts` -> Tracks feed fetch logs inside partition-based PostgreSQL tables.
-- `services/feed-requests/src/host-rate-limiter/host-rate-limiter.service.ts` -> Implements strict host-level rate limiting to comply with remote web servers.
-- `services/feed-requests/src/utils/prune-and-create-partitions.ts` -> Automates the partition rotation and database table pruning.
+### 📦 Centralized Shared Contracts (`packages/`)
+- **`packages/contracts`**: A brand new monorepo workspace package that defines unified AMQP queue configurations and type-safe schema contracts (e.g., `feed-deliver-articles.ts`, `feed-article-delivery-result.ts`), standardizing communication across all decoupled microservices.
+- **`packages/logger`**: Standardized shared Datadog and JSON logger utilities.
 
-### 🎨 Revamped React Client Web UI (`services/backend-api/client`)
-A fully modernized user interface based on Chakra UI V2, React Query, and TypeScript to manage feeds, connections, and comanager invitations.
-- `services/backend-api/client/package.json` -> Governs development scripts and client-side dependencies.
-- `services/backend-api/client/src/features/feedConnections/discordChannel/messageBuilder/MessageBuilderPage.tsx` -> A highly interactive UI to build and preview Discord messages with custom templates, embeds, and components.
-- `services/backend-api/client/src/features/workspaces/components/WorkspaceBilling/index.tsx` -> Adds premium pricing Detents sliders and Paddle transaction checkout integrations.
-- `services/backend-api/client/src/features/feed/components/SetupChecklist/index.tsx` -> Shows helpful interactive checklists for new users setting up feeds.
-
-### 📦 Unified Monorepo & Shared Packages (`packages/`)
-- `packages/contracts/src/queues.ts` -> Centralizes the RabbitMQ queue names, ensuring type-safe broker routing between microservices.
-- `packages/contracts/src/events/feed-deliver-articles.ts` -> Schema contract representing the payload for scheduled article delivery.
-- `packages/logger/src/index.ts` -> Exposes standard JSON and Datadog logging utilities.
+### 🎨 Modernized React Web Portal (`services/backend-api`)
+- **`services/backend-api/client`**: Complete redesign using React and Chakra UI V2. Introduces the interactive **Message Builder** panel with full drag-and-drop live preview of embeds, fields, and custom buttons, a Detents capacity slider for workspace billing, Reddit OAuth connection settings, and setup checklists.
+- **`services/backend-api/src`**: Fastify HTTP server replacing the legacy backend APIs to securely serve feed management endpoints, comanager workspace invites, and Paddle checkout integrations.
 
 ---
 
 ## ✨ New Features & Logic Improvements
-- **Service-Based Architecture**: Complete decoupling of the web backend, feed fetcher, and feed delivery engines.
-- **Custom Placeholders**: Define dynamic regex-based placeholders on articles to customize Discord text.
-- **Interactive Message Builder**: Live rendering of Discord channel embeds and component buttons inside the client panel.
-- **Granular Workspace Billing**: Flexible seat-based comanager access and dynamic pricing detents with active Paddle checkout.
-- **Reddit OAuth Connections**: Natively configure Reddit feeds utilizing user-verified OAuth logins.
+- **Interactive Message Builder**: Fully drag-and-drop Discord message layout designer with dynamic component buttons and live layout previews inside the browser.
+- **Regex-Based Custom Placeholders**: Allows host administrators and users to extract and parse specific patterns from feed fields using custom regular expressions.
+- **Granular Workspace Billing**: Adds support for seat-based workspace management, comanager feed limits, and active detents pricing sliders connected with Paddle.
+- **Reddit Feed Integration**: Natively fetch Reddit threads utilizing authenticated OAuth API profiles.
 
 ---
 
 ## 🐛 Bug Fixes & Refactoring
-- **Automatic Partitions**: Migrated feed logs to partitioned PostgreSQL tables, preventing performance degradation on large datasets.
-- **Self-Healing Schemas**: Added automatic schema generation and self-healing migrations to prevent integration test races.
-- **Transitive Security Updates**: Hardened npm dependency trees by standardizing `lodash`, `qs`, `undici`, `minimatch`, and `fast-uri` globally.
-- **Legacy Feed Cleanups**: Completely decommissioned and deleted the legacy `user-feeds` and `bot` services.
+- **Automatic Log Partitioning**: Feed requests and delivery logs are now kept in partition tables rotated automatically, avoiding index bloat and DB slow-down.
+- **Self-Healing Schema Migrations**: Employs an internal schema generation and migrations runner on microservice startup, eliminating database concurrency deadlocks during integration tests.
+- **Legacy Feed Cleanups**: Completely decommissioned and deleted the legacy `services/bot` and monolithic NestJS `services/user-feeds` codebases.
+
+---
+
+## 🛠️ Dependency Standardizations & Bug Fix Patches
+This release packages vital patches and upgrades for the security, compatibility, and execution correctness of MonitoRSS:
+- **MikroORM 6 Integration Fixes**: Patched NestJS and integration tests to retrieve `EntityManager` for persistence operations (`em.persist()`, `em.flush()`) instead of calling deleted methods on the legacy `EntityRepository`.
+- **Timestamp and Date Resolution**: Resolved date parsing mismatch bugs inside raw MikroORM `em.execute()` PostgreSQL queries by explicitly wrapping returned raw timestamps (e.g., `request_initiated_at` and `created_at`) inside `new Date()` wrappers.
+- **Test Concurrency Protections**: Enforced Sequential Jest execution (`--runInBand`) for tests performing PostgreSQL schema migrations to eliminate parallel race conditions and prevent "could not open relation with OID" failures.
+- **TypeScript & Babel Hoisting**: Aligned monorepo DevDependencies TypeScript version to prevent type conflicts on hoisted Babel traversal packages, and added `class-validator` and `class-transformer` directly to the root `devDependencies` so NestJS testing utilities resolve them correctly during unit tests.
+- **Security Dependency Hardening**: Standardized transitive packages to clean and secure tracks via package overrides:
+  - Upgraded **`fastify`** to `^5.10.0` globally.
+  - Standardized **`nodemailer`** to `^9.0.3` and `@types/nodemailer` to `^8.0.1`.
+  - Standardized **`lodash`** to `^4.18.1` and **`qs`** to `^6.15.3`.
+  - Upgraded **`undici`** globally to safe versions (`v6.27.0`/`v7.28.0`).
+  - Hardened ReDoS risks by pinning **`minimatch`** tracks (`3.1.4`, `5.1.8`, `8.0.6`, `10.2.5`) and **`brace-expansion`** (`^5.0.7`).
+  - Standardized **`fast-xml-parser`** to `^5.10.0`, **`ws`** to `8.21.0`, and **`flatted`** to `^3.4.2`.
+  - Corrected overrides for `@fastify/middie` (`^9.3.3`) and `form-data` (`^4.0.1`) to resolve 404 integrity errors during global installation.
+  - Cleaned up deprecated `@types/twemoji` from the client package dependencies.
 
 ---
 
 ## ⚠️ Configuration & Breaking Changes
-Host administrators must configure the following before deploying:
-- **NPM Monorepo Workspaces**: Standardized to use NPM Workspaces (Node 22+, NPM 12+). Run `npm install` from the root directory to bootstrap links.
-- **RabbitMQ**: Requires a RabbitMQ message broker with channels for microservice events.
-- **PostgreSQL Partitioning**: Ensure PostgreSQL host permissions support partition table creation.
-- **Paddle Billing Integration**: Set `PADDLE_CLIENT_TOKEN` and `PADDLE_API_KEY` for billing operations.
-- **Reddit OAuth Client**: Provide Reddit application client credentials to enable Reddit feeds.
+- **NPM Workspaces Required**: This repository is now an NPM monorepo workspace. Run `npm install` from the root directory to bootstrap links.
+- **RabbitMQ Infrastructure**: A RabbitMQ message broker instance is mandatory to coordinate feed routing events between services.
+- **Environment Variables**: Administrators must populate `PADDLE_CLIENT_TOKEN`, `PADDLE_API_KEY`, and Reddit App OAuth client settings to fully enable billing and Reddit feeds.

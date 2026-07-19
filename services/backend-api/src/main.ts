@@ -1,64 +1,116 @@
-import { Module, VersioningType } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
-import { HttpAdapterHost, NestFactory } from "@nestjs/core";
+import "./infra/dayjs-locales";
+import { loadConfig, Environment } from "./config";
+import { createMongoConnection, closeMongoConnection } from "./infra/mongoose";
 import {
-  NestFastifyApplication,
-  FastifyAdapter,
-} from "@nestjs/platform-fastify";
-import { useContainer } from "class-validator";
-import fastifySession from "@fastify/secure-session";
-import { AppModule } from "./app.module";
-import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
+  createRabbitConnection,
+  closeRabbitConnection,
+} from "./infra/rabbitmq";
+import { createContainer } from "./container";
+import { createApp, startApp } from "./app";
+import logger from "./infra/logger";
 
-/**
- * Required  because Nest's app.select() does not work for dynamic modules
- */
-@Module({
-  imports: [AppModule.forApi()],
-})
-class StaticAppModule {}
+async function main() {
+  const config = loadConfig();
 
-async function bootstrap() {
-  const app = await NestFactory.create<NestFastifyApplication>(
-    StaticAppModule,
-    new FastifyAdapter({
-      logger: true,
-    }),
-    {
-      cors: true,
-    }
+  logger.info("Starting backend-api-next...");
+
+  // Initialize infrastructure
+  const mongoConnection = await createMongoConnection(
+    config.BACKEND_API_MONGODB_URI,
+  );
+  const rabbitmq = await createRabbitConnection(
+    config.BACKEND_API_RABBITMQ_BROKER_URL,
   );
 
-  app.enableShutdownHooks();
-
-  const httpAdapterHost = app.get(HttpAdapterHost);
-  app.useGlobalFilters(new AllExceptionsFilter(httpAdapterHost));
-
-  useContainer(app.select(StaticAppModule), { fallbackOnErrors: true });
-  app.setGlobalPrefix("api");
-  app.enableVersioning({
-    type: VersioningType.URI,
-    defaultVersion: "1",
+  // Create container with dependencies
+  const container = createContainer({
+    config,
+    mongoConnection,
+    rabbitmq,
   });
 
-  const config = app.get(ConfigService);
-  const sessionSecret = config.get("BACKEND_API_SESSION_SECRET");
-  const sessionSalt = config.get("BACKEND_API_SESSION_SALT");
+  // Seed curated feeds in non-production environments
+  if (config.NODE_ENV !== Environment.Production) {
+    const existingFeeds = await container.curatedFeedRepository.getAll();
+    if (existingFeeds.length === 0) {
+      const { default: mockData } =
+        await import("./features/curated-feeds/data/curated-feeds-mock.json");
+      const session = await mongoConnection.startSession();
+      try {
+        await session.withTransaction(async () => {
+          await container.curatedCategoryRepository.replaceAll(
+            mockData.categories.map((c: { id: string; label: string }) => ({
+              categoryId: c.id,
+              label: c.label,
+            })),
+            session,
+          );
+          await container.curatedFeedRepository.replaceAll(
+            mockData.feeds,
+            session,
+          );
+        });
+        logger.info(
+          `Seeded curated feeds from mock data (${mockData.feeds.length} feeds, ${mockData.categories.length} categories)`,
+        );
+      } finally {
+        await session.endSession();
+      }
+    }
+  }
 
-  await app.register(fastifySession, {
-    secret: sessionSecret,
-    salt: sessionSalt,
-    cookie: {
-      path: "/",
-      httpOnly: true,
-    },
-  });
+  // Initialize message broker consumers
+  await container.messageBrokerEventsService.initialize();
 
-  const port = config.getOrThrow("BACKEND_API_PORT");
+  // Create and start the Fastify app
+  const app = await createApp(container);
+  await startApp(app, config.BACKEND_API_PORT);
 
-  console.log(`NestJS is listening on port ${port}`);
+  // Graceful shutdown handlers
+  const shutdown = async (signal: string) => {
+    logger.info(`Received ${signal}. Shutting down...`);
 
-  await app.listen(port, "0.0.0.0");
+    try {
+      await app.close();
+      logger.info("HTTP server stopped");
+    } catch (err) {
+      logger.error("Error stopping HTTP server", {
+        error: (err as Error).stack,
+      });
+    }
+
+    try {
+      await container.messageBrokerEventsService.close();
+    } catch (err) {
+      logger.error("Error closing message broker consumers", {
+        error: (err as Error).stack,
+      });
+    }
+
+    try {
+      await closeRabbitConnection(rabbitmq);
+    } catch (err) {
+      logger.error("Error closing RabbitMQ connection", {
+        error: (err as Error).stack,
+      });
+    }
+
+    try {
+      await closeMongoConnection(mongoConnection);
+    } catch (err) {
+      logger.error("Error closing MongoDB connection", {
+        error: (err as Error).stack,
+      });
+    }
+
+    process.exit(0);
+  };
+
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
 }
 
-bootstrap();
+main().catch((err) => {
+  logger.error("Failed to start service", { error: (err as Error).stack });
+  process.exit(1);
+});

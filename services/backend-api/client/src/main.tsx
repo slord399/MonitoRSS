@@ -1,32 +1,111 @@
 import "./utils/i18n";
 import React from "react";
-import { ChakraProvider, ColorModeScript } from "@chakra-ui/react";
 import "./index.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRoot } from "react-dom/client";
-import { datadogLogs } from "@datadog/browser-logs";
-import { BrowserRouter } from "react-router-dom";
-import theme from "./utils/theme";
+import {
+  BrowserRouter,
+  createRoutesFromChildren,
+  matchRoutes,
+  useLocation,
+  useNavigationType,
+} from "react-router-dom";
+import * as Sentry from "@sentry/react";
 import setupMockBrowserWorker from "./mocks/browser";
-import { ForceDarkMode } from "./components/ForceDarkMode";
-import { GenericErrorBoundary } from "./components/GenericErrorBoundary";
+import { Provider } from "./components/ui/provider";
+import { Toaster } from "./components/ui/toaster";
+import { GlobalErrorBoundary } from "./components/GlobalErrorBoundary";
 import App from "./App";
+import { PricingDialogProvider, PaddleContextProvider } from "@/features/subscriptionProducts";
+
+/**
+ * From https://github.com/facebook/react/issues/11538#issuecomment-417504600
+ */
+function catchGoogleTranslateErrors() {
+  if (typeof Node === "function" && Node.prototype) {
+    const originalRemoveChild = Node.prototype.removeChild;
+
+    // @ts-ignore
+    // eslint-disable-next-line func-names
+    Node.prototype.removeChild = function (child) {
+      if (child.parentNode !== this) {
+        if (console) {
+          // eslint-disable-next-line no-console
+          console.error(
+            "Google Translate Error: Cannot remove a child from a different parent",
+            child,
+            this,
+          );
+        }
+
+        return child;
+      }
+
+      // @ts-ignore
+      // eslint-disable-next-line prefer-rest-params
+      return originalRemoveChild.apply(this, arguments);
+    };
+
+    const originalInsertBefore = Node.prototype.insertBefore;
+
+    // @ts-ignore
+    // eslint-disable-next-line func-names
+    Node.prototype.insertBefore = function (newNode, referenceNode) {
+      if (referenceNode && referenceNode.parentNode !== this) {
+        if (console) {
+          // eslint-disable-next-line no-console
+          console.error(
+            "Google Translate Error: Cannot insert before a reference node from a different parent",
+            referenceNode,
+            this,
+          );
+        }
+
+        return newNode;
+      }
+
+      // @ts-ignore
+      // eslint-disable-next-line prefer-rest-params
+      return originalInsertBefore.apply(this, arguments);
+    };
+  }
+}
 
 async function prepare() {
   if (["development-mockapi"].includes(import.meta.env.MODE)) {
     await setupMockBrowserWorker().then((worker) => worker.start());
-  } else if (import.meta.env.MODE !== "development") {
-    const DD_CLIENT_KEY = process.env.REACT_APP_DD_CLIENT_KEY;
+  } else {
+    const DSN = import.meta.env.VITE_SENTRY_DSN;
 
-    if (DD_CLIENT_KEY) {
-      datadogLogs.init({
-        clientToken: DD_CLIENT_KEY,
-        forwardErrorsToLogs: true,
-        sessionSampleRate: 100,
-        forwardConsoleLogs: ["error"],
+    if (DSN) {
+      Sentry.init({
+        dsn: DSN,
+        tunnel: "/api/v1/sentry-tunnel",
+        environment: import.meta.env.MODE,
+        integrations: [
+          Sentry.reactRouterV6BrowserTracingIntegration({
+            useEffect: React.useEffect,
+            useLocation,
+            useNavigationType,
+            createRoutesFromChildren,
+            matchRoutes,
+          }),
+          Sentry.replayIntegration({
+            maskAllText: false,
+            blockAllMedia: false,
+            maskAllInputs: false,
+            networkDetailAllowUrls: ["/api/v1/*"],
+          }),
+        ],
+        tracesSampleRate: 0.2,
+        // Session Replay
+        replaysSessionSampleRate: 0.5, // This sets the sample rate at 10%. You may want to change it to 100% while in development and then sample at a lower rate in production.
+        replaysOnErrorSampleRate: 1.0, // If you're not already sampling the entire session, change the sample rate to 100% when sampling sessions where errors occur.
       });
     }
   }
+
+  catchGoogleTranslateErrors();
 
   return Promise.resolve();
 }
@@ -61,17 +140,20 @@ prepare().then(() => {
     <BrowserRouter>
       {/** Disable support widget since the iframe sometimes blocks forms */}
       {/* <SupportWidget /> */}
-      <ChakraProvider theme={theme}>
-        <ColorModeScript initialColorMode={theme.config.initialColorMode} />
+      {/* Dark-only for now: forcedTheme replaces the v2 ForceDarkMode + ColorModeScript. */}
+      <Provider forcedTheme="dark" defaultTheme="dark">
         <QueryClientProvider client={queryClient}>
-          <ForceDarkMode>
-            <GenericErrorBoundary>
-              <App />
-            </GenericErrorBoundary>
-          </ForceDarkMode>
+          <GlobalErrorBoundary>
+            <PaddleContextProvider>
+              <PricingDialogProvider>
+                <App />
+              </PricingDialogProvider>
+            </PaddleContextProvider>
+          </GlobalErrorBoundary>
         </QueryClientProvider>
-      </ChakraProvider>
-    </BrowserRouter>
+        <Toaster />
+      </Provider>
+    </BrowserRouter>,
     // </React.StrictMode>,
   );
 });

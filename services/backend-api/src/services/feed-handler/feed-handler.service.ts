@@ -1,52 +1,44 @@
-import { HttpStatus, Injectable } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
-import { ClassConstructor, plainToInstance } from "class-transformer";
-import { validate } from "class-validator";
-import fetch, { Response } from "node-fetch";
-import { UnexpectedApiResponseException } from "../../common/exceptions";
-import logger from "../../utils/logger";
+import type { Config } from "../../config";
+import type { FeedRequestLookupDetails } from "../../shared/types/feed-request-lookup-details.type";
 import {
   FeedArticleNotFoundException,
   FeedFetcherStatusException,
+  InvalidFiltersRegexException,
   InvalidPreviewCustomPlaceholdersRegexException,
-} from "../feed-fetcher/exceptions";
-import {
-  CreateFilterValidationInput,
-  CreateFilterValidationOutput,
-  CreateFilterValidationResponse,
-  CreatePreviewInput,
-  GetArticlesInput,
-  GetArticlesOutput,
-  GetArticlesResponse,
+  UnexpectedApiResponseException,
+} from "../../shared/exceptions/feed-fetcher.exceptions";
+import { InvalidComponentsV2Exception } from "../../shared/exceptions/invalid-components-v2.exception";
+import { StandardException } from "../../shared/exceptions/standard.exception";
+import logger from "../../infra/logger";
+import type {
+  FeedHandlerRateLimitsResponse,
   GetDeliveryCountResult,
   SendTestArticleInput,
   SendTestArticleResult,
+  CreatePreviewInput,
+  CreatePreviewOutput,
+  GetArticlesInput,
+  GetArticlesResponse,
+  CreateFilterValidationInput,
+  CreateFilterValidationOutput,
+  CreateFilterValidationResponse,
+  DeliveryPreviewInput,
 } from "./types";
-import { CreatePreviewOutput } from "./types/create-preview-output.type";
+import {
+  GetDeliveryCountResultSchema,
+  SendTestArticleResultSchema,
+  CreatePreviewOutputSchema,
+  GetArticlesResponseSchema,
+  CreateFilterValidationResponseSchema,
+} from "./schemas";
 
-export interface FeedHandlerRateLimitsResponse {
-  results: {
-    limits: Array<{
-      progress: number;
-      max: number;
-      remaining: number;
-      windowSeconds: number;
-    }>;
-  };
-}
-
-@Injectable()
 export class FeedHandlerService {
-  host: string;
-  apiKey: string;
+  private readonly host: string;
+  private readonly apiKey: string;
 
-  constructor(private readonly configService: ConfigService) {
-    this.host = this.configService.getOrThrow<string>(
-      "BACKEND_API_USER_FEEDS_API_HOST"
-    ) as string;
-    this.apiKey = this.configService.getOrThrow<string>(
-      "BACKEND_API_USER_FEEDS_API_KEY"
-    );
+  constructor(private readonly config: Config) {
+    this.host = config.BACKEND_API_USER_FEEDS_API_HOST;
+    this.apiKey = config.BACKEND_API_USER_FEEDS_API_KEY;
   }
 
   async getRateLimits(feedId: string): Promise<FeedHandlerRateLimitsResponse> {
@@ -59,12 +51,12 @@ export class FeedHandlerService {
             "Content-Type": "application/json",
             "api-key": this.apiKey,
           },
-        }
+        },
       );
 
       if (response.status >= 500) {
         throw new Error(
-          `User feeds api responded with >= 500 status: ${response.status})`
+          `User feeds api responded with >= 500 status: ${response.status})`,
         );
       }
 
@@ -74,17 +66,17 @@ export class FeedHandlerService {
         throw new Error(
           `User feeds api responded with non-ok status: ${
             response.status
-          }, response: ${JSON.stringify(responseBody)}`
+          }, response: ${JSON.stringify(responseBody)}`,
         );
       }
 
-      return responseBody;
+      return responseBody as FeedHandlerRateLimitsResponse;
     } catch (error) {
       logger.error(
-        `Failed to execute fetch with User feeds api (${error.message})`,
+        `Failed to execute fetch with User feeds api (${(error as Error).message})`,
         {
-          stack: error.stack,
-        }
+          stack: (error as Error).stack,
+        },
       );
 
       throw error;
@@ -104,7 +96,7 @@ export class FeedHandlerService {
             "Content-Type": "application/json",
             "api-key": this.apiKey,
           },
-        }
+        },
       );
 
       await this.validateResponseStatus(
@@ -112,22 +104,18 @@ export class FeedHandlerService {
         "Failed to get delivery count",
         {
           requestBody: data,
-        }
+        },
       );
+
       const json = await response.json();
 
-      const result = await this.validateResponseJson(
-        GetDeliveryCountResult,
-        json
-      );
-
-      return result;
+      return this.validateResponse(GetDeliveryCountResultSchema, json);
     } catch (error) {
       logger.error(
-        `Failed to execute fetch with User feeds api (${error.message})`,
+        `Failed to execute fetch with User feeds api (${(error as Error).message})`,
         {
-          stack: error.stack,
-        }
+          stack: (error as Error).stack,
+        },
       );
 
       throw error;
@@ -150,11 +138,14 @@ export class FeedHandlerService {
         body,
       });
     } catch (err) {
-      // Fetch may have some obscure errors
       throw new Error(
         `Failed to send test article request through user feeds API: ${
-          err.constructor.name
-        }: ${(err as Error).message}`
+          (err as Error).constructor.name
+        }: ${(err as Error).message}. Cause: ${
+          (err as Error & { cause?: { message?: string } })["cause"]?.[
+            "message"
+          ]
+        }. Body: ${body}`,
       );
     }
 
@@ -166,15 +157,13 @@ export class FeedHandlerService {
       res,
       "Failed to send test article request",
       {
-        requestBody: details,
-      }
+        requestBody: details as unknown as Record<string, unknown>,
+      },
     );
 
     const json = await res.json();
 
-    const result = await this.validateResponseJson(SendTestArticleResult, json);
-
-    return result;
+    return this.validateResponse(SendTestArticleResultSchema, json);
   }
 
   async createPreview({
@@ -193,11 +182,10 @@ export class FeedHandlerService {
         body,
       });
     } catch (err) {
-      // Fetch may have some obscure errors
       throw new Error(
         `Failed to create preview through user feeds API: ${
-          err.constructor.name
-        }: ${(err as Error).message}`
+          (err as Error).constructor.name
+        }: ${(err as Error).message}`,
       );
     }
 
@@ -205,38 +193,32 @@ export class FeedHandlerService {
       throw new FeedArticleNotFoundException("Feed article not found");
     }
 
-    if (res.status === HttpStatus.UNPROCESSABLE_ENTITY) {
-      const json = await res.json();
-
-      const errors = json.errors;
-      throw new InvalidPreviewCustomPlaceholdersRegexException(
-        "Invalid preview input",
-        {
-          subErrors: errors,
-        }
-      );
-    }
-
     await this.validateResponseStatus(res, "Failed to create preview", {
-      requestBody: details,
+      requestBody: details as unknown as Record<string, unknown>,
     });
 
     const json = await res.json();
 
-    const result = await this.validateResponseJson(CreatePreviewOutput, json);
-
-    return result;
+    return this.validateResponse(CreatePreviewOutputSchema, json);
   }
 
-  async getArticles({
-    url,
-    limit,
-    random,
-    skip,
-    filters,
-    selectProperties,
-    formatter,
-  }: GetArticlesInput): Promise<GetArticlesOutput> {
+  async getArticles(
+    {
+      url,
+      limit,
+      random,
+      skip,
+      filters,
+      selectProperties,
+      selectPropertyTypes,
+      formatter,
+      findRssFromHtml,
+      executeFetch,
+      executeFetchIfStale,
+      includeHtmlInErrors,
+    }: GetArticlesInput,
+    lookupDetails: FeedRequestLookupDetails | null,
+  ): Promise<GetArticlesResponse["result"]> {
     const body = {
       url,
       limit,
@@ -244,7 +226,19 @@ export class FeedHandlerService {
       skip,
       filters,
       selectProperties,
+      selectPropertyTypes,
       formatter,
+      findRssFromHtml,
+      executeFetch,
+      executeFetchIfStale,
+      includeHtmlInErrors,
+      requestLookupDetails: lookupDetails
+        ? {
+            key: lookupDetails.key,
+            url: lookupDetails.url,
+            headers: lookupDetails.headers,
+          }
+        : undefined,
     };
 
     const res = await fetch(`${this.host}/v1/user-feeds/get-articles`, {
@@ -256,27 +250,14 @@ export class FeedHandlerService {
       },
     });
 
-    if (res.status === HttpStatus.UNPROCESSABLE_ENTITY) {
-      const json = await res.json();
-
-      const errors = json.errors;
-      throw new InvalidPreviewCustomPlaceholdersRegexException(
-        "Invalid preview input",
-        {
-          subErrors: errors,
-        }
-      );
-    }
-
     await this.validateResponseStatus(res, "Failed to get articles", {
       requestBody: body,
     });
 
     const json = await res.json();
+    const validated = this.validateResponse(GetArticlesResponseSchema, json);
 
-    const result = await this.validateResponseJson(GetArticlesResponse, json);
-
-    return result.result;
+    return validated.result;
   }
 
   async validateFilters({
@@ -300,15 +281,107 @@ export class FeedHandlerService {
     });
 
     const json = await res.json();
-
-    const result = await this.validateResponseJson(
-      CreateFilterValidationResponse,
-      json
+    const validated = this.validateResponse(
+      CreateFilterValidationResponseSchema,
+      json,
     );
 
     return {
-      errors: result.result.errors,
+      errors: validated.result.errors,
     };
+  }
+
+  async validateDiscordPayload(data: Record<string, unknown>): Promise<
+    | { valid: true; data: Record<string, unknown> }
+    | {
+        valid: false;
+        errors: Array<{ path: (string | number)[]; message: string }>;
+      }
+  > {
+    const res = await fetch(
+      `${this.host}/v1/user-feeds/validate-discord-payload`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": this.apiKey,
+        },
+        body: JSON.stringify({ data }),
+      },
+    );
+
+    await this.validateResponseStatus(
+      res,
+      "Failed to validate discord payload",
+      {
+        requestBody: { data },
+      },
+    );
+
+    const json = (await res.json()) as
+      | { valid: true; data: Record<string, unknown> }
+      | {
+          valid: false;
+          errors: Array<{ path: (string | number)[]; message: string }>;
+        };
+
+    return json;
+  }
+
+  async getDeliveryPreview(input: DeliveryPreviewInput): Promise<unknown> {
+    const response = await fetch(
+      `${this.host}/v1/user-feeds/delivery-preview`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": this.apiKey,
+        },
+        body: JSON.stringify(input),
+      },
+    );
+
+    await this.validateResponseStatus(
+      response,
+      "Failed to get delivery preview",
+      {
+        requestBody: input as unknown as Record<string, unknown>,
+      },
+    );
+
+    return response.json();
+  }
+
+  async getDeliveryLogs(
+    feedId: string,
+    { limit, skip }: { limit: number; skip: number },
+  ): Promise<unknown> {
+    const urlParams = new URLSearchParams({
+      limit: limit.toString(),
+      skip: skip.toString(),
+    });
+
+    const response = await fetch(
+      `${
+        this.host
+      }/v1/user-feeds/${feedId}/delivery-logs?${urlParams.toString()}`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": this.apiKey,
+        },
+      },
+    );
+
+    await this.validateResponseStatus(response, "Failed to get delivery logs", {
+      requestBody: {
+        feedId,
+        limit,
+        skip,
+      },
+    });
+
+    return response.json();
   }
 
   private async validateResponseStatus(
@@ -316,47 +389,101 @@ export class FeedHandlerService {
     contextMessage: string,
     meta: {
       requestBody: Record<string, unknown>;
-    }
+    },
   ) {
+    if (res.ok) {
+      return;
+    }
+
+    const bodyText = await res.text().catch(() => null);
+
     if (res.status >= 500) {
       throw new FeedFetcherStatusException(
         `${contextMessage}: >= 500 status code (${
           res.status
-        }) from User feeds api. Meta: ${JSON.stringify(meta)}`
+        }) from User feeds api. Meta: ${JSON.stringify(meta)}`,
       );
     }
 
-    if (!res.ok) {
-      let body: Record<string, unknown> | null = null;
-
+    if (res.status === 400) {
       try {
-        body = await res.json();
-      } catch (err) {}
+        const json = JSON.parse(bodyText || "{}") as {
+          message: Array<{ path: (string | number)[]; message: string }>;
+        };
 
-      throw new FeedFetcherStatusException(
-        `${contextMessage}: non-ok status code (${
-          res.status
-        }) from User feeds api, response: ${JSON.stringify(body)}`
-      );
+        if (Array.isArray(json.message)) {
+          throw new InvalidComponentsV2Exception(
+            json.message.map(
+              (e) => new InvalidComponentsV2Exception(e.message, e.path),
+            ),
+          );
+        }
+      } catch (err) {
+        if (err instanceof InvalidComponentsV2Exception) {
+          throw err;
+        }
+      }
     }
+
+    if (res.status === 422) {
+      try {
+        const json = JSON.parse(bodyText || "{}") as {
+          code: string;
+          errors: StandardException[];
+        };
+        const code = json.code;
+
+        if (code === "CUSTOM_PLACEHOLDER_REGEX_EVAL") {
+          throw new InvalidPreviewCustomPlaceholdersRegexException(
+            "Invalid preview input",
+            {
+              subErrors: json.errors,
+            },
+          );
+        } else if (code === "FILTERS_REGEX_EVAL") {
+          throw new InvalidFiltersRegexException("Invalid preview input", {
+            subErrors: json.errors,
+          });
+        } else {
+          throw new Error(
+            `${contextMessage}: Unprocessable entity status code from User feeds api. Meta: ${JSON.stringify(
+              meta,
+            )}`,
+          );
+        }
+      } catch (err) {
+        if (
+          err instanceof InvalidPreviewCustomPlaceholdersRegexException ||
+          err instanceof InvalidFiltersRegexException
+        ) {
+          throw err;
+        }
+
+        throw new Error(
+          `${contextMessage}: Unprocessable entity status code from User feeds api. Meta: ${JSON.stringify(
+            meta,
+          )}`,
+        );
+      }
+    }
+
+    throw new FeedFetcherStatusException(
+      `${contextMessage}: non-ok status code (${
+        res.status
+      }) from User feeds api, response text: ${JSON.stringify(bodyText)}`,
+    );
   }
 
-  private async validateResponseJson<T>(
-    classConstructor: ClassConstructor<T>,
-    json: Record<string, unknown>
-  ) {
-    const instance = plainToInstance(classConstructor, json);
-
-    const validationErrors = await validate(instance as object);
-
-    if (validationErrors.length > 0) {
+  private validateResponse<T>(
+    schema: { parse: (data: unknown) => T },
+    json: unknown,
+  ): T {
+    try {
+      return schema.parse(json);
+    } catch (error) {
       throw new UnexpectedApiResponseException(
-        `Unexpected response from user feeds API: ${JSON.stringify(
-          validationErrors
-        )} Received body: ${JSON.stringify(json, null, 2)}`
+        `Unexpected response from User feeds api: ${(error as Error).message}. Response: ${JSON.stringify(json)}`,
       );
     }
-
-    return instance;
   }
 }

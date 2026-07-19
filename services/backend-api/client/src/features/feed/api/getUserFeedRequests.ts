@@ -1,5 +1,4 @@
-import { array, InferType, number, object } from "yup";
-import qs from "qs";
+import { array, InferType, number, object, string } from "yup";
 import fetchRest from "../../../utils/fetchRest";
 import { UserFeedRequestSchema } from "../types";
 
@@ -8,6 +7,8 @@ export interface GetUserFeedRequestsInput {
   data: {
     limit: number;
     skip: number;
+    afterDate?: string;
+    beforeDate?: string;
   };
 }
 
@@ -15,8 +16,15 @@ const GetUserFeedRequestsOutputSchema = object({
   result: object()
     .shape({
       requests: array(UserFeedRequestSchema).required(),
-      totalRequests: number().required(),
-      nextRetryTimestamp: number().nullable().default(null),
+      nextRetryAtIso: string().nullable().default(null),
+      nextRetryReason: string()
+        .oneOf(["REFRESH_RATE", "HOST_CACHE", "FAILED_RETRY_BACKOFF"])
+        .nullable()
+        .default(null),
+      feedHostGlobalRateLimit: object({
+        intervalSec: number().required(),
+        requestLimit: number().required(),
+      }).nullable(),
     })
     .required(),
 }).required();
@@ -27,7 +35,20 @@ export const getUserFeedRequests = async ({
   feedId,
   data,
 }: GetUserFeedRequestsInput): Promise<GetUserFeedRequestsOutput> => {
-  const query = qs.stringify(data);
+  const params = new URLSearchParams();
+
+  params.append("limit", data.limit.toString());
+  params.append("skip", data.skip.toString());
+
+  if (data.afterDate) {
+    params.append("afterDate", data.afterDate);
+  }
+
+  if (data.beforeDate) {
+    params.append("beforeDate", data.beforeDate);
+  }
+
+  const query = params.toString();
 
   const res = await fetchRest(`/api/v1/user-feeds/${feedId}/requests?${query}`, {
     requestOptions: {

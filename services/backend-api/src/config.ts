@@ -1,0 +1,193 @@
+import { z } from "zod";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+export enum Environment {
+  Development = "development",
+  Production = "production",
+  Local = "local",
+  Test = "test",
+}
+
+const configSchema = z.object({
+  NODE_ENV: z.nativeEnum(Environment).default(Environment.Local),
+  BACKEND_API_PORT: z.coerce.number().default(3000),
+
+  // Discord OAuth
+  BACKEND_API_DISCORD_BOT_TOKEN: z.string().min(1),
+  BACKEND_API_DISCORD_CLIENT_ID: z.string().min(1),
+  BACKEND_API_DISCORD_CLIENT_SECRET: z.string().min(1),
+  BACKEND_API_DISCORD_REDIRECT_URI: z.string().min(1),
+  BACKEND_API_LOGIN_REDIRECT_URI: z.string().min(1),
+  BACKEND_API_DISCORD_API_BASE_URL: z
+    .string()
+    .url()
+    .default("https://discord.com/api/v9"),
+
+  // MongoDB
+  BACKEND_API_MONGODB_URI: z.string().min(1),
+
+  // Session
+  BACKEND_API_SESSION_SECRET: z.string().min(1),
+  BACKEND_API_SESSION_SALT: z.string().min(1),
+  BACKEND_API_SESSION_COOKIE_SECURE: z
+    .string()
+    .transform((val) => val === "true")
+    .default("false"),
+
+  // RabbitMQ
+  BACKEND_API_RABBITMQ_BROKER_URL: z.string().min(1),
+
+  // Service APIs
+  BACKEND_API_FEED_REQUESTS_API_HOST: z.string().min(1),
+  BACKEND_API_FEED_REQUESTS_API_KEY: z.string().min(1),
+  BACKEND_API_USER_FEEDS_API_HOST: z.string().min(1),
+  BACKEND_API_USER_FEEDS_API_KEY: z.string().min(1),
+
+  // Feed settings
+  BACKEND_API_FEED_USER_AGENT: z.string().min(1),
+
+  // Defaults
+  BACKEND_API_DEFAULT_REFRESH_RATE_MINUTES: z.coerce.number().default(10),
+  BACKEND_API_DEFAULT_MAX_FEEDS: z.coerce.number().default(5),
+  BACKEND_API_DEFAULT_MAX_USER_FEEDS: z.coerce.number().default(5),
+  // Self-host workspace feed cap. Unset means unlimited: the per-tier cap is a
+  // billing construct, so a self-host instance (no Paddle) is uncapped unless
+  // the operator opts into a limit. Ignored when Paddle is configured, where the
+  // workspace subscription tier dictates the cap.
+  BACKEND_API_DEFAULT_MAX_WORKSPACE_FEEDS: z.coerce.number().optional(),
+  BACKEND_API_DEFAULT_DATE_FORMAT: z
+    .string()
+    .default("ddd, D MMMM YYYY, h:mm A z"),
+  BACKEND_API_DEFAULT_TIMEZONE: z.string().default("UTC"),
+  BACKEND_API_DEFAULT_DATE_LANGUAGE: z.string().default("en"),
+
+  // Subscriptions
+  BACKEND_API_SUBSCRIPTIONS_ENABLED: z
+    .string()
+    .transform((val) => val === "true")
+    .default("false"),
+  BACKEND_API_SUBSCRIPTIONS_HOST: z.string().optional(),
+  BACKEND_API_SUBSCRIPTIONS_ACCESS_TOKEN: z.string().optional(),
+
+  // Supporters
+  BACKEND_API_ENABLE_SUPPORTERS: z
+    .string()
+    .transform((val) => val === "true")
+    .default("false"),
+  BACKEND_API_DEFAULT_MAX_SUPPORTER_USER_FEEDS: z.coerce.number().default(5),
+  BACKEND_API_MAX_DAILY_ARTICLES_SUPPORTER: z.coerce.number().default(100),
+  BACKEND_API_MAX_DAILY_ARTICLES_DEFAULT: z.coerce.number().default(0),
+  BACKEND_API_SUPPORTER_GUILD_ID: z.string().optional(),
+  BACKEND_API_SUPPORTER_ROLE_ID: z.string().optional(),
+  BACKEND_API_SUPPORTER_SUBROLE_IDS: z.string().optional(),
+
+  // Optional services
+  BACKEND_API_DATADOG_API_KEY: z.string().optional(),
+
+  // SMTP
+  BACKEND_API_SMTP_HOST: z.string().optional(),
+  BACKEND_API_SMTP_USERNAME: z.string().optional(),
+  BACKEND_API_SMTP_PASSWORD: z.string().optional(),
+  BACKEND_API_SMTP_FROM: z.string().optional(),
+  BACKEND_API_SMTP_FROM_DOMAIN: z.string().optional(),
+  // Defaults target production SMTPS (implicit TLS on 465). Overridable so a
+  // local/test mailer can run plain SMTP on another port.
+  BACKEND_API_SMTP_PORT: z.coerce.number().optional(),
+  BACKEND_API_SMTP_SECURE: z
+    .string()
+    .transform((val) => val !== "false")
+    .default("true"),
+  // Optional disclosures rendered in the shared email footer. Both are
+  // omitted from the footer when unset, so a self-host instance sends no
+  // legal boilerplate it has not configured. The hosted instance sets them
+  // to render a privacy link and the operator's identity/postal address.
+  BACKEND_API_EMAIL_PRIVACY_POLICY_URL: z.string().optional(),
+  BACKEND_API_EMAIL_FOOTER_ADDRESS: z.string().optional(),
+
+  // Paddle
+  BACKEND_API_PADDLE_KEY: z.string().optional(),
+  BACKEND_API_PADDLE_URL: z.string().optional(),
+  BACKEND_API_PADDLE_WEBHOOK_SECRET: z.string().optional(),
+
+  // Legacy
+  BACKEND_API_ALLOW_LEGACY_REVERSION: z
+    .string()
+    .transform((val) => val === "true")
+    .default("false"),
+
+  // Sentry
+  BACKEND_API_SENTRY_HOST: z.string().optional(),
+  BACKEND_API_SENTRY_PROJECT_IDS: z
+    .string()
+    .transform((val) => (val ? val.split(",") : []))
+    .default(""),
+
+  // Encryption
+  BACKEND_API_ENCRYPTION_KEY_HEX: z
+    .string()
+    .length(64)
+    .regex(/^[0-9a-fA-F]+$/)
+    .optional(),
+
+  // Reddit
+  BACKEND_API_REDDIT_CLIENT_ID: z.string().optional(),
+  BACKEND_API_REDDIT_CLIENT_SECRET: z.string().optional(),
+  BACKEND_API_REDDIT_REDIRECT_URI: z.string().optional(),
+  // Overridable so tests can point Reddit traffic at a mock server.
+  BACKEND_API_REDDIT_API_BASE_URL: z
+    .string()
+    .default("https://www.reddit.com/api/v1"),
+  BACKEND_API_REDDIT_AUTHENTICATED_FEED_BASE_URL: z
+    .string()
+    .default("https://oauth.reddit.com"),
+
+  // Admin
+  BACKEND_API_ADMIN_USER_IDS: z
+    .string()
+    .transform((val) =>
+      val
+        ? val
+            .split(",")
+            .map((id) => id.trim())
+            .filter(Boolean)
+        : [],
+    )
+    .default(""),
+})
+  .refine(
+    (cfg) => {
+      const smtpConfigured = Boolean(
+        cfg.BACKEND_API_SMTP_HOST &&
+          cfg.BACKEND_API_SMTP_USERNAME &&
+          cfg.BACKEND_API_SMTP_PASSWORD,
+      );
+      if (!smtpConfigured) {
+        return true;
+      }
+      return Boolean(
+        cfg.BACKEND_API_SMTP_FROM || cfg.BACKEND_API_SMTP_FROM_DOMAIN,
+      );
+    },
+    {
+      message:
+        "When SMTP is configured, either BACKEND_API_SMTP_FROM or BACKEND_API_SMTP_FROM_DOMAIN must be set",
+      path: ["BACKEND_API_SMTP_FROM_DOMAIN"],
+    },
+  );
+
+export type Config = z.infer<typeof configSchema>;
+
+export function loadConfig(): Config {
+  const result = configSchema.safeParse(process.env);
+
+  if (!result.success) {
+    const formattedErrors = result.error.issues
+      .map((issue) => `  ${issue.path.join(".")}: ${issue.message}`)
+      .join("\n");
+    throw new Error(`Config validation failed:\n${formattedErrors}`);
+  }
+
+  return result.data;
+}

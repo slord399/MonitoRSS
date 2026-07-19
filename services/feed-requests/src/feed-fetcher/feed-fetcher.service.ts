@@ -1,143 +1,165 @@
+/* eslint-disable max-len */
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import fetch, { FetchError, HeadersInit } from 'node-fetch';
-import logger from '../utils/logger';
+import contextLogger from '../shared/utils/log-context';
 import { RequestStatus } from './constants';
 import { Request, Response } from './entities';
-import { EntityRepository } from '@mikro-orm/postgresql';
-import { InjectRepository } from '@mikro-orm/nestjs';
-import { GetFeedRequestsCountInput, GetFeedRequestsInput } from './types';
-import { deflate, inflate } from 'zlib';
+import { deflate, inflate, gunzip } from 'zlib';
 import { promisify } from 'util';
 import { ObjectFileStorageService } from '../object-file-storage/object-file-storage.service';
 import { createHash, randomUUID } from 'crypto';
 import { CacheStorageService } from '../cache-storage/cache-storage.service';
 import { FeedTooLargeException } from './exceptions';
 import iconv from 'iconv-lite';
+import { RequestSource } from './constants/request-source.constants';
+import PartitionedRequestsStoreService from '../partitioned-requests-store/partitioned-requests-store.service';
+import { PartitionedRequestInsert } from '../partitioned-requests-store/types/partitioned-request.type';
+import { request } from 'undici';
+import { GetFeedRequestsInputDto } from './dto';
 
 const deflatePromise = promisify(deflate);
 const inflatePromise = promisify(inflate);
+const gunzipPromise = promisify(gunzip);
 
 const sha1 = createHash('sha1');
 
-const trimHeadersForStorage = (obj?: HeadersInit) => {
+const convertHeaderValue = (val?: string | string[] | null) => {
+  if (Array.isArray(val)) {
+    return val.join(',');
+  }
+
+  return val || '';
+};
+
+const trimHeadersForStorage = (
+  obj?: Record<string, string | undefined>,
+): Record<string, string> => {
   if (!obj) {
-    return obj;
+    return {};
   }
 
-  const newObj: HeadersInit = {};
-
-  for (const key in obj) {
-    if (obj[key]) {
-      newObj[key] = obj[key];
+  const trimmed = Object.entries(obj || {}).reduce((acc, [key, val]) => {
+    if (val) {
+      acc[key.toLowerCase()] = val;
     }
+
+    return acc;
+  }, {} as Record<string, string>);
+
+  if (trimmed.authorization) {
+    trimmed.authorization = 'SECRET';
   }
 
-  return newObj;
+  return trimmed;
+};
+
+const convertFetchOptionsForHashKey = (options: FetchOptions) => {
+  const { headers, ...rest } = options;
+
+  const prunedHeaders = Object.entries(headers || {}).reduce(
+    (acc, [key, val]) => {
+      // these keys would result in a new hash every time, so ignore it to save space
+      if (key !== 'if-none-match' && key !== 'if-modified-since') {
+        acc[key] = val;
+      }
+
+      return acc;
+    },
+    {} as Record<string, string>,
+  );
+
+  return JSON.stringify({
+    ...rest,
+    headers: prunedHeaders,
+  });
 };
 
 interface FetchOptions {
-  userAgent?: string;
-  headers?: HeadersInit;
+  headers?: Record<string, string>;
+  proxyUri?: string;
+}
+
+interface FetchResponse {
+  ok: boolean;
+  status: number;
+  headers: Map<string, string>;
+  text: () => Promise<string>;
 }
 
 @Injectable()
 export class FeedFetcherService {
   defaultUserAgent: string;
+  feedRequestTimeoutMs: number;
 
   constructor(
-    @InjectRepository(Request)
-    private readonly requestRepo: EntityRepository<Request>,
-    @InjectRepository(Response)
-    private readonly responseRepo: EntityRepository<Response>,
     private readonly configService: ConfigService,
     private readonly objectFileStorageService: ObjectFileStorageService,
     private readonly cacheStorageService: CacheStorageService,
+    private readonly partitionedRequestsStore: PartitionedRequestsStoreService,
   ) {
     this.defaultUserAgent = this.configService.getOrThrow(
       'FEED_REQUESTS_FEED_REQUEST_DEFAULT_USER_AGENT',
     );
+    this.feedRequestTimeoutMs = this.configService.getOrThrow(
+      'FEED_REQUESTS_REQUEST_TIMEOUT_MS',
+    );
   }
 
-  async getRequests({ skip, limit, url, select }: GetFeedRequestsInput) {
-    return this.requestRepo
-      .createQueryBuilder()
-      .select(select || '*')
-      .where({
-        url,
-      })
-      .limit(limit)
-      .offset(skip)
-      .orderBy({
-        createdAt: 'DESC',
-      })
-      .execute('all', true);
+  async getRequests({
+    skip,
+    limit,
+    url,
+    lookupKey,
+    afterDate,
+    beforeDate,
+  }: GetFeedRequestsInputDto) {
+    return this.partitionedRequestsStore.getRequests({
+      limit,
+      skip,
+      url,
+      lookupKey,
+      afterDate,
+      beforeDate,
+    });
   }
 
-  async countRequests({ url }: GetFeedRequestsCountInput) {
-    return this.requestRepo.count({ url });
+  async getLatestRetryDate({
+    lookupKey,
+  }: {
+    lookupKey: string;
+  }): Promise<Date | null> {
+    return this.partitionedRequestsStore.getLatestNextRetryDate(lookupKey);
   }
 
-  // async getLatestRequestHeaders({
-  //   url,
-  // }: {
-  //   url: string;
-  // }): Promise<Response['headers']> {
-  //   const request = await this.requestRepo.findOne(
-  //     {
-  //       url,
-  //       status: RequestStatus.OK,
-  //     },
-  //     {
-  //       orderBy: {
-  //         createdAt: 'DESC',
-  //       },
-  //       populate: ['response'],
-  //       fields: ['response.headers'],
-  //     },
-  //   );
-
-  //   if (!request) {
-  //     return {};
-  //   }
-
-  //   return request.response?.headers || {};
-  // }
-
-  async getLatestRequest(url: string): Promise<{
+  async getLatestRequest({
+    url,
+    lookupKey,
+  }: {
+    url: string;
+    lookupKey: string | undefined;
+  }): Promise<{
     request: Request;
     decodedResponseText: string | null | undefined;
   } | null> {
-    const request = await this.requestRepo.findOne(
-      {
-        url,
-      },
-      {
-        orderBy: {
-          createdAt: 'DESC',
-        },
-        populate: [],
-      },
-    );
+    const request =
+      await this.partitionedRequestsStore.getLatestRequestWithResponseBody(
+        lookupKey || url,
+      );
 
     if (!request) {
       return null;
     }
 
-    let response: Response | null = null;
+    if (request.response?.redisCacheKey || request.response?.content) {
+      let compressedText: string | null = null;
 
-    if (request.response?.id) {
-      response = await this.responseRepo.findOne({
-        id: request.response.id,
-      });
-    }
-
-    const cacheKey = response?.redisCacheKey;
-
-    if (response && cacheKey) {
-      const compressedText = await this.cacheStorageService.getFeedHtmlContent({
-        key: cacheKey,
-      });
+      if (request.response.content) {
+        compressedText = request.response.content;
+      } else if (request.response.redisCacheKey) {
+        compressedText = await this.cacheStorageService.getFeedHtmlContent({
+          key: request.response.redisCacheKey,
+        });
+      }
 
       const text = compressedText
         ? (
@@ -146,12 +168,7 @@ export class FeedFetcherService {
         : '';
 
       return {
-        request: {
-          ...request,
-          response: {
-            ...response,
-          },
-        },
+        request,
         decodedResponseText: text,
       };
     }
@@ -159,22 +176,107 @@ export class FeedFetcherService {
     return { request, decodedResponseText: '' };
   }
 
+  async getLatestRequestNon304({
+    url,
+    lookupKey,
+  }: {
+    url: string;
+    lookupKey: string | undefined;
+  }): Promise<{
+    request: Request;
+    decodedResponseText: string | null | undefined;
+  } | null> {
+    const request = await this.partitionedRequestsStore.getLatestRequestNon304(
+      lookupKey || url,
+    );
+
+    if (!request) {
+      return null;
+    }
+
+    if (request.response?.redisCacheKey || request.response?.content) {
+      let compressedText: string | null = null;
+
+      if (request.response.content) {
+        compressedText = request.response.content;
+      } else if (request.response.redisCacheKey) {
+        compressedText = await this.cacheStorageService.getFeedHtmlContent({
+          key: request.response.redisCacheKey,
+        });
+      }
+
+      const text = compressedText
+        ? (
+            await inflatePromise(Buffer.from(compressedText, 'base64'))
+          ).toString()
+        : '';
+
+      return {
+        request,
+        decodedResponseText: text,
+      };
+    }
+
+    return { request, decodedResponseText: '' };
+  }
+
+  /**
+   * Decode compressed response content from a request.
+   * Used by delivery preview to get the body from any request status.
+   */
+  async decodeResponseContent(
+    compressedContent: string | null | undefined,
+  ): Promise<string> {
+    if (!compressedContent) {
+      return '';
+    }
+
+    try {
+      const decompressed = await inflatePromise(
+        Buffer.from(compressedContent, 'base64'),
+      );
+
+      return decompressed.toString();
+    } catch {
+      return '';
+    }
+  }
+
   async fetchAndSaveResponse(
     url: string,
     options?: {
-      flushEntities?: boolean;
+      lookupDetails:
+        | {
+            key: string;
+          }
+        | undefined;
       saveResponseToObjectStorage?: boolean;
-      headers?: Record<string, string>;
+      headers?: Record<string, string | undefined>;
+      source: RequestSource | undefined;
     },
   ): Promise<{
-    request: Request;
+    request: PartitionedRequestInsert;
     responseText?: string | null;
   }> {
     const fetchOptions: FetchOptions = {
-      userAgent: this.configService.get<string>('feedUserAgent'),
-      headers: options?.headers,
+      headers: {
+        'user-agent':
+          this.configService.get<string>('feedUserAgent') ||
+          this.defaultUserAgent,
+        accept: 'text/html,text/xml,application/xml,application/rss+xml',
+        'accept-encoding': 'gzip',
+        /**
+         * Currently required for https://developer.oculus.com/blog/rss/ that returns 400 otherwise
+         * Appears to be temporary error given that the page says they're working on fixing it
+         */
+        'Sec-Fetch-Mode': 'navigate',
+        'sec-fetch-site': 'none',
+        ...options?.headers,
+      },
     };
     const request = new Request();
+    request.source = options?.source;
+    request.lookupKey = options?.lookupDetails?.key || url;
     request.url = url;
     request.fetchOptions = {
       ...fetchOptions,
@@ -182,7 +284,15 @@ export class FeedFetcherService {
     };
 
     try {
-      const res = await this.fetchFeedResponse(url, fetchOptions);
+      if (options?.saveResponseToObjectStorage) {
+        contextLogger.info(`Fetching ${url} and saving to object storage`);
+      }
+
+      const res = await this.fetchFeedResponse(
+        url,
+        fetchOptions,
+        options?.saveResponseToObjectStorage,
+      );
 
       if (res.ok || res.status === HttpStatus.NOT_MODIFIED) {
         request.status = RequestStatus.OK;
@@ -190,50 +300,36 @@ export class FeedFetcherService {
         request.status = RequestStatus.BAD_STATUS_CODE;
       }
 
-      const etag = res.headers.get('etag');
-      const lastModified = res.headers.get('last-modified');
-
       const response = new Response();
-      response.createdAt = request.createdAt;
       response.statusCode = res.status;
-      response.headers = {};
+      const headersToStore: Record<string, string> = {};
 
-      if (etag) {
-        response.headers.etag = etag;
-      }
+      res.headers.forEach((val, key) => {
+        headersToStore[key] = val;
+      });
 
-      if (lastModified) {
-        response.headers.lastModified = lastModified;
-      }
+      response.headers = headersToStore;
 
       let text: string | null = null;
 
       try {
-        text =
-          res.status === HttpStatus.NOT_MODIFIED
-            ? ''
-            : await this.maybeDecodeResponse(res);
+        text = res.status === HttpStatus.NOT_MODIFIED ? '' : await res.text();
 
         if (request.status !== RequestStatus.OK) {
-          logger.debug(`Bad status code ${res.status} for url ${url}`, {
+          contextLogger.debug(`Bad status code ${res.status} for url ${url}`, {
             responseText: text,
           });
         }
 
         const sizeOfTextInMb = Buffer.byteLength(text) / 1024 / 1024;
 
-        // if (sizeOfTextInMb > 3) {
+        // if (sizeOfTextInMb > 7) {
         //   throw new FeedTooLargeException(`Response body is too large`);
         // }
 
         try {
           const deflated = await deflatePromise(text);
           const compressedText = deflated.toString('base64');
-
-          logger.datadog('saving response', {
-            url,
-            byteSize: Buffer.byteLength(compressedText),
-          });
 
           if (options?.saveResponseToObjectStorage) {
             response.s3ObjectKey = randomUUID();
@@ -244,7 +340,7 @@ export class FeedFetcherService {
                 body: compressedText,
               });
             } catch (err) {
-              logger.error(
+              contextLogger.error(
                 `Failed to upload feed hmtl content to object file storage`,
                 {
                   stack: (err as Error).stack,
@@ -253,21 +349,22 @@ export class FeedFetcherService {
             }
           }
 
-          response.redisCacheKey = sha1.copy().update(url).digest('hex');
-          response.textHash = text
-            ? sha1.copy().update(text).digest('hex')
-            : '';
+          const key =
+            url +
+            convertFetchOptionsForHashKey(request.fetchOptions) +
+            res.status.toString();
 
-          await this.cacheStorageService.setFeedHtmlContent({
-            key: response.redisCacheKey,
-            body: compressedText,
-          });
+          if (text.length) {
+            response.responseHashKey = sha1.copy().update(key).digest('hex');
+
+            response.content = compressedText;
+          }
         } catch (err) {
           if (err instanceof FeedTooLargeException) {
             throw err;
           }
 
-          logger.error(
+          contextLogger.error(
             `Failed to upload feed html content for url ${url} to cache`,
             {
               stack: (err as Error).stack,
@@ -279,7 +376,7 @@ export class FeedFetcherService {
           request.status = RequestStatus.REFUSED_LARGE_FEED;
         } else {
           request.status = RequestStatus.PARSE_ERROR;
-          logger.debug(`Failed to parse response text of url ${url}`, {
+          contextLogger.debug(`Failed to parse response text of url ${url}`, {
             stack: (err as Error).stack,
           });
         }
@@ -290,72 +387,224 @@ export class FeedFetcherService {
         ?.includes('cloudflare');
 
       response.isCloudflare = isCloudflareServer;
-
-      await this.responseRepo.persist(response);
       request.response = response;
 
-      await this.requestRepo.persist(request);
+      const partitionedRequest: PartitionedRequestInsert = {
+        id: randomUUID(),
+        url: request.url,
+        lookupKey: request.lookupKey,
+        createdAt: response.createdAt,
+        requestInitiatedAt: request.createdAt,
+        errorMessage: request.errorMessage || null,
+        fetchOptions: request.fetchOptions || null,
+        nextRetryDate: request.nextRetryDate,
+        source: (request.source as RequestSource | null) || null,
+        status: request.status,
+        response: {
+          statusCode: response.statusCode,
+          textHash: response.textHash || null,
+          s3ObjectKey: response.s3ObjectKey || null,
+          redisCacheKey: response.redisCacheKey || null,
+          isCloudflare: response.isCloudflare,
+          headers: response.headers,
+          body:
+            response.responseHashKey && response.content
+              ? {
+                  hashKey: response.responseHashKey,
+                  contents: response.content,
+                }
+              : null,
+        },
+      };
+
+      if (options?.saveResponseToObjectStorage) {
+        contextLogger.info(
+          `Marking ${url} for persistence`,
+          partitionedRequest,
+        );
+      }
 
       return {
-        request,
+        request: partitionedRequest,
         responseText: text,
       };
     } catch (err) {
-      logger.debug(`Failed to fetch url ${url}`, {
+      contextLogger.debug(`Failed to fetch url ${url}`, {
         stack: (err as Error).stack,
       });
 
-      if (err instanceof FetchError && err.type === 'request-timeout') {
+      if (
+        (err instanceof TypeError &&
+          err['cause']?.['code'] === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE') ||
+        (err as Error).message?.includes(
+          'unable to get local issuer certificate',
+        )
+      ) {
+        request.status = RequestStatus.INVALID_SSL_CERTIFICATE;
+        request.errorMessage =
+          err?.['cause']?.['message'] || (err as Error).message;
+      } else if (
+        (err as Error).name === 'AbortError' ||
+        (err as Error).message.includes('Connect Timeout Error')
+      ) {
         request.status = RequestStatus.FETCH_TIMEOUT;
-        request.errorMessage = err.message;
+        request.errorMessage =
+          `Request took longer than` +
+          ` ${this.feedRequestTimeoutMs}ms to complete`;
       } else {
         request.status = RequestStatus.FETCH_ERROR;
-        request.errorMessage = (err as Error).message;
+        request.errorMessage = `${(err as Error).message} | cause: ${
+          (err as Error)['cause']?.['message']
+        }`;
       }
 
-      await this.requestRepo.persist(request);
+      const partitionedRequest: PartitionedRequestInsert = {
+        id: randomUUID(),
+        url: request.url,
+        lookupKey: request.lookupKey,
+        createdAt: request.createdAt,
+        errorMessage: request.errorMessage || null,
+        fetchOptions: request.fetchOptions || null,
+        nextRetryDate: request.nextRetryDate,
+        source: (request.source as RequestSource | null) || null,
+        status: request.status,
+        response: null,
+        requestInitiatedAt: request.createdAt,
+      };
 
-      return { request };
-    } finally {
-      if (options?.flushEntities) {
-        await this.requestRepo.flush();
-      }
+      return { request: partitionedRequest };
     }
   }
 
   async fetchFeedResponse(
     url: string,
     options?: FetchOptions,
-  ): Promise<ReturnType<typeof fetch>> {
-    const res = await fetch(url, {
-      timeout: 15000,
-      follow: 5,
-      headers: {
-        ...options?.headers,
-        'user-agent': options?.userAgent || this.defaultUserAgent,
-      },
-    });
+    log?: boolean,
+  ): Promise<FetchResponse> {
+    const controller = new AbortController();
 
-    return res;
-  }
+    const timer = setTimeout(() => {
+      controller.abort();
+    }, this.feedRequestTimeoutMs);
 
-  private async maybeDecodeResponse(
-    res: Awaited<ReturnType<typeof fetch>>,
-  ): Promise<string> {
-    const charset = res.headers
-      .get('content-type')
-      ?.split(';')
-      .find((s) => s.includes('charset'))
-      ?.split('=')[1]
-      .trim();
+    // Necessary since passing If-None-Match header with empty string may cause a 200 when expecting 304
+    const withoutEmptyHeaderVals = Object.entries(
+      options?.headers || {},
+    ).reduce((acc, [key, val]) => {
+      if (val) {
+        acc[key] = val;
+      }
 
-    if (!charset || /utf-*8/i.test(charset)) {
-      return res.text();
+      return acc;
+    }, {});
+
+    const useOptions = {
+      headers: withoutEmptyHeaderVals,
+      redirect: 'follow' as const,
+      signal: controller.signal,
+    };
+
+    if (log) {
+      contextLogger.info(`Fetching ${url}`, {
+        url,
+        options: useOptions,
+      });
     }
 
-    const arrBuffer = await res.arrayBuffer();
-    const decoded = iconv.decode(Buffer.from(arrBuffer), charset).toString();
+    const r = await request(url, {
+      headers: useOptions.headers,
+      signal: useOptions.signal,
+    });
 
-    return decoded;
+    const contentTypes =
+      typeof r.headers['content-type'] === 'string'
+        ? r.headers['content-type'].split(';')
+        : r.headers['content-type'] || [];
+
+    const normalizedHeaders = Object.entries(r.headers).reduce(
+      (acc, [key, val]) => {
+        if (typeof val === 'string') {
+          acc.set(key.toLowerCase(), val);
+        }
+
+        return acc;
+      },
+      new Map<string, string>(),
+    );
+
+    clearTimeout(timer);
+
+    const headers: FetchResponse['headers'] = new Map();
+
+    const etag = normalizedHeaders.get('etag');
+
+    if (etag) {
+      headers.set('etag', convertHeaderValue(etag));
+    }
+
+    const contentType = normalizedHeaders.get('content-type');
+
+    if (contentType) {
+      headers.set('content-type', convertHeaderValue(contentType));
+    }
+
+    const lastModified = normalizedHeaders.get('last-modified');
+
+    if (lastModified) {
+      headers.set('last-modified', convertHeaderValue(lastModified));
+    }
+
+    const server = normalizedHeaders.get('server');
+
+    if (server) {
+      headers.set('server', convertHeaderValue(server));
+    }
+
+    const cacheControl = normalizedHeaders.get('cache-control');
+
+    if (cacheControl) {
+      headers.set('cache-control', convertHeaderValue(cacheControl));
+    }
+
+    const date = normalizedHeaders.get('date');
+
+    if (date) {
+      headers.set('date', convertHeaderValue(date));
+    }
+
+    const expires = normalizedHeaders.get('expires');
+
+    if (expires) {
+      headers.set('expires', convertHeaderValue(expires));
+    }
+
+    return {
+      headers,
+      ok: r.statusCode >= 200 && r.statusCode < 300,
+      status: r.statusCode,
+      text: async () => {
+        const charset = contentTypes
+          .find((s) => s.includes('charset'))
+          ?.split('=')[1]
+          .trim();
+
+        let responseBuffer: Buffer;
+
+        // handle gzip
+        if (r.headers['content-encoding']?.includes('gzip')) {
+          responseBuffer = await gunzipPromise(await r.body.arrayBuffer());
+        } else {
+          responseBuffer = Buffer.from(await r.body.arrayBuffer());
+        }
+
+        if (!charset || /utf-*8/i.test(charset)) {
+          return responseBuffer.toString();
+        }
+
+        const decoded = iconv.decode(responseBuffer, charset).toString();
+
+        return decoded;
+      },
+    };
   }
 }
