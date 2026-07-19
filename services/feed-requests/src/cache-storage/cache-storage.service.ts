@@ -13,6 +13,96 @@ export class CacheStorageService {
     await this.redisClient.disconnect();
   }
 
+  generateKey(key: string) {
+    return `feed-requests:${key}`;
+  }
+
+  async set({
+    key,
+    body,
+    expSeconds,
+    getOldValue,
+  }: {
+    body: string;
+    key: string;
+    expSeconds?: number;
+    getOldValue?: boolean;
+  }) {
+    try {
+      return await this.redisClient.set(this.generateKey(key), body, {
+        EX: expSeconds,
+        GET: getOldValue ? true : undefined,
+      });
+    } catch (err) {
+      logger.error(`Failed to set content in cache storage`, {
+        err: (err as Error).stack,
+      });
+    }
+  }
+
+  async setNX({
+    key,
+    body,
+    expSeconds,
+  }: {
+    body: string;
+    key: string;
+    expSeconds?: number;
+  }): Promise<boolean> {
+    try {
+      const result = await this.redisClient.set(this.generateKey(key), body, {
+        EX: expSeconds,
+        NX: true,
+      });
+
+      return result === 'OK';
+    } catch (err) {
+      logger.error(`Failed to setNX content in cache storage`, {
+        err: (err as Error).stack,
+      });
+
+      return false;
+    }
+  }
+
+  async del(key: string) {
+    try {
+      await this.redisClient.del(this.generateKey(key));
+    } catch (err) {
+      logger.error(`Failed to delete content from cache storage`, {
+        err: (err as Error).stack,
+      });
+    }
+  }
+
+  async increment(
+    key: string,
+    opts?: {
+      expire?: {
+        seconds: number;
+        mode: 'NX';
+      };
+    },
+  ): Promise<number> {
+    const useKey = this.generateKey(key);
+
+    const multi = this.redisClient.multi().incr(useKey);
+
+    if (opts?.expire) {
+      multi.expire(useKey, opts?.expire.seconds);
+    }
+
+    const [newVal] = await multi.exec();
+
+    return newVal as number;
+  }
+
+  async decrement(key: string): Promise<number> {
+    const useKey = this.generateKey(key);
+
+    return this.redisClient.decr(useKey);
+  }
+
   async setFeedHtmlContent({ key, body }: { body: string; key: string }) {
     try {
       await this.redisClient.set(key, body, {

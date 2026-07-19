@@ -19,8 +19,8 @@
       "results": "Showing {{start}}-{{end}} of {{total}} results"
     },
     "errors": {
-      "somethingWentWrong": "Sorry, something went wrong.",
-      "tryAgainLater": "Please try again later.",
+      "somethingWentWrong": "Something went wrong.",
+      "tryAgainLater": "Please try again later, or contact support@monitorss.xyz for assistance.",
       "detailsTitle": "Details",
       "failedToSave": "Failed to save changes",
       "supporterRequiredAccess": "This server needs to be backed by a supporter to access this.",
@@ -36,28 +36,28 @@
     },
     "apiErrors": {
       "feedInvalid": "Invalid feed. Ensure that the URL links to a valid RSS feed.",
-      "feedParseFailed": "Failed to parse feed. The feed may be incorrectly formatted. Please double check that this feed is a valid feed.",
-      "feedParseTimeout": "Parsing the feed took too long.",
-      "feedRequestTimeout": "Requesting the feed took too long. The feed may be too slow to respond, or may be facing issues. Consider checking the feed is still working by directly going to the feed link. Otherwise, please try again later.",
-      "feedRequestFailed": "Request to the feed failed. Please try again later.",
-      "feedRequestForbidden": "The feed host has explicitly blocked the request for the feed.",
-      "feedRequestPendingArticles": "Articles will be available after feed has been fetched on schedule (depending on your feed's refresh rate). Please check again later.",
-      "feedRequestInternalError": "Feed host is currently experiencing issues",
-      "feedRequestTooManyRequests": "Requests to the feed has been rate limited. Please try again later.",
-      "feedRequestUnauthorized": "Feed hosts requesting authorization that does not exist",
+      "feedParseFailed": "Failed to parse feed articles. The feed may be incorrectly formatted. Double check that this feed is a valid feed.",
+      "feedParseTimeout": "Failed to get feed articles - parsing the feed took too long. Ensure that the feed is not too large. Otherwise, try again later.",
+      "feedRequestTimeout": "Failed to get feed articles - requesting the feed took too long. The feed may be too slow to respond, or may be facing issues. Consider checking the feed is still working by directly going to the feed link. Otherwise, please try again later.",
+      "feedRequestFailed": "Failed to get feed articles - request to the feed failed. Double check that the feed link leads to valid feed, try again later, or reach out to support@monitorss.xyz for support.",
+      "feedRequestForbidden": "Failed to get feed articles - the feed owner may have blocked MonitoRSS. You may either wait a while to see if this resolves on its own, or consider asking the feed owner to unblock MonitoRSS (whose user agent contains MonitoRSS) if it was intentional.",
+      "feedRequestPendingArticles": "Feed articles will be available after feed has been fetched on schedule (depending on your feed's refresh rate). Please check again later.",
+      "feedRequestInternalError": "Failed to get feed articles - the feed host is reporting that they are experiencing internal issues. Double check that the feed link is working, or try again later.",
+      "feedRequestTooManyRequests": "Failed to get feed articles - requests to the feed has been rate limited. Try again later.",
+      "feedRequestUnauthorized": "Failed to get feed articles - the feed host is requesting authorization. Check if the feed is publicly accessible, or ensure that some authorization key is included in the feed URL if it is required.",
+      "feedRequestNotFound": "Failed to get feed articles - the feed host has reported that the feed does not exist. Check that the feed both exists and is publicly accessible.",
       "bannedFeed": "This feed is banned",
-      "feedMissingChannelPermission": "The bot does not have permission to send messages in the channel",
-      "feedLimitReached": "You have reached your feed limit",
+      "feedMissingChannelPermission": "The bot does not have permission to send messages within the channel. Ensure that the bot has the channel-level \"View Channel\" and \"Send Messages\" permissions and try again.",
+      "feedLimitReached": "You have reached your feed limit. Delete or disable other feeds to enable this one, or consider supporting MonitoRSS to increase your feed limit.",
       "feedMissingChannel": "The channel does not exist",
-      "feedUserMissingManageGuild": "You are missing the Manage Server permission",
-      "webhooksManageMissingPermissions": "The bot is missing the \"Manage Webhooks\" permission in this server.",
+      "feedUserMissingManageGuild": "You are missing the server-wide Manage Channels permission. Please contact your server administrator to grant you this permission.",
+      "webhooksManageMissingPermissions": "This action requires the bot to have the \"Manage Webhooks\" permission in this server or channel. Grant this permission in the channel's settings, then try again.",
       "webhookInvalid": "Webhook is invalid. Webhooks must be integration that are not owned by other bots.",
-      "feedNotFailed": "Unable to retry feed. The feed is still active, and there is no need to retry unless the feed has failed.",
-      "feedNotFound": "Feed does not exist",
+      "feedNotFound": "Feed does not exist or is not accessible. You may confirm by directly going to the feed link and checking that the feed is valid and publicly accessible.",
       "feedFilterInvalidExpression": "Invalid filter expression",
       "feedConnectionCannotEnableAutoDisabled": "Unable to enable connection when it was disabled automatically",
       "feedArticleNotFound": "Article does not exist. Try selecting another article or refreshing the page.",
-      "discordServerNotFound": "The bot does not access to this server. Make sure the bot is in the server.",
+      "discordServerNotFound": "The bot does not have access to this server. Make sure the bot is in the server.",
       "discordChannelInvalid": "That is an unacceptable channel. Try another one.",
       "webhookForumUnsupported": "Webhooks attached to forum channels are currently unsupported. Consider using a Discord channel connection instead."
     }
@@ -95,13 +95,12 @@
       "tableUrl": "URL",
       "tableStatus": "Status",
       "tableChannel": "Channel",
-      "tableSearch": "Search by title or url",
+      "tableSearch": "Search feeds by title or url",
       "tableResults": "Showing {{start}}-{{end}} of {{total}} results"
     },
     "userFeeds": {
-      "title": "Personal Feeds",
+      "title": "Feeds",
       "newBadge": "NEW",
-      "backToLegacyFeedsButton": "Back to legacy feeds",
       "tabLogs": "Logs",
       "settings": "Misc Settings",
       "tabComparisons": "Comparisons",
@@ -110,10 +109,10 @@
     "feed": {
       "disabledTitle": "This feed is currently disabled",
       "disabledDescription": "Articles will not be fetched until it is re-enabled. Reason: {{reason}}",
-      "connectingFailingTitle": "Unable to establish connection",
+      "connectingFailingTitle": "Unable to establish connection.",
       "connectingFailingDescription": "A successful connection to the feed cannot be established ({{reason}}). If this persists for an extended duration after extensive retries, this feed will eventually be disabled.",
-      "connectionFailureTitle": "Disabled due to too many connection failures",
-      "connectionFailureText": "There has been too many connection failures within a short period of time ({{reason}}). You may attempt to re-enable it. If the feed is verified to be working, it will successfully be re-enabled.",
+      "connectionFailureTitle": "This connection is disabled due to too many connection failures.",
+      "connectionFailureText": "There has been too many connection failures within a short period of time ({{reason}}). Check that the feed link still leads to a valid feed. If the feed link is verified to be valid, you may attempt to re-enable it.",
       "unknownReason": "unknown reason",
       "channelLabel": "Channel",
       "refreshRateLabel": "Refresh Rate",
@@ -127,7 +126,7 @@
       "discordWebhookMenuItem": "Discord Webhook",
       "articleDailyLimit": "Article Daily Limit",
       "connectionSectionDescription": "New articles are automatically delivered to every connection when new articles are found. You may add as many connections as you want, but every article that is delivered counts towards the feed's article limit.",
-      "articleDailyLimitHint": "Maximum number of articles within the past 24 hour timeframe, calculated from the time of every article delivery attempt."
+      "articleDailyLimitHint": "Maximum number of articles per feed within the past 24 hour timeframe, calculated from the time of every article delivery attempt."
     },
     "userFeed": {
       "deleteConfirmTitle": "Delete feed",
@@ -138,16 +137,18 @@
       "manuallyDisabledDescription": "Article delivery is paused until it is re-enabled.",
       "manuallyDisabledEnableButtonText": "Re-enable",
       "disableFeedButtonText": "Disable",
-      "disableFeedConfirmTitle": "Are you sure?",
+      "disableFeedConfirmTitle": "Are you sure you want to disable this feed?",
       "disableFeedConfirmDescription": "Articles will not be delivered until it is re-enabled.",
-      "connectionFailureTitle": "Disabled due to too many connection failures",
-      "connectionFailureText": "There has been too many connection failures within a short period of time. You may attempt to re-enable it. If the feed is verified to be working, it will successfully be re-enabled.",
-      "invalidFeedFailureTitle": "Disabled due to invalid feed",
-      "invalidFeedFailureText": "The feed contents could not be read. You may attempt to re-enable it. If the feed is verified to be working, it will successfully be re-enabled.",
-      "exceededFeedLimitTitle": "Disabled due to exceeded feed limit",
-      "exceededFeedLimitText": "You currently have exceeded your feed limit. You may either become a supporter, or delete some of your other feeds to re-enable this feed automatically after some time.",
-      "adminDisabledTitle": "Disabled by an administrator",
-      "adminDisabledText": "This feed has been disabled by an administrator. Please contact support for more details.",
+      "connectionFailureTitle": "This feed is currently disabled because there has been too many connection failures.",
+      "connectionFailureText": "Verify that the feed link stil leads to a valid feed. If the feed link still leads to a valid feed, you may request an attempt to re-enable it.",
+      "invalidFeedFailureTitle": "This feed is currently disabled because it is an invalid feed.",
+      "invalidFeedFailureText": "The feed contents could not be read. You may attempt to re-enable it. If the feed is verified to be working, it will be re-enabled.",
+      "exceededFeedLimitTitle": "This feed is currently disabled because it is over your feed limit.",
+      "exceededFeedLimitText": "You currently have exceeded your feed limit. You may either become a supporter, or disable/delete some of your other feeds to be able to re-enable this feed.",
+      "exceededFeedLimitWorkspaceTitle": "This feed is currently disabled because the workspace is over its feed limit.",
+      "exceededFeedLimitWorkspaceText": "The workspace has exceeded its feed limit. Disable or delete some of the workspace's other feeds to re-enable this feed.",
+      "adminDisabledTitle": "This feed is currently disabled by an administrator.",
+      "adminDisabledText": "Please contact support for more details.",
       "feedTooLargeTitle": "Disabled due to feed size",
       "feedTooLargeText": "The feed is too large to be processed. If you believe this is a mistake, please contact support.",
       "unknownTitle": "Disabled",
@@ -267,7 +268,7 @@
       "formValueDescription": "Each new line indicates a new and separate filter. Modifiers would apply to the beginning to each line."
     },
     "categoryText": {
-      "defaullTooltipLabel": "What is this?"
+      "defaultTooltipLabel": "What is this?"
     },
     "discordMessageForm": {
       "textSectionTitle": "Text",
@@ -275,16 +276,15 @@
       "embedSectionTitle": "Embeds",
       "embedSectionDescription": "You may also use the placeholders listed above in the fields below (for example, using an image placeholder in the image field).",
       "contentSectionTitle": "Content",
-      "contentSectionDescription": "You can use the placeholders listed above. A special placeholder, <0>{{empty}}</0>, can be used to create an empty message, but only if an embed is used. Regular formatting such as bold and etc. is also available.",
       "splitContentSectionTitle": "Split Content",
       "splitContentCheckboxDescription": "If enabled, the message will be split into multiple messages if it is too long. Otherwise, it will attempt to be sent as one message with the maximum possible number of characters.",
       "splitContentSettingsLabel": "Split Settings",
-      "splitContentSplitCharLabel": "Split character",
-      "splitContentSplitCharDescription": "The character to split the text content with. Defaults to '.' (a period).",
-      "splitContentAppendCharLabel": "Append character",
-      "splitContentAppendCharDescription": "The character to append to the end of the last message after the initial message has been split. Default is nothing.",
-      "splitContentPrependCharLabel": "Prepend character",
-      "splitContentPrependCharDescription": "The character to prepend to the beginning of the first message after the initial message has been split. Default is nothing.",
+      "splitContentSplitCharLabel": "Split text",
+      "splitContentSplitCharDescription": "The text to split the text content with. Defaults to '.' (a period).",
+      "splitContentAppendCharLabel": "Append text",
+      "splitContentAppendCharDescription": "The text to append to the end of the last message after the initial message has been split. Default is nothing.",
+      "splitContentPrependCharLabel": "Prepend text",
+      "splitContentPrependCharDescription": "The text to prepend to the beginning of the first message after the initial message has been split. Default is nothing.",
       "formatTablesSectionTitle": "Format Tables",
       "formatTablesCheckboxDescription": "If enabled, tables will be formatted to ensure uniform spacing. This is done by wrapping the table with triple backticks (<0>```table here```</0> for example).",
       "stripImagesSectionTitle": "Strip Images",
@@ -293,14 +293,13 @@
       "disableImageLinkPreviewsCheckboxDescription": "If enabled, image links will be wrapped with arrow brackets to prevent Discord from creating previews for them.",
       "placeholderFallbackTitle": "Placeholder Fallback",
       "placeholderFallbackCheckboxDescription": "Support falling back on alternate values within a placeholder if there is no placeholder value for a given article.",
-      "previewSectionTitle": "Preview",
-      "previewSectionDescription": "This is only an approximation of how the message will look like. It is not guaranteed to be accurate.",
+      "previewSectionTitle": "Preview Message Format",
+      "previewSectionDescription": "An approximate live preview of how your customizations would look in Discord while editing. To send and view the actual message in Discord, click the \"Send to Discord\" button.",
       "previewSectionUnsavedWarning": "You are previewing unsaved changes"
     },
     "discordMessageForumThreadForm": {
       "title": "Forum Thread",
       "threadTitleLabel": "Thread Title",
-      "threadTitleDescription": "The title of the thread that will be created per new article. You may use placeholders. The default is {{title}}.",
       "threadTagsLabel": "Thread Tags",
       "threadTagsDescription": "The tags that will be attached to the the thread. You may optionally define article filters to only attach certain tags for certain articles.",
       "threadTagsNoTagsFound": "There are no tags in this channel.",
@@ -310,7 +309,6 @@
     },
     "discordMessageMentionForm": {
       "title": "Mentions",
-      "description": "Roles and users that will be mentioned in the <0>{{discord::mentions}}</0> placeholder. The placeholder must be explicitly placed somewhere in the message for it to show up.",
       "mentionSettingsTitle": "Mention Settings",
       "mentionFiltersTitle": "Filters",
       "mentionFiltersDescription": "Filters ensure that this mention will only be added to articles that match these filters. If no filters are added, this mention will be added to all articles that have the mention placeholder.",
@@ -318,8 +316,8 @@
       "addMentionDescription": "You may add a role or user mention. Filters can be applied after the mention has been added.",
       "addRoleButton": "Role",
       "addUserButton": "User",
-      "addMentionButton": "Add",
-      "removeMentionButton":"Remove Mention",
+      "addMentionButton": "Add a new mention",
+      "removeMentionButton": "Remove Mention",
       "searchRolePlaceholder": "Search for a role...",
       "searchUserPlaceholder": "Search for a user..."
     },
@@ -367,7 +365,7 @@
           "cancelButton": "Cancel",
           "saveButton": "Add",
           "formTitleLabel": "Title",
-          "formTitleDescription": "This is only for your reference.",
+          "formTitleDescription": "Used to help you identify the feed.",
           "formChannelLabel": "Channel",
           "formLinkDescription": "Must be a link to a valid RSS XML feed.",
           "failedToAdd": "Failed to add feed"
@@ -378,18 +376,18 @@
         "addDiscordChannelThreadConnectionDialog": {
           "title": "Add a Discord thread connection",
           "formNameLabel": "Connection name",
-          "formNameDescription": "This is only for your reference.",
+          "formNameDescription": "Used to identify the connection.",
           "formThreadLabel": "Thread",
-          "formThreadDescripton": "Only unlocked (unarchived) threads are listed.",
+          "formThreadDescripton": "Only unarchived threads are listed.",
           "failedToGetThreads": "Failed to get threads"
         },
         "addDiscordChannelConnectionDialog": {
           "title": "Add a Discord channel connection",
           "saveButton": "Add",
-          "formServerLabel": "Server",
+          "formServerLabel": "Discord Server",
           "formNameLabel": "Connection name",
-          "formNameDescription": "This is only for your reference.",
-          "formChannelLabel": "Channel",
+          "formNameDescription": "Used to identify the connection.",
+          "formChannelLabel": "Discord Channel",
           "failedToGetChannels": "Failed to get server channels"
         },
         "updateDiscordChannelConnectionDialog": {
@@ -401,11 +399,11 @@
           "formNameLabel": "Connection name",
           "formServerLabel": "Server",
           "formServerDescription": "The Discord server the webhook belong to",
-          "formNameDescription": "This is only for your reference.",
-          "webhookNameLabel": "Webhook Name",
-          "webhookNameDescription": "This will override the webhook's name.",
-          "webhookIconUrlLabel": "Webhook Icon URL",
-          "webhookIconUrlDescription": "This will override the webhook's icon.",
+          "formNameDescription": "Used to identify the connection.",
+          "webhookNameLabel": "Display Name",
+          "webhookNameDescription": "The name shown as the message author.",
+          "webhookIconUrlLabel": "Avatar URL",
+          "webhookIconUrlDescription": "The avatar shown next to the message.",
           "webhooksInputHelperText": "If enabled webhooks, the channel of the feed will only ever be used if the webhook fails.",
           "webhookFormLabel": "Webhook",
           "failedToGetWebhooks": "Failed to get server webhooks"
@@ -416,12 +414,12 @@
         "sidebar": {
           "settings": "Settings",
           "webhookTitle": "Webhook",
-          "webhookNameLabel": "Name",
-          "webhookNameDescription": "This will override the webhook's name.",
-          "webhookIconUrlLabel": "Icon URL",
-          "webhookIconUrlDescription": "This will override the webhook's icon.",
+          "webhookNameLabel": "Display Name",
+          "webhookNameDescription": "The name shown as the message author.",
+          "webhookIconUrlLabel": "Avatar URL",
+          "webhookIconUrlDescription": "The avatar shown next to the message.",
           "titleFormLabel": "Title",
-          "titleFormHint": "This is only for your reference.",
+          "titleFormHint": "Used to identify the feed.",
           "channelFormLabel": "Channel",
           "webhookFormLabel": "Webhook",
           "webhooksPremiumDisabled": "This server must be backed by a supporter to access this.",
@@ -448,9 +446,9 @@
       "components": {
         "addUserFeedDialog": {
           "title": "Add a new feed",
-          "formTitleLabel": "Title",
+          "formTitleLabel": "Feed Title",
           "formLinkLabel": "Link",
-          "onlyForYourReferenceLabel": "This is only for your reference",
+          "onlyForYourReferenceLabel": "Used to identify the feed",
           "addButton": "Add Feed",
           "overLimitHint": "You have reached the maximum number of feeds available to you.",
           "successAdd": "Successfully added feed! Add connections to specify where articles will be sent to."
@@ -460,12 +458,12 @@
           "tableHeaderDate": "Date",
           "tableHeaderStatus": "Status",
           "alertFailingTitle": "Requests are currently failing",
-          "alertFailingDescription": "We've been unable to successfully fetch this feed. Attempts will continue automatically. The next attempt will be at {{nextAttemptDate}}."
+          "alertFailingDescription": "We've been unable to successfully fetch this feed. Attempts will continue automatically. The next automatic attempt will be at {{nextAttemptDate}}. You may also manually attempt a request via the button below."
         },
         "articleSelectPrompt": {
           "title": "Select an article",
           "loadingArticles": "Loading articles...",
-          "selectRandom": "Select random",
+          "selectRandom": "Select random article",
           "mayBeDelayWarning": "There may be a delay before new articles are listed depending on your refresh rate."
         }
       }
@@ -493,13 +491,13 @@
         },
         "connectionDisabledAlert": {
           "badFormatTitle": "Disabled due to invalid message format",
-          "badFormatDescription": "Discord rejected a message with your current message format. To re-enable this connection, please re-set your message format.",
-          "manuallyDisabledTitle": "This connection has been manually disabled",
+          "badFormatDescription": "Discord rejected a message with your current message format. To re-enable this connection, re-set your message format.",
+          "manuallyDisabledTitle": "This connection has been manually disabled.",
           "manuallyDisabledDescription": "Article delivery through this connection is paused until it is re-enabled.",
-          "missingMediumTitle": "This connection has been disabled because the delivery channel is missing",
-          "missingMediumDescription": "Article delivery through this connection is paused until the delivery channel is updated. Please configure and update this connection to use a valid delivery channel.",
-          "missingPermissionsTitle": "This connection has been disabled because of missing permissions",
-          "missingPermissionsDescription": "Article delivery through this connection is currently paused. Please update the permissions of the application and re-enable this connection to restore article delivery."
+          "missingMediumTitle": "This connection has been disabled because the delivery channel is missing.",
+          "missingMediumDescription": "Article delivery through this connection is paused until the delivery channel is updated. Configure and update this connection to use a valid delivery channel.",
+          "missingPermissionsTitle": "This connection has been disabled because of missing permissions.",
+          "missingPermissionsDescription": "Article delivery through this connection is currently paused. Update the permissions of the application and re-enable this connection to restore article delivery."
         },
         "embedForm": {
           "errorOneOfRequiredFields": "One of the following fields that are title, description, author, image, thumbnail, footer is required",
@@ -525,7 +523,7 @@
           "placeholderArticleProperty": "Article property",
           "placeholderSelectArticleProperty": "Select article property",
           "placeholderArticleValue": "Article value",
-          "valueIsRequired": "Value is required"
+          "valueIsRequired": "Filter value is required"
         },
         "deleteButton": {
           "confirmTitle": "Confirmation",
@@ -534,10 +532,10 @@
         "sendTestArticleButton": {
           "text": "Send Article",
           "description": "Send a random article to test the connection with your currently saved settings. Filters are not applied.",
-          "alertTitleSuccess": "Successfully sent!",
+          "alertTitleSuccess": "Successfully sent article to Discord.",
           "alertTitleFailure": "Failed to send article",
           "alertDescriptionThirdPartyInternalError": "Internal error occurred at target channel. Try again later.",
-          "alertDescriptionMissingApplicationPermission": "Missing application permissions. Ensure the bot has the proper permissions.",
+          "alertDescriptionMissingApplicationPermission": "Missing application permissions. Ensure the bot has the proper permissions view messages, send messages, and create embeds if applicable in the appropriate channels.",
           "alertDescriptionBadPayload": "Malformed payload detected. Update message setting and try again.",
           "alertDescriptionMissingChannel": "Connection channel no longer exists. Update this connection to target a different channel.",
           "alertDescriptionTooManyRequests": "Too many requests have been sent in a short period of time. Try again later.",
@@ -551,11 +549,11 @@
           "columnHeaderValue": "Value",
           "loadingArticle": "Loading article...",
           "headingSamplePlaceholders": "Article Placeholders",
-          "randomButton": "Random",
-          "noArticles": "The feed currently does not have any articles to preview.",
+          "randomButton": "Select random article",
+          "noArticles": "The feed currently does not have any articles to preview. Ensure that the feed is populated with at least one article to preview content.",
           "searchInputPlaceholder": "Search for a placeholder or article value...",
           "selectArticle": "Select article",
-          "hideEmptyPlaceholdersLabel": "Hide empty values"
+          "hideEmptyPlaceholdersLabel": "Hide placeholders with empty values"
         },
         "articleFilterResultsTable": {
           "columnHeaderPassedFilters": "Passed Filters"
@@ -565,7 +563,7 @@
           "headingSamplePlaceholders": "Articles",
           "headingSettings": "Settings",
           "loadingArticles": "Loading articles...",
-          "noArticles": "The feed currently does not have any articles to preview.",
+          "noArticles": "The feed currently does not have any articles to preview. Ensure that the feed is populated with at least one article to preview content.",
           "prevPage": "Previous",
           "nextPage": "Next"
         },
@@ -582,7 +580,7 @@
           "dateFormatInputLabel": "Format",
           "dateFormatInputDescription": "This will dictate how date placeholders will be formatted.",
           "dateTimezoneInputLabel": "Timezone",
-          "dateTimezoneInputDescription": "This will dictate what timezone date placeholders will use. For a list of valid timezones, <0>click here and see the \"TZ identifier\" column</0>.",
+          "dateTimezoneInputDescription": "This will dictate what timezone date placeholders will use. Default is UTC. For a list of valid timezones, <0>click here and see the \"TZ identifier\" column</0>.",
           "invalidTimezone": "Invalid timezone",
           "dateSettingsPreviewTitle": "Preview"
         }

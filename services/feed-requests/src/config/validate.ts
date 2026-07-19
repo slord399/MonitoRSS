@@ -74,6 +74,23 @@ export class EnvironmentVariables {
   @IsString()
   @IsOptional()
   FEED_REQUESTS_POSTGRES_REPLICA1_URI?: string;
+
+  @IsNumber()
+  FEED_REQUESTS_REQUEST_TIMEOUT_MS!: number;
+
+  @IsNumber()
+  FEED_REQUESTS_RABBITMQ_PREFETCH_COUNT!: number;
+
+  @IsString()
+  @IsOptional()
+  FEED_REQUESTS_PROXY_URL?: string;
+
+  @IsString()
+  @IsOptional()
+  FEED_REQUESTS_SPLIT_SDK_KEY?: string;
+
+  @IsNumber()
+  FEED_REQUESTS_HISTORY_PERSISTENCE_MONTHS!: number;
 }
 
 export function validateConfig(

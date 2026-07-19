@@ -1,8 +1,16 @@
 /* eslint-disable react/jsx-props-no-spreading */
-import { QuestionOutlineIcon } from "@chakra-ui/icons";
-import { Box, HStack, Stack, StackProps, Text, Tooltip } from "@chakra-ui/react";
+import { Box, BoxProps, Button, HStack, Stack, StackProps, Text } from "@chakra-ui/react";
 import React from "react";
+import { FaCircleQuestion } from "react-icons/fa6";
 import { useTranslation } from "react-i18next";
+import {
+  PopoverArrow,
+  PopoverBody,
+  PopoverCloseTrigger,
+  PopoverContent,
+  PopoverRoot,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface DescriptionProps extends StackProps {
   title: string;
@@ -12,46 +20,59 @@ interface DescriptionProps extends StackProps {
     description: string;
   };
   helpText?: string;
+  valueContainerProps?: BoxProps;
 }
-
-const QuestionOutlineComponent = React.forwardRef<any>((props, ref) => (
-  <QuestionOutlineIcon fontSize={12} tabIndex={0} ref={ref} {...props} />
-));
 
 export const CategoryText: React.FC<DescriptionProps> = ({
   title,
   children,
   helpTooltip,
+  valueContainerProps,
   ...styles
 }) => {
   const { t } = useTranslation();
 
-  const defaultTooltipLabel = t("common.components.categoryText.defaullTooltipLabel");
+  const defaultTooltipLabel = t("components.categoryText.defaultTooltipLabel");
+
+  const ariaLabelledBy = title.replace(/\s/g, "-").toLowerCase();
 
   return (
-    <Stack as="dl" spacing="1" {...styles}>
+    <Stack gap="1" {...styles} as="li">
       <HStack>
         <Text
-          as="dt"
           fontWeight="bold"
           fontSize="xs"
-          casing="uppercase"
-          color="gray.500"
+          textTransform="uppercase"
+          color="fg.muted"
           whiteSpace="nowrap"
+          id={ariaLabelledBy}
         >
           {title}
         </Text>
         {helpTooltip && (
-          <Tooltip label={helpTooltip.description}>
-            <QuestionOutlineComponent aria-label={helpTooltip.buttonLabel || defaultTooltipLabel} />
-          </Tooltip>
+          <PopoverRoot>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                aria-label={helpTooltip.buttonLabel || defaultTooltipLabel}
+                size="xs"
+              >
+                <FaCircleQuestion fontSize={12} />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent>
+              <PopoverArrow />
+              <PopoverCloseTrigger />
+              <PopoverBody>
+                <Text>{helpTooltip.description}</Text>
+              </PopoverBody>
+            </PopoverContent>
+          </PopoverRoot>
         )}
       </HStack>
-      <Box>
-        {/* <Text fontSize="sm" fontWeight="medium"> */}
+      <Box aria-labelledby={ariaLabelledBy} {...valueContainerProps}>
         {children}
       </Box>
-      {/* </Text> */}
     </Stack>
   );
 };

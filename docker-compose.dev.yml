@@ -1,5 +1,5 @@
-version: "3.8"
 name: monitorss-dev
+
 services:
   feed-requests-redis-cache:
     extends:
@@ -10,7 +10,7 @@ services:
 
   seaweed-fs:
     image: chrislusf/seaweedfs
-    container_name: 'seaweed-fs'
+    container_name: "seaweed-fs"
     ports:
       - 8333:8333
     command: server -s3
@@ -23,35 +23,34 @@ services:
       - fs-s3-storage-data:/data/seaweed-s3
     networks:
       - monitorss-default
-  
+
   rabbitmq-broker:
     extends:
       file: docker-compose.base.yml
       service: rabbitmq-broker
     ports:
-        - 5672:5672
-        - 15672:15672
+      - 5672:5672
+      - 15672:15672
 
   mongo:
-    extends:
-      file: docker-compose.base.yml
-      service: mongo
+    restart: on-failure:5
+    image: mongo:7.0.2
+    hostname: mongo
+    volumes:
+      - mongodb-dev-data:/data/db
+      - ./rs-initiate.js:/docker-entrypoint-initdb.d/rs-initiate.js
     ports:
       - "27018:27017"
-  
+    command: ["--replSet", "dbrs", "--bind_ip_all", "--port", "27017"]
+    networks:
+      - monitorss-default
+
   feed-requests-postgres-db:
     extends:
       file: docker-compose.base.yml
       service: feed-requests-postgres-db
     ports:
       - "5431:5432"
-      
-  user-feeds-postgres-db:
-    extends:
-      file: docker-compose.base.yml
-      service: user-feeds-postgres-db
-    ports:
-      - '5430:5432'
 
   bot-presence-service:
     extends:
@@ -63,6 +62,8 @@ services:
     command: npm run start:dev
     env_file:
       - ./.env.local
+    environment:
+      - NODE_ENV=development
 
   discord-rest-listener-service:
     extends:
@@ -74,6 +75,8 @@ services:
     command: npm start
     env_file:
       - ./.env.local
+    environment:
+      - DISCORD_REST_LISTENER_MONGO_URI=mongodb://mongo:27017/rss?replicaSet=dbrs&directConnection=true
 
   feed-requests-service:
     extends:
@@ -82,7 +85,7 @@ services:
     volumes:
       - ./services/feed-requests:/usr/src/app
       - /usr/src/app/node_modules/
-    command: npm run start:local
+    command: npm run start:watch
     env_file:
       - ./.env.local
     environment:
@@ -90,111 +93,207 @@ services:
       - FEED_REQUESTS_S3_ENDPOINT=http://seaweed-fs:8333
       - FEED_REQUESTS_S3_API_KEY_ID=1
       - FEED_REQUESTS_S3_API_KEY=1
-
-  feed-requests-postgres-migration:
-    extends:
-      file: docker-compose.base.yml
-      service: feed-requests-postgres-migration
-    command: "npm run migration:local:up"
-    env_file:
-      - ./.env.local
-    environment:
-      - FEED_REQUESTS_S3_ENDPOINT=http://seaweed-fs:8333
-      - FEED_REQUESTS_S3_API_KEY_ID=1
-      - FEED_REQUESTS_S3_API_KEY=1
-      - LOG_LEVEL=debug
+      - FEED_REQUESTS_START_TARGET=service
+      - NODE_ENV=local
+      - FEED_REQUESTS_FEEDS_MONGODB_URI=mongodb://mongo:27017/rss?replicaSet=dbrs&directConnection=true
 
   feed-requests-api:
     extends:
       file: docker-compose.base.yml
-      service: feed-requests-api
+      service: feed-requests-service
     volumes:
       - ./services/feed-requests:/usr/src/app
       - /usr/src/app/node_modules/
     ports:
       - "5000:5000"
       - "4999:4999"
-    command: npm run start:local
-    env_file:
-      - ./.env.local
-
-  user-feeds-service:
-    extends:
-      file: docker-compose.base.yml
-      service: user-feeds-service
-    volumes:
-      - ./services/user-feeds:/usr/src/app
-      - /usr/src/app/node_modules/
-    ports:
-      - "5001:5000"
-    command: npm run start:local
+    command: npm run start:watch
     env_file:
       - ./.env.local
     environment:
+      - FEED_REQUESTS_START_TARGET=api
+      - NODE_ENV=local
+      - FEED_REQUESTS_S3_ENDPOINT=http://seaweed-fs:8333
+      - FEED_REQUESTS_S3_API_KEY_ID=1
+      - FEED_REQUESTS_S3_API_KEY=1
+      - FEED_REQUESTS_FEEDS_MONGODB_URI=mongodb://mongo:27017/rss?replicaSet=dbrs&directConnection=true
+    networks:
+      - monitorss-default
+
+  feed-requests-postgres-migration:
+    extends:
+      file: docker-compose.base.yml
+      service: feed-requests-postgres-migration
+    command: "npm run migration:up"
+    env_file:
+      - ./.env.local
+    environment:
+      - FEED_REQUESTS_S3_ENDPOINT=http://seaweed-fs:8333
+      - FEED_REQUESTS_S3_API_KEY_ID=1
+      - FEED_REQUESTS_S3_API_KEY=1
       - LOG_LEVEL=debug
+      - NODE_ENV=local
 
   user-feeds-postgres-migration:
     extends:
       file: docker-compose.base.yml
-      service: user-feeds-postgres-migration
-    command: npm run migration:local:up
+      service: user-feeds-next-postgres-migration
+    build:
+      context: .
+      dockerfile: services/user-feeds-next/Dockerfile.dev
+    command: npx tsx ./src/scripts/run-migrations.ts
     env_file:
       - ./.env.local
-  
-  # Schedule emitter
+    environment:
+      - NODE_ENV=local
+
+  user-feeds-service:
+    extends:
+      file: docker-compose.base.yml
+      service: user-feeds-next-service
+    build:
+      context: .
+      dockerfile: services/user-feeds-next/Dockerfile.dev
+    env_file:
+      - ./.env.local
+    environment:
+      - LOG_LEVEL=debug
+      - USER_FEEDS_START_TARGET=service
+      - NODE_ENV=local
+      - USER_FEEDS_FEED_REQUESTS_API_URL=http://feed-requests-api:5000/v1/feed-requests
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./services/user-feeds-next
+          target: /usr/src/app/services/user-feeds-next
+          ignore:
+            - node_modules/
+
+  user-feeds-api:
+    extends:
+      file: docker-compose.base.yml
+      service: user-feeds-next-service
+    build:
+      context: .
+      dockerfile: services/user-feeds-next/Dockerfile.dev
+    ports:
+      - "5001:5000"
+    env_file:
+      - ./.env.local
+    environment:
+      - LOG_LEVEL=debug
+      - USER_FEEDS_START_TARGET=api
+      - NODE_ENV=local
+      - USER_FEEDS_FEED_REQUESTS_API_URL=http://feed-requests-api:5000/v1/feed-requests
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./services/user-feeds-next
+          target: /usr/src/app/services/user-feeds-next
+          ignore:
+            - node_modules/
+
   schedule-emitter-service:
     extends:
       file: docker-compose.base.yml
       service: schedule-emitter-service
-    volumes:
-      - ./services/backend-api:/usr/src/app
-      - /usr/src/app/node_modules/
+    build:
+      context: .
+      dockerfile: services/backend-api/Dockerfile.dev
+      target: ""
     env_file:
       - ./.env.local
     environment:
       - NODE_ENV=local
+      - BACKEND_API_MONGODB_URI=mongodb://mongo:27017/rss?replicaSet=dbrs&directConnection=true
+      - BACKEND_API_RABBITMQ_BROKER_URL=amqp://guest:guest@rabbitmq-broker:5672/
+      - BACKEND_API_USER_FEEDS_API_HOST=http://user-feeds-api:5000
+      - BACKEND_API_USER_FEEDS_API_KEY=user-feeds-api-key
+      - BACKEND_API_FEED_REQUESTS_API_HOST=http://feed-requests-api:5000
+      - BACKEND_API_FEED_REQUESTS_API_KEY=feed-requests-api-key
+      - BACKEND_API_FEED_USER_AGENT=MonitoRSS
       - LOG_LEVEL=debug
-    command: npm run start:schedule-emitter:local
+    command: npm run dev:schedule-emitter
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./services/backend-api/src
+          target: /usr/src/app/services/backend-api/src
 
-  # Schedule emitter
-  legacy-feed-bulk-converter-service:
-    extends:
-      file: docker-compose.base.yml
-      service: legacy-feed-bulk-converter-service
-    volumes:
-      - ./services/backend-api:/usr/src/app
-      - /usr/src/app/node_modules/
-    env_file:
-      - ./.env.local
-    environment:
-      - NODE_ENV=local
-    command: npm run start:legacy-feed-converter:local
-
-  # Web - Backend api
   web-api:
-    extends:
-      file: docker-compose.base.yml
-      service: web-api
-    volumes:
-      - ./services/backend-api:/usr/src/app
-      - /usr/src/app/node_modules/
+    build:
+      context: .
+      dockerfile: services/backend-api/Dockerfile.dev
+    restart: on-failure:5
+    depends_on:
+      - mongo
+      - user-feeds-service
+      - feed-requests-service
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:8000/api/v1/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "${BACKEND_API_PORT:-8000}:${BACKEND_API_PORT:-8000}"
     env_file:
       - ./.env.local
     environment:
       - BACKEND_API_NODE_ENV=local
-    command: npm run start:local
+      - BACKEND_API_PORT=${BACKEND_API_PORT:-8000}
+      - BACKEND_API_USER_FEEDS_API_HOST=http://user-feeds-api:5000
+      - BACKEND_API_USER_FEEDS_API_KEY=user-feeds-api-key
+      - BACKEND_API_FEED_REQUESTS_API_HOST=http://feed-requests-api:5000
+      - BACKEND_API_FEED_REQUESTS_API_KEY=feed-requests-api-key
+      - BACKEND_API_FEED_USER_AGENT=MonitoRSS
+      - BACKEND_API_MONGODB_URI=mongodb://mongo:27017/rss?replicaSet=dbrs&directConnection=true
+      - BACKEND_API_RABBITMQ_BROKER_URL=amqp://guest:guest@rabbitmq-broker:5672/
+      - BACKEND_API_LOGIN_REDIRECT_URI=http://localhost:3000
+      - LOG_LEVEL=debug
+      - NODE_ENV=local
+    command: npm run dev
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./services/backend-api/src
+          target: /usr/src/app/services/backend-api/src
     networks:
       - monitorss-default
 
   web-client:
-    extends:
-      file: docker-compose.base.yml
-      service: web-client
+    build:
+      context: .
+      dockerfile: services/backend-api/Dockerfile.dev
+    working_dir: /usr/src/app/services/backend-api/client
+    restart: on-failure:3
+    depends_on:
+      web-api:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      - API_PROXY_URL=http://web-api:${BACKEND_API_PORT:-8000}
+    command: npm run dev -- --host 0.0.0.0
+    develop:
+      watch:
+        - action: sync
+          path: ./services/backend-api/client/src
+          target: /usr/src/app/services/backend-api/client/src
+        - action: sync
+          path: ./services/backend-api/client/public
+          target: /usr/src/app/services/backend-api/client/public
+        - action: sync
+          path: ./services/backend-api/client/index.html
+          target: /usr/src/app/services/backend-api/client/index.html
+        - action: rebuild
+          path: ./services/backend-api/client/package.json
+    networks:
+      - monitorss-default
 
 volumes:
-  mongodb-data:
-  feed-requests-postgres-data:
-  user-feeds-postgres-data:
+  mongodb-dev-data:
+  rabbitmq-data:
+  feed-requests-postgres17-data:
   feed-requests-redis-data:
   fs-s3-storage-data:
     driver: local

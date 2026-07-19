@@ -1,11 +1,11 @@
+/* eslint-disable max-len */
 import {
   Body,
   Controller,
+  HttpStatus,
   Post,
   UseGuards,
   ValidationPipe,
-  BadRequestException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { Get } from '@nestjs/common/decorators';
 import dayjs from 'dayjs';
@@ -16,16 +16,16 @@ import { RequestStatus } from './constants';
 import {
   FetchFeedDto,
   FetchFeedDetailsDto,
+  FetchFeedDeliveryPreviewDto,
   GetFeedRequestsInputDto,
   GetFeedRequestsOutputDto,
 } from './dto';
 import { FeedFetcherService } from './feed-fetcher.service';
-import { GrpcMethod } from '@nestjs/microservices';
-import { MikroORM, UseRequestContext } from '@mikro-orm/core';
-import { plainToClass } from 'class-transformer';
-import { validateSync } from 'class-validator';
-import { Metadata } from '@grpc/grpc-js';
+import { MikroORM } from '@mikro-orm/core';
 import { ConfigService } from '@nestjs/config';
+import { HostRateLimiterService } from '../host-rate-limiter/host-rate-limiter.service';
+import calculateResponseFreshnessLifetime from '../shared/utils/calculate-response-freshness-lifetime';
+import PartitionedRequestsStoreService from '../partitioned-requests-store/partitioned-requests-store.service';
 
 @Controller({
   version: '1',
@@ -36,6 +36,8 @@ export class FeedFetcherController {
     private readonly feedFetcherService: FeedFetcherService,
     private readonly orm: MikroORM,
     private readonly configService: ConfigService,
+    private readonly hostRateLimiterService: HostRateLimiterService,
+    private readonly partitionedRequestsStoreService: PartitionedRequestsStoreService,
   ) {
     this.API_KEY = this.configService.getOrThrow<string>(
       'FEED_REQUESTS_API_KEY',
@@ -50,32 +52,47 @@ export class FeedFetcherController {
         transform: true,
       }),
     )
-    { skip, limit, url }: GetFeedRequestsInputDto,
+    dto: GetFeedRequestsInputDto,
   ): Promise<GetFeedRequestsOutputDto> {
-    const [requests, total] = await Promise.all([
-      this.feedFetcherService.getRequests({
-        skip,
-        limit,
-        url: decodeURIComponent(url),
-        select: ['id', 'createdAt', 'nextRetryDate', 'status'],
-      }),
-      this.feedFetcherService.countRequests({
-        url,
-      }),
+    const [requests] = await Promise.all([
+      this.feedFetcherService.getRequests(dto),
     ]);
 
-    const nextRetryDate = requests[0]?.nextRetryDate || null;
+    const nextRetryDate =
+      requests[0] && requests[0].status !== RequestStatus.OK
+        ? await this.feedFetcherService.getLatestRetryDate({
+            lookupKey: dto.lookupKey || dto.url,
+          })
+        : null;
+
+    const globalRateLimit = this.hostRateLimiterService.getLimitForUrl(dto.url);
 
     return {
       result: {
         requests: requests.map((r) => ({
           createdAt: dayjs(r.createdAt).unix(),
+          finishedAtIso: r.finishedAt?.toISOString(),
+          createdAtIso: r.createdAt.toISOString(),
           id: r.id,
+          url: r.url,
           status: r.status,
+          headers: r.fetchOptions?.headers,
+          response: {
+            statusCode: r.response?.statusCode,
+            headers: r.response?.headers,
+          },
+          freshnessLifetimeMs: calculateResponseFreshnessLifetime({
+            headers: r.response?.headers || {},
+          }).capped,
         })),
-        totalRequests: total,
         // unix timestamp in seconds
         nextRetryTimestamp: nextRetryDate ? dayjs(nextRetryDate).unix() : null,
+        feedHostGlobalRateLimit: globalRateLimit
+          ? {
+              intervalSec: globalRateLimit.data.intervalSec,
+              requestLimit: globalRateLimit.data.requestLimit,
+            }
+          : null,
       },
     };
   }
@@ -88,26 +105,143 @@ export class FeedFetcherController {
     return this.getLatestRequest(data);
   }
 
-  @GrpcMethod('FeedFetcherGrpc', 'FetchFeed')
-  @UseRequestContext()
-  async fetchFeedGrpc(
-    data: FetchFeedDto,
-    metadata: Metadata,
+  @Post('feed-requests/delivery-preview')
+  @UseGuards(ApiGuard)
+  async fetchFeedDeliveryPreview(
+    @Body(ValidationPipe) data: FetchFeedDeliveryPreviewDto,
   ): Promise<FetchFeedDetailsDto> {
-    const classData = plainToClass(FetchFeedDto, data);
-    const results = validateSync(classData);
+    const lookupKey = data.lookupKey || data.url;
 
-    if (results.length > 0) {
-      throw new BadRequestException(results.join(','));
+    // 1. Get latest request (any status, including errors)
+    let latestRequest =
+      await this.partitionedRequestsStoreService.getLatestRequestAnyStatus(
+        lookupKey,
+      );
+
+    // 2. Check staleness
+    const threshold = data.stalenessThresholdSeconds ?? 1800;
+    const isStale =
+      !latestRequest ||
+      dayjs().diff(latestRequest.createdAt, 'second') > threshold;
+
+    // 3. If stale, fetch new
+    if (isStale) {
+      const { request } = await this.feedFetcherService.fetchAndSaveResponse(
+        data.url,
+        {
+          lookupDetails: data.lookupKey ? { key: data.lookupKey } : undefined,
+          source: undefined,
+        },
+      );
+
+      await this.partitionedRequestsStoreService.flushInserts([request]);
+
+      // Re-fetch latest
+      latestRequest =
+        await this.partitionedRequestsStoreService.getLatestRequestAnyStatus(
+          lookupKey,
+        );
     }
 
-    const auth = metadata.get('api-key')[0];
-
-    if (auth !== this.API_KEY) {
-      throw new UnauthorizedException('Invalid authorization');
+    // 4. Map to response
+    if (!latestRequest) {
+      return { requestStatus: 'FETCH_ERROR' as const };
     }
 
-    return this.getLatestRequest(data);
+    // Check for hash match before mapping status
+    if (
+      data.hashToCompare &&
+      latestRequest.response?.textHash &&
+      data.hashToCompare === latestRequest.response.textHash
+    ) {
+      return { requestStatus: 'MATCHED_HASH' as const };
+    }
+
+    // Handle 304 Not Modified - get body from last successful request with content
+    if (latestRequest.response?.statusCode === HttpStatus.NOT_MODIFIED) {
+      const lastWithBody =
+        await this.partitionedRequestsStoreService.getLatestRequestWithResponseBody(
+          lookupKey,
+        );
+
+      if (lastWithBody?.response?.content) {
+        latestRequest = {
+          ...latestRequest,
+          response: {
+            ...latestRequest.response,
+            content: lastWithBody.response.content,
+            textHash: lastWithBody.response.textHash,
+          },
+        };
+      }
+    }
+
+    const decodedBody = await this.feedFetcherService.decodeResponseContent(
+      latestRequest.response?.content,
+    );
+
+    return this.mapStatusToResponse(
+      latestRequest.status,
+      latestRequest.response,
+      decodedBody,
+    );
+  }
+
+  /**
+   * Maps a request status and response to FetchFeedDetailsDto.
+   * Shared between delivery preview and regular feed request endpoints.
+   */
+  private mapStatusToResponse(
+    status: RequestStatus,
+    response: { textHash?: string | null; statusCode: number } | null,
+    body: string,
+  ): FetchFeedDetailsDto {
+    if (status === RequestStatus.INVALID_SSL_CERTIFICATE) {
+      return { requestStatus: 'INVALID_SSL_CERTIFICATE' as const };
+    }
+
+    if (status === RequestStatus.REFUSED_LARGE_FEED) {
+      return { requestStatus: 'REFUSED_LARGE_FEED' as const };
+    }
+
+    if (status === RequestStatus.FETCH_TIMEOUT) {
+      return { requestStatus: 'FETCH_TIMEOUT' as const };
+    }
+
+    if (status === RequestStatus.FETCH_ERROR || !response) {
+      return { requestStatus: 'FETCH_ERROR' as const };
+    }
+
+    if (status === RequestStatus.OK) {
+      return {
+        requestStatus: 'SUCCESS' as const,
+        response: {
+          hash: response.textHash,
+          body,
+          statusCode: response.statusCode,
+        },
+      };
+    }
+
+    if (status === RequestStatus.PARSE_ERROR) {
+      return {
+        requestStatus: 'PARSE_ERROR' as const,
+        response: { statusCode: response.statusCode },
+      };
+    }
+
+    if (status === RequestStatus.INTERNAL_ERROR) {
+      return { requestStatus: 'INTERNAL_ERROR' as const };
+    }
+
+    if (status === RequestStatus.BAD_STATUS_CODE) {
+      return {
+        requestStatus: 'BAD_STATUS_CODE' as const,
+        response: { statusCode: response.statusCode },
+      };
+    }
+
+    throw new Error(`Unhandled request status: ${status}`);
   }
 
   private async getLatestRequest(
@@ -115,9 +249,17 @@ export class FeedFetcherController {
   ): Promise<FetchFeedDetailsDto> {
     if (data.executeFetch) {
       try {
-        await this.feedFetcherService.fetchAndSaveResponse(data.url, {
-          saveResponseToObjectStorage: data.debug,
-        });
+        const { request } = await this.feedFetcherService.fetchAndSaveResponse(
+          data.url,
+          {
+            saveResponseToObjectStorage: data.debug,
+            lookupDetails: data.lookupDetails ? data.lookupDetails : undefined,
+            source: undefined,
+            headers: data.lookupDetails?.headers,
+          },
+        );
+
+        await this.partitionedRequestsStoreService.flushInserts([request]);
       } catch (err) {
         logger.error(`Failed to fetch and save response of feed ${data.url}`, {
           stack: (err as Error).stack,
@@ -127,40 +269,119 @@ export class FeedFetcherController {
       }
     }
 
-    let latestRequest = await this.feedFetcherService.getLatestRequest(
-      data.url,
-    );
+    let latestRequest: {
+      request: {
+        response: {
+          textHash?: string | null;
+          statusCode: number;
+          redisCacheKey?: string | null;
+        } | null;
+        status: RequestStatus;
+        createdAt: Date;
+      };
+      decodedResponseText?: string | null;
+    } | null = await this.feedFetcherService.getLatestRequest({
+      url: data.url,
+      lookupKey: data.lookupDetails?.key,
+    });
 
-    // If there's no text, response must be fetched to be cached
-    if (
-      !latestRequest ||
-      (latestRequest.request.response?.redisCacheKey &&
-        !latestRequest.decodedResponseText)
-    ) {
-      if (data.executeFetchIfNotExists) {
-        const savedData = await this.feedFetcherService.fetchAndSaveResponse(
-          data.url,
-          {
-            flushEntities: true,
-          },
-        );
+    const stalenessThresholdSeconds = data.stalenessThresholdSeconds ?? 1800; // 30 min default
+    const isStale =
+      latestRequest &&
+      dayjs().diff(latestRequest.request.createdAt, 'second') >
+        stalenessThresholdSeconds;
 
-        latestRequest = {
-          request: savedData.request,
-          decodedResponseText: savedData.responseText,
-        };
-      } else {
-        return {
-          requestStatus: 'PENDING' as const,
-        };
+    if (data.executeFetchIfStale && isStale) {
+      const { request } = await this.feedFetcherService.fetchAndSaveResponse(
+        data.url,
+        {
+          saveResponseToObjectStorage: data.debug,
+          lookupDetails: data.lookupDetails ? data.lookupDetails : undefined,
+          source: undefined,
+          headers: data.lookupDetails?.headers,
+        },
+      );
+
+      await this.partitionedRequestsStoreService.flushInserts([request]);
+
+      latestRequest = await this.feedFetcherService.getLatestRequest({
+        url: data.url,
+        lookupKey: data.lookupDetails?.key,
+      });
+    }
+
+    // If there's no request with a response body, try to get latest non-304 request
+    // (this will return errors like SSL certificate issues to the user)
+    if (!latestRequest) {
+      latestRequest = await this.feedFetcherService.getLatestRequestNon304({
+        url: data.url,
+        lookupKey: data.lookupDetails?.key,
+      });
+
+      // Check staleness on error records too - a stale error should not prevent
+      // a fresh fetch attempt (e.g. a transient network error days ago)
+      if (latestRequest && data.executeFetchIfStale) {
+        const isErrorStale =
+          dayjs().diff(latestRequest.request.createdAt, 'second') >
+          stalenessThresholdSeconds;
+
+        if (isErrorStale) {
+          const { request } =
+            await this.feedFetcherService.fetchAndSaveResponse(data.url, {
+              saveResponseToObjectStorage: data.debug,
+              lookupDetails: data.lookupDetails
+                ? data.lookupDetails
+                : undefined,
+              source: undefined,
+              headers: data.lookupDetails?.headers,
+            });
+
+          await this.partitionedRequestsStoreService.flushInserts([request]);
+
+          // Try to get a request with body first (in case the re-fetch succeeded)
+          latestRequest = await this.feedFetcherService.getLatestRequest({
+            url: data.url,
+            lookupKey: data.lookupDetails?.key,
+          });
+
+          if (!latestRequest) {
+            latestRequest =
+              await this.feedFetcherService.getLatestRequestNon304({
+                url: data.url,
+                lookupKey: data.lookupDetails?.key,
+              });
+          }
+        }
       }
     }
 
-    const latestRequestStatus = latestRequest.request.status;
-    const latestRequestResponse = latestRequest.request.response;
+    // Only fetch fresh if there's no non-304 request
+    // (meaning either all requests are 304, or there are no requests at all)
+    if (!latestRequest) {
+      const savedData = await this.feedFetcherService.fetchAndSaveResponse(
+        data.url,
+        {
+          saveResponseToObjectStorage: data.debug,
+          lookupDetails: data.lookupDetails,
+          source: undefined,
+          headers: data.lookupDetails?.headers,
+        },
+      );
 
+      await this.partitionedRequestsStoreService.flushInserts([
+        savedData.request,
+      ]);
+
+      latestRequest = {
+        request: { ...savedData.request },
+        decodedResponseText: savedData.responseText,
+      };
+    }
+
+    // Check for hash match before mapping status
     if (
       data.hashToCompare &&
+      latestRequest.request.response?.textHash &&
       data.hashToCompare === latestRequest.request.response?.textHash
     ) {
       return {
@@ -168,62 +389,10 @@ export class FeedFetcherController {
       };
     }
 
-    if (latestRequestStatus === RequestStatus.REFUSED_LARGE_FEED) {
-      return {
-        requestStatus: 'REFUSED_LARGE_FEED' as const,
-      };
-    }
-
-    if (latestRequestStatus === RequestStatus.FETCH_TIMEOUT) {
-      return {
-        requestStatus: 'FETCH_TIMEOUT' as const,
-      };
-    }
-
-    if (
-      latestRequestStatus === RequestStatus.FETCH_ERROR ||
-      !latestRequestResponse
-    ) {
-      return {
-        requestStatus: 'FETCH_ERROR' as const,
-      };
-    }
-
-    if (latestRequestStatus === RequestStatus.OK) {
-      return {
-        requestStatus: 'SUCCESS' as const,
-        response: {
-          hash: latestRequestResponse.textHash,
-          body: latestRequest.decodedResponseText as string,
-          statusCode: latestRequestResponse.statusCode,
-        },
-      };
-    }
-
-    if (latestRequestStatus === RequestStatus.PARSE_ERROR) {
-      return {
-        requestStatus: 'PARSE_ERROR' as const,
-        response: {
-          statusCode: latestRequestResponse.statusCode,
-        },
-      };
-    }
-
-    if (latestRequestStatus === RequestStatus.INTERNAL_ERROR) {
-      return {
-        requestStatus: 'INTERNAL_ERROR' as const,
-      };
-    }
-
-    if (latestRequestStatus === RequestStatus.BAD_STATUS_CODE) {
-      return {
-        requestStatus: 'BAD_STATUS_CODE' as const,
-        response: {
-          statusCode: latestRequestResponse.statusCode,
-        },
-      };
-    }
-
-    throw new Error(`Unhandled request status: ${latestRequestStatus}`);
+    return this.mapStatusToResponse(
+      latestRequest.request.status,
+      latestRequest.request.response,
+      latestRequest.decodedResponseText ?? '',
+    );
   }
 }

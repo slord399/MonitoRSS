@@ -1,0 +1,253 @@
+export enum ApiErrorCode {
+  INTERNAL_ERROR = "INTERNAL_ERROR",
+  UNAUTHORIZED = "UNAUTHORIZED",
+  SESSION_REVOKED = "SESSION_REVOKED",
+  TOKEN_REFRESH_FAILED = "TOKEN_REFRESH_FAILED",
+  VALIDATION_FAILED = "VALIDATION_FAILED",
+  FEED_INVALID = "FEED_INVALID",
+  NO_FEED_IN_HTML_PAGE = "NO_FEED_IN_HTML_PAGE",
+  FEED_INVALID_SSL_CERT = "FEED_INVALID_SSL_CERT",
+  FEED_PARSE_FAILED = "FEED_PARSE_FAILED",
+  FEED_FETCH_FAILED = "FEED_FETCH_FAILED",
+  ADD_FEED_PARSE_FAILED = "ADD_FEED_PARSE_FAILED",
+  FEED_PARSE_TIMEOUT = "FEED_PARSE_TIMEOUT",
+  FEED_REQUEST_TIMEOUT = "FEED_REQUEST_TIMEOUT",
+  FEED_REQUEST_FAILED = "FEED_REQUEST_FAILED",
+  FEED_REQUEST_FORBIDDEN = "FEED_REQUEST_FORBIDDEN",
+  FEED_REQUEST_INTERNAL_ERROR = "FEED_REQUEST_INTERNAL_ERROR",
+  FEED_REQUEST_TOO_MANY_REQUESTS = "FEED_REQUEST_TOO_MANY_REQUESTS",
+  FEED_REQUEST_UNAUTHORIZED = "FEED_REQUEST_UNAUTHORIZED",
+  REDDIT_CONNECTION_REQUIRED = "REDDIT_CONNECTION_REQUIRED",
+  FEED_CONNECTION_NOT_FOUND = "FEED_CONNECTION_NOT_FOUND",
+  WEBHOOKS_MANAGE_MISSING_PERMISSIONS = "WEBHOOKS_MANAGE_MISSING_PERMISSIONS",
+  WEBHOOKS_DISABLED = "WEBHOOKS_DISABLED",
+  WEBHOOK_MISSING = "WEBHOOK_MISSING",
+  WEBHOOK_INVALID = "WEBHOOK_INVALID",
+  FEED_MISSING_CHANNEL_PERMISSION = "FEED_MISSING_CHANNEL_PERMISSION",
+  FEED_MISSING_VIEW_CHANNEL_PERMISSION = "FEED_MISSING_VIEW_CHANNEL_PERMISSION",
+  FEED_MISSING_CHANNEL = "FEED_MISSING_CHANNEL",
+  FEED_USER_MISSING_MANAGE_GUILD = "FEED_USER_MISSING_MANAGE_GUILD",
+  FEED_LIMIT_REACHED = "FEED_LIMIT_REACHED",
+  FEED_NOT_FOUND = "FEED_NOT_FOUND",
+  USER_FEED_NOT_FOUND = "USER_FEED_NOT_FOUND",
+  CURATED_FEED_NOT_FOUND = "CURATED_FEED_NOT_FOUND",
+  FEED_TOO_LARGE = "FEED_TOO_LARGE",
+  ADD_FEED_WITH_SOURCE_FEED_NOT_FOUND = "ADD_FEED_WITH_SOURCE_FEED_NOT_FOUND",
+  FEED_INVALID_FILTER_EXPRESSION = "FEED_INVALID_FILTER_EXPRESSION",
+  FEED_INVALID_COMPONENTS_V2 = "FEED_INVALID_COMPONENTS_V2",
+  BANNED_FEED = "BANNED_FEED",
+  DISCORD_CHANNEL_NOT_OWNED_BY_GUILD = "DISCORD_CHANNEL_NOT_OWNED_BY_GUILD",
+  DISCORD_CAHNNEL_INVALID = "DISCORD_CAHNNEL_INVALID",
+  FEED_CONNECTION_CANNOT_ENABLE_AUTO_DISABLED = "FEED_CONNECTION_CANNOT_ENABLE_AUTO_DISABLED",
+  FEED_ARTICLE_NOT_FOUND = "FEED_ARTICLE_NOT_FOUND",
+  DISCORD_SERVER_NOT_FOUND = "DISCORD_SERVER_NOT_FOUND",
+  WEBHOOK_FORUM_UNSUPPORTED = "WEBHOOK_FORUM_UNSUPPORTED",
+  ALREADY_CONVERTED_TO_USER_FEED = "ALREADY_CONVERTED_TO_USER_FEED",
+  LEGACY_CONVERSION_JOB_EXISTS = "LEGACY_CONVERSION_JOB_EXISTS",
+  NO_LEGACY_FEEDS_TO_CONVERT = "NO_LEGACY_FEEDS_TO_CONVERT",
+  HANDLED_BY_BULK_CONVERSION = "HANDLED_BY_BULK_CONVERSION",
+  MISSING_SHARED_MANAGER_PERMISSIONS = "MISSING_SHARED_MANAGER_PERMISSIONS",
+  USER_MANAGER_ALREADY_INVITED = "USER_MANAGER_ALREADY_INVITED",
+  USER_FEED_TRANSFER_REQUEST_EXISTS = "USER_FEED_TRANSFER_REQUEST_EXISTS",
+  INVITE_NOT_FOUND = "INVITE_NOT_FOUND",
+  INSUFFICIENT_SUPPORTER_LEVEL = "INSUFFICIENT_SUPPORTER_LEVEL",
+  INVALID_CUSTOM_PLACEHOLDERS_REGEX_PREVIEW_INPUT = "INVALID_CUSTOM_PLACEHOLDERS_REGEX_PREVIEW_INPUT",
+  INVALID_FILTERS_REGEX = "INVALID_FILTERS_REGEX",
+  TRANSACTION_BALANCE_TOO_LOW = "TRANSACTION_BALANCE_TOO_LOW",
+  SUBSCRIPTION_ABOUT_TO_RENEW = "SUBSCRIPTION_ABOUT_TO_RENEW",
+  USER_REFRESH_RATE_NOT_ALLOWED = "USER_REFRESH_RATE_NOT_ALLOWED",
+  ADDRESS_LOCATION_NOT_ALLOWED = "ADDRESS_LOCATION_NOT_ALLOWED",
+  SUBSCRIPTION_ALREADY_CANCELLED = "SUBSCRIPTION_ALREADY_CANCELLED",
+  INVALID_REQUEST = "INVALID_REQUEST",
+  TOO_MANY_REQUESTS = "TOO_MANY_REQUESTS",
+  SERVER_ID_REQUIRED = "SERVER_ID_REQUIRED",
+  GUILD_ID_REQUIRED = "GUILD_ID_REQUIRED",
+  INVALID_AUTH_STATE = "INVALID_AUTH_STATE",
+  INVALID_AUTH_CODE = "INVALID_AUTH_CODE",
+  INVALID_JSON_STATE = "INVALID_JSON_STATE",
+  USER_NOT_FOUND = "USER_NOT_FOUND",
+  EMAIL_VERIFICATION_INVALID_CODE = "EMAIL_VERIFICATION_INVALID_CODE",
+  EMAIL_VERIFICATION_EXPIRED = "EMAIL_VERIFICATION_EXPIRED",
+  EMAIL_VERIFICATION_TOO_MANY_ATTEMPTS = "EMAIL_VERIFICATION_TOO_MANY_ATTEMPTS",
+  EMAIL_VERIFICATION_RESEND_TOO_SOON = "EMAIL_VERIFICATION_RESEND_TOO_SOON",
+  EMAIL_VERIFICATION_TOO_MANY_TARGETS = "EMAIL_VERIFICATION_TOO_MANY_TARGETS",
+  EMAIL_VERIFICATION_UNAVAILABLE = "EMAIL_VERIFICATION_UNAVAILABLE",
+  EMAIL_VERIFICATION_REVERT_SUPERSEDED = "EMAIL_VERIFICATION_REVERT_SUPERSEDED",
+  EMAIL_ALREADY_IN_USE = "EMAIL_ALREADY_IN_USE",
+  EMAIL_NOT_VERIFIED = "EMAIL_NOT_VERIFIED",
+  WORKSPACE_NOT_FOUND = "WORKSPACE_NOT_FOUND",
+  WORKSPACE_NOT_SUBSCRIBED = "WORKSPACE_NOT_SUBSCRIBED",
+  WORKSPACE_NEVER_ACTIVATED_EXISTS = "WORKSPACE_NEVER_ACTIVATED_EXISTS",
+  WORKSPACE_BILLING_NOT_CONFIGURED = "WORKSPACE_BILLING_NOT_CONFIGURED",
+  WORKSPACE_INVALID_TIER = "WORKSPACE_INVALID_TIER",
+  WORKSPACE_PERSONAL_PLAN_NOT_CONVERTIBLE = "WORKSPACE_PERSONAL_PLAN_NOT_CONVERTIBLE",
+  WORKSPACE_ALREADY_SUBSCRIBED = "WORKSPACE_ALREADY_SUBSCRIBED",
+  WORKSPACE_INVALID_CONVERSION_FEEDS = "WORKSPACE_INVALID_CONVERSION_FEEDS",
+  WORKSPACE_CONVERSION_IN_PROGRESS = "WORKSPACE_CONVERSION_IN_PROGRESS",
+  WORKSPACE_INSUFFICIENT_ROLE = "WORKSPACE_INSUFFICIENT_ROLE",
+  WORKSPACE_SLUG_TAKEN = "WORKSPACE_SLUG_TAKEN",
+  WORKSPACE_SLUG_RESERVED = "WORKSPACE_SLUG_RESERVED",
+  WORKSPACE_MEMBER_ALREADY_EXISTS = "WORKSPACE_MEMBER_ALREADY_EXISTS",
+  WORKSPACE_ALREADY_INVITED = "WORKSPACE_ALREADY_INVITED",
+  WORKSPACE_INVITE_EMAIL_UNAVAILABLE = "WORKSPACE_INVITE_EMAIL_UNAVAILABLE",
+  WORKSPACE_INVITE_NOT_FOUND = "WORKSPACE_INVITE_NOT_FOUND",
+  WORKSPACE_INVITE_EMAIL_UNVERIFIED = "WORKSPACE_INVITE_EMAIL_UNVERIFIED",
+  WORKSPACE_INVITE_EMAIL_MISMATCH = "WORKSPACE_INVITE_EMAIL_MISMATCH",
+  WORKSPACE_INVITE_ALREADY_MEMBER = "WORKSPACE_INVITE_ALREADY_MEMBER",
+  WORKSPACE_INVITE_RESEND_TOO_SOON = "WORKSPACE_INVITE_RESEND_TOO_SOON",
+  WORKSPACE_INVITE_LIMIT_REACHED = "WORKSPACE_INVITE_LIMIT_REACHED",
+  CANNOT_REMOVE_LAST_OWNER = "CANNOT_REMOVE_LAST_OWNER",
+  WORKSPACE_TRANSFER_TARGET_INVALID = "WORKSPACE_TRANSFER_TARGET_INVALID",
+  WORKSPACE_FEED_SHARING_DISABLED = "WORKSPACE_FEED_SHARING_DISABLED",
+  WORKSPACE_HAS_ACTIVE_SUBSCRIPTION = "WORKSPACE_HAS_ACTIVE_SUBSCRIPTION",
+  ROUTE_NOT_FOUND = "ROUTE_NOT_FOUND",
+}
+
+export const API_ERROR_MESSAGES: Record<ApiErrorCode, string> = {
+  INTERNAL_ERROR: "Internal error",
+  UNAUTHORIZED: "Unauthorized",
+  SESSION_REVOKED: "Session has been revoked",
+  TOKEN_REFRESH_FAILED: "Token refresh failed",
+  VALIDATION_FAILED: "Validation failed",
+  FEED_INVALID: "Invalid feed",
+  FEED_PARSE_FAILED: "Failed to parse feed",
+  FEED_FETCH_FAILED: "Failed to fetch feed",
+  NO_FEED_IN_HTML_PAGE: "No feed found in HTML page",
+  ADD_FEED_PARSE_FAILED: "Failed to parse feed",
+  FEED_PARSE_TIMEOUT: "Failed to parse feed due to timeout",
+  FEED_REQUEST_TIMEOUT: "Failed to request feed due to timeout",
+  FEED_REQUEST_FAILED: "Failed to request feed",
+  FEED_REQUEST_FORBIDDEN: "Request to feed failed (403 code)",
+  FEED_REQUEST_INTERNAL_ERROR: "Request to feed failed (5xx code)",
+  FEED_REQUEST_TOO_MANY_REQUESTS: "Request to feed failed (429 code)",
+  FEED_REQUEST_UNAUTHORIZED: "Request to feed failed (401 code)",
+  REDDIT_CONNECTION_REQUIRED:
+    "Reddit heavily rate-limits unauthenticated requests, so Reddit feeds need a connected account to fetch reliably. Connect your Reddit account and try again.",
+  FEED_CONNECTION_NOT_FOUND: "Feed connection was not found",
+  WEBHOOKS_MANAGE_MISSING_PERMISSIONS:
+    "Bot is missing Manage Webhooks permission",
+  WEBHOOKS_DISABLED: "Webhooks are not enabled",
+  WEBHOOK_MISSING: "Specified webhook does not exist",
+  WEBHOOK_INVALID:
+    'Specified webhook is invalid. Must be of type "Incoming Webhook"' +
+    " that has not been created by another application",
+  FEED_MISSING_CHANNEL: "Channel does not exist",
+  FEED_MISSING_CHANNEL_PERMISSION: "Insufficient bot permissions in channel",
+  FEED_MISSING_VIEW_CHANNEL_PERMISSION:
+    "Bot is missing View Channel permission",
+  FEED_USER_MISSING_MANAGE_GUILD:
+    "You do not have permission to manage this server",
+  FEED_LIMIT_REACHED: "Feed limit reached",
+  BANNED_FEED: "Feed is banned",
+  DISCORD_CHANNEL_NOT_OWNED_BY_GUILD:
+    "Channel is not owned by the current guild",
+  DISCORD_CAHNNEL_INVALID: "Selected channel is not accepted",
+  FEED_NOT_FOUND:
+    "Feed does not exist or is not accessible. You may confirm by directly going to the feed link and checking that the feed is valid and publicly accessible.",
+  USER_FEED_NOT_FOUND:
+    "This feed no longer exists. It may have already been removed.",
+  CURATED_FEED_NOT_FOUND: "Curated feed does not exist.",
+  FEED_TOO_LARGE: "Feed is too large to be processed",
+  FEED_INVALID_FILTER_EXPRESSION: "Invalid filter expression",
+  FEED_INVALID_COMPONENTS_V2: "Invalid componentsV2 configuration",
+  FEED_CONNECTION_CANNOT_ENABLE_AUTO_DISABLED:
+    "Cannot enable a feed that was automatically disabled",
+  FEED_ARTICLE_NOT_FOUND: "Article does not exist",
+  DISCORD_SERVER_NOT_FOUND:
+    "Server does not exist or bot does not have access to server",
+  WEBHOOK_FORUM_UNSUPPORTED: "Forum webhooks are currently unsupported",
+  ALREADY_CONVERTED_TO_USER_FEED:
+    "Feed has already been converted to a user feed",
+  LEGACY_CONVERSION_JOB_EXISTS:
+    "A legacy conversion job already exists for this feed",
+  NO_LEGACY_FEEDS_TO_CONVERT: "No legacy feeds to convert",
+  HANDLED_BY_BULK_CONVERSION: "Handled by bulk conversion",
+  MISSING_SHARED_MANAGER_PERMISSIONS:
+    "You are missing the required permissions to do this action.",
+  USER_MANAGER_ALREADY_INVITED: "Invitation exists for this user.",
+  USER_FEED_TRANSFER_REQUEST_EXISTS:
+    "Transfer request already exists for this feed.",
+  INVITE_NOT_FOUND: "Invite not found.",
+  INSUFFICIENT_SUPPORTER_LEVEL: "Insufficient supporter level",
+  INVALID_CUSTOM_PLACEHOLDERS_REGEX_PREVIEW_INPUT:
+    "Invalid preview input in regex search for custom placeholders",
+  INVALID_FILTERS_REGEX: "Invalid filters regex",
+  FEED_INVALID_SSL_CERT: "Invalid SSL certificate on feed site",
+  ADD_FEED_WITH_SOURCE_FEED_NOT_FOUND: "Source feed not found",
+  TRANSACTION_BALANCE_TOO_LOW: "Transaction balance is too low.",
+  SUBSCRIPTION_ABOUT_TO_RENEW:
+    "Subscription is about to renew. Wait at least 30 minutes before trying again.",
+  USER_REFRESH_RATE_NOT_ALLOWED: "Refresh rate not allowed",
+  ADDRESS_LOCATION_NOT_ALLOWED:
+    "Your location is not supported for billing. This may be due to regional restrictions. If you believe this is an error, please contact support@monitorss.xyz.",
+  SUBSCRIPTION_ALREADY_CANCELLED:
+    "This subscription has already been cancelled.",
+  INVALID_REQUEST: "Invalid request",
+  TOO_MANY_REQUESTS: "Too many requests. Please wait a moment and try again.",
+  SERVER_ID_REQUIRED: "Server ID is required",
+  GUILD_ID_REQUIRED: "Guild ID is required",
+  INVALID_AUTH_STATE: "Invalid state",
+  INVALID_AUTH_CODE: "Invalid code",
+  INVALID_JSON_STATE: "Invalid jsonState format",
+  USER_NOT_FOUND: "User not found",
+  EMAIL_VERIFICATION_INVALID_CODE: "Invalid or incorrect verification code",
+  EMAIL_VERIFICATION_EXPIRED: "Verification code has expired",
+  EMAIL_VERIFICATION_TOO_MANY_ATTEMPTS:
+    "Too many incorrect attempts. Request a new code.",
+  EMAIL_VERIFICATION_RESEND_TOO_SOON:
+    "Please wait before requesting another code.",
+  EMAIL_VERIFICATION_TOO_MANY_TARGETS:
+    "Too many different email addresses have been used recently. Please wait before trying another address.",
+  EMAIL_VERIFICATION_UNAVAILABLE: "Email verification is currently unavailable",
+  EMAIL_VERIFICATION_REVERT_SUPERSEDED:
+    "This revert link no longer applies because the verified email has since been changed again. Sign in to review your account, and contact support if you did not make that change.",
+  EMAIL_ALREADY_IN_USE: "This email is already in use by another account",
+  EMAIL_NOT_VERIFIED: "A verified email is required to perform this action",
+  WORKSPACE_NOT_FOUND: "Workspace not found",
+  WORKSPACE_NOT_SUBSCRIBED:
+    "This workspace does not have an active subscription, so feeds cannot be added",
+  WORKSPACE_NEVER_ACTIVATED_EXISTS:
+    "You already own a workspace that has never been activated. Activate or delete it before creating another workspace.",
+  WORKSPACE_BILLING_NOT_CONFIGURED:
+    "Workspace billing is not available on this instance",
+  WORKSPACE_INVALID_TIER:
+    "This plan is not available for workspaces",
+  WORKSPACE_PERSONAL_PLAN_NOT_CONVERTIBLE:
+    "A Tier 2 or Tier 3 personal plan is required to convert into a workspace plan",
+  WORKSPACE_ALREADY_SUBSCRIBED:
+    "This workspace already has its own subscription",
+  WORKSPACE_INVALID_CONVERSION_FEEDS:
+    "The selected feeds must all be your own personal feeds and fit within the plan's feed limit",
+  WORKSPACE_CONVERSION_IN_PROGRESS:
+    "A conversion is already in progress for this workspace. Please wait for it to finish",
+  WORKSPACE_INSUFFICIENT_ROLE:
+    "You do not have permission to perform this action in this workspace",
+  WORKSPACE_SLUG_TAKEN: "This URL slug is already taken by another workspace",
+  WORKSPACE_SLUG_RESERVED: "This URL slug is reserved and cannot be used",
+  WORKSPACE_MEMBER_ALREADY_EXISTS:
+    "This email already belongs to a member of this workspace",
+  WORKSPACE_ALREADY_INVITED:
+    "This email already has a pending invitation to this workspace",
+  WORKSPACE_INVITE_EMAIL_UNAVAILABLE:
+    "Invitation email could not be sent because email delivery is currently unavailable",
+  WORKSPACE_INVITE_NOT_FOUND: "Invitation not found",
+  WORKSPACE_INVITE_EMAIL_UNVERIFIED:
+    "Verify the invited email address to act on this invitation",
+  WORKSPACE_INVITE_EMAIL_MISMATCH:
+    "This invitation was sent to a different email than your verified address",
+  WORKSPACE_INVITE_ALREADY_MEMBER:
+    "You are already a member of this workspace",
+  WORKSPACE_INVITE_RESEND_TOO_SOON:
+    "Please wait before resending this invitation.",
+  WORKSPACE_INVITE_LIMIT_REACHED:
+    "This workspace has reached its limit of pending invitations. Revoke a pending invitation before sending another.",
+  CANNOT_REMOVE_LAST_OWNER:
+    "A workspace must have at least one owner. Transfer ownership or delete the workspace instead.",
+  WORKSPACE_TRANSFER_TARGET_INVALID:
+    "Ownership can only be transferred to an existing admin member of this workspace.",
+  WORKSPACE_FEED_SHARING_DISABLED:
+    "Per-user feed management invites are disabled for workspace feeds. Manage access through workspace members instead.",
+  WORKSPACE_HAS_ACTIVE_SUBSCRIPTION:
+    "Cancel this workspace's subscription before deleting it. Once the subscription is cancelled, you can delete the workspace.",
+  ROUTE_NOT_FOUND: "Not Found",
+};

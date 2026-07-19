@@ -1,6 +1,7 @@
 import { InferType, object } from "yup";
 import fetchRest from "../../../utils/fetchRest";
 import { UserFeedDisabledCode, UserFeedSchema } from "../types";
+import { ExternalProperty } from "../../../types";
 
 export interface UpdateUserFeedInput {
   feedId: string;
@@ -13,10 +14,12 @@ export interface UpdateUserFeedInput {
     formatOptions?: {
       dateFormat?: string;
       dateTimezone?: string;
+      dateLocale?: string;
     };
     dateCheckOptions?: {
       oldArticleDateDiffMsThreshold?: number;
     };
+    externalProperties?: ExternalProperty[];
     shareManageOptions?: {
       invites?: Array<{
         discordUserId: string;

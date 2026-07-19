@@ -17,9 +17,9 @@ export interface UseDiscordServerSettingsData {
 
 export const useDiscordServerSettings = ({ serverId }: Props) => {
   const [hasErrored, setHasErrored] = useState(false);
-  const { data: accessStatus } = useDiscordServerAccessStatus({ serverId });
+  const { data: accessStatus, isFetching } = useDiscordServerAccessStatus({ serverId });
 
-  const { data, error, status } = useQuery<UseDiscordServerSettingsData, ApiAdapterError>(
+  const { data, error, status, refetch } = useQuery<UseDiscordServerSettingsData, ApiAdapterError>(
     ["server-settings", serverId],
     async () => {
       if (!serverId) {
@@ -36,14 +36,23 @@ export const useDiscordServerSettings = ({ serverId }: Props) => {
       };
     },
     {
-      enabled: accessStatus?.result.authorized && !hasErrored,
+      enabled: accessStatus?.result.authorized && !hasErrored && !!serverId,
       onError: () => setHasErrored(true),
-    }
+      retry(failureCount, e) {
+        if (e.statusCode === 404) {
+          return false;
+        }
+
+        return failureCount < 3;
+      },
+    },
   );
 
   return {
     data,
     error,
     status,
+    isFetching,
+    refetch,
   };
 };

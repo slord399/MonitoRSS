@@ -4,8 +4,12 @@ import { UserFeedSchema } from "../types";
 
 export interface CreateUserFeedInput {
   details: {
-    title: string;
-    url: string;
+    title?: string;
+    url?: string;
+    curatedFeedId?: string;
+    sourceFeedId?: string;
+    // When set, the feed is created under this workspace.
+    workspaceId?: string;
   };
 }
 
@@ -16,7 +20,7 @@ const CreateFeedOutputSchema = object({
 export type CreateUserFeedOutput = InferType<typeof CreateFeedOutputSchema>;
 
 export const createUserFeed = async (
-  options: CreateUserFeedInput
+  options: CreateUserFeedInput,
 ): Promise<CreateUserFeedOutput> => {
   const res = await fetchRest("/api/v1/user-feeds", {
     validateSchema: CreateFeedOutputSchema,

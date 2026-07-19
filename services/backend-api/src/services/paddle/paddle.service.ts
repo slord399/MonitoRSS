@@ -1,0 +1,231 @@
+import type { Config } from "../../config";
+import {
+  TransactionBalanceTooLowException,
+  CannotRenewSubscriptionBeforeRenewal,
+  AddressLocationNotAllowedException,
+  SubscriptionAlreadyCancelledException,
+} from "../../shared/exceptions/paddle.exceptions";
+import type {
+  SubscriptionProductKey,
+  PaddleCustomerCreditBalanceResponse,
+  PaddleCustomerResponse,
+  PaddleProductsResponse,
+  PaddleProductResponse,
+  PaddleSubscriptionResponse,
+} from "./types";
+import type { PaddleSubscriptionUpdatePaymentMethodResponse } from "../supporter-subscriptions/types";
+
+export class PaddleService {
+  private readonly PADDLE_URL?: string;
+  private readonly PADDLE_KEY?: string;
+
+  constructor(private readonly config: Config) {
+    this.PADDLE_URL = config.BACKEND_API_PADDLE_URL;
+    this.PADDLE_KEY = config.BACKEND_API_PADDLE_KEY;
+  }
+
+  async getCustomerCreditBalanace(customerId: string) {
+    const response =
+      await this.executeApiCall<PaddleCustomerCreditBalanceResponse>(
+        `/customers/${customerId}/credit-balances`,
+      );
+
+    return response;
+  }
+
+  async getProducts() {
+    const searchParams = new URLSearchParams({
+      status: "active",
+      include: "prices",
+    });
+
+    const response = await this.executeApiCall<PaddleProductsResponse>(
+      `/products?${searchParams.toString()}`,
+    );
+
+    return {
+      products: response.data
+        .filter((p) => !!p.custom_data?.key)
+        .map((p) => ({
+          id: p.custom_data?.key as string,
+          name: p.name,
+          prices: p.prices
+            .filter((s) => s.status === "active")
+            .map((price) => ({
+              id: price.id,
+              customData: price.custom_data,
+              billingCycle: price.billing_cycle,
+            })),
+          customData: p.custom_data,
+        })),
+    };
+  }
+
+  async getProduct(productId: string) {
+    const response = await this.executeApiCall<PaddleProductResponse>(
+      `/products/${productId}`,
+    );
+
+    if (!response.data.custom_data?.key) {
+      throw new Error(
+        `Paddle Product ${productId} does not have a custom_data.key set`,
+      );
+    }
+
+    return {
+      paddleProductId: response.data.id,
+      id: response.data.custom_data?.key as SubscriptionProductKey | undefined,
+    };
+  }
+
+  async getCustomer(id: string) {
+    const response = await this.executeApiCall<PaddleCustomerResponse>(
+      `/customers/${id}`,
+    );
+
+    return {
+      email: response.data.email,
+    };
+  }
+
+  async updateCustomer(id: string, data: { email: string }) {
+    await this.executeApiCall(`/customers/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getSubscription(subscriptionId: string) {
+    return this.executeApiCall<PaddleSubscriptionResponse>(
+      `/subscriptions/${subscriptionId}`,
+    );
+  }
+
+  // Mints a Paddle transaction the client opens in the update-payment-method
+  // overlay. Shared by the personal and workspace billing services so the
+  // endpoint/response shape lives in one place.
+  async getUpdatePaymentMethodTransaction(
+    subscriptionId: string,
+  ): Promise<{ id: string }> {
+    const response =
+      await this.executeApiCall<PaddleSubscriptionUpdatePaymentMethodResponse>(
+        `/subscriptions/${subscriptionId}/update-payment-method-transaction`,
+      );
+
+    return { id: response.data.id };
+  }
+
+  // The one shape Paddle accepts for changing a subscription's item set
+  // (tier changes and add-on quantity changes alike), shared by the personal
+  // and workspace billing services. `preview` prices the change without
+  // applying it.
+  async updateSubscriptionItems<T>(
+    subscriptionId: string,
+    {
+      items,
+      currencyCode,
+      preview,
+    }: {
+      items: Array<{ priceId: string; quantity: number }>;
+      currencyCode: string;
+      preview?: boolean;
+    },
+  ): Promise<T> {
+    return this.executeApiCall<T>(
+      `/subscriptions/${subscriptionId}${preview ? "/preview" : ""}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          items: items.map((i) => ({
+            price_id: i.priceId,
+            quantity: i.quantity,
+          })),
+          currency_code: currencyCode,
+          proration_billing_mode: "prorated_immediately",
+        }),
+      },
+    );
+  }
+
+  // Re-points a live subscription's custom_data in place (no cancel/recreate,
+  // no proration). Paddle re-emits subscription.updated in response, which the
+  // webhook handler routes by the new custom_data.
+  async updateSubscriptionCustomData(
+    subscriptionId: string,
+    customData: Record<string, unknown>,
+  ): Promise<void> {
+    await this.executeApiCall(`/subscriptions/${subscriptionId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ custom_data: customData }),
+    });
+  }
+
+  async executeApiCall<T>(endpoint: string, data?: RequestInit): Promise<T> {
+    if (!this.PADDLE_KEY || !this.PADDLE_URL) {
+      throw new Error(
+        "Paddle key or paddle URL not set when executing api request to paddle products",
+      );
+    }
+
+    const url = `${this.PADDLE_URL}${endpoint}`;
+
+    const res = await fetch(url, {
+      ...data,
+      headers: {
+        ...data?.headers,
+        Authorization: `Bearer ${this.PADDLE_KEY}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+    });
+
+    if (!res.ok) {
+      let responseJson: Record<string, unknown> | null = null;
+      let responseText = "";
+
+      try {
+        responseJson = (await res.json()) as Record<string, unknown>;
+        responseText = JSON.stringify(responseJson);
+      } catch {
+        responseText = await res.text().catch(() => "Unable to read response");
+        throw new Error(
+          `Failed to make Paddle request (${url}): ${res.status}. Response: ${responseText}`,
+        );
+      }
+
+      if (
+        (responseJson?.error as Record<string, unknown>)?.code ===
+        "subscription_update_transaction_balance_less_than_charge_limit"
+      ) {
+        throw new TransactionBalanceTooLowException();
+      }
+
+      if (
+        (responseJson?.error as Record<string, unknown>)?.code ===
+        "subscription_locked_renewal"
+      ) {
+        throw new CannotRenewSubscriptionBeforeRenewal();
+      }
+
+      if (
+        (responseJson?.error as Record<string, unknown>)?.code ===
+        "address_location_not_allowed"
+      ) {
+        throw new AddressLocationNotAllowedException();
+      }
+
+      if (
+        (responseJson?.error as Record<string, unknown>)?.code ===
+        "subscription_update_when_canceled"
+      ) {
+        throw new SubscriptionAlreadyCancelledException();
+      }
+
+      throw new Error(
+        `Failed to make Paddle request (${url}) due to bad status code: ${res.status}. Response: ${responseText}`,
+      );
+    }
+
+    return (await res.json()) as T;
+  }
+}

@@ -5,7 +5,7 @@ import { GetDiscordChannelType } from "../constants";
 
 export interface GetServerChannelsInput {
   serverId: string;
-  include?: GetDiscordChannelType[];
+  types?: GetDiscordChannelType[];
 }
 
 const GetServersChannelsOutputSchema = object({
@@ -16,18 +16,22 @@ const GetServersChannelsOutputSchema = object({
 export type GetServerChannelsOutput = InferType<typeof GetServersChannelsOutputSchema>;
 
 export const getServerChannels = async (
-  options: GetServerChannelsInput
+  options: GetServerChannelsInput,
 ): Promise<GetServerChannelsOutput> => {
-  const searchParams = new URLSearchParams({
-    include: options.include?.join(",") || "",
-  });
+  const searchParams = new URLSearchParams();
 
-  const res = await fetchRest(
-    `/api/v1/discord-servers/${options.serverId}/channels?${searchParams}`,
-    {
-      validateSchema: GetServersChannelsOutputSchema,
-    }
-  );
+  if (options.types?.length) {
+    searchParams.set("types", options.types.join(","));
+  }
+
+  const queryString = searchParams.toString();
+  const url = `/api/v1/discord-servers/${options.serverId}/channels${
+    queryString ? `?${queryString}` : ""
+  }`;
+
+  const res = await fetchRest(url, {
+    validateSchema: GetServersChannelsOutputSchema,
+  });
 
   return res as GetServerChannelsOutput;
 };

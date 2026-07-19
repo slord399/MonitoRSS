@@ -1,16 +1,23 @@
 import { useQuery } from "@tanstack/react-query";
 import ApiAdapterError from "../../../utils/ApiAdapterError";
-import { getUserFeedArticleProperties, GetUserFeedArticlePropertiesOutput } from "../api";
+import {
+  getUserFeedArticleProperties,
+  GetUserFeedArticlePropertiesInput,
+  GetUserFeedArticlePropertiesOutput,
+} from "../api";
 
 interface Props {
   feedId?: string;
+  data: GetUserFeedArticlePropertiesInput["data"];
+  isDisabled?: boolean;
 }
 
-export const useUserFeedArticleProperties = ({ feedId }: Props) => {
+export const useUserFeedArticleProperties = ({ feedId, data: inputData, isDisabled }: Props) => {
   const queryKey = [
     "user-feed-article-properties",
     {
       feedId,
+      inputData,
     },
   ];
 
@@ -26,11 +33,12 @@ export const useUserFeedArticleProperties = ({ feedId }: Props) => {
 
       return getUserFeedArticleProperties({
         feedId,
+        data: inputData,
       });
     },
     {
-      enabled: !!feedId,
-    }
+      enabled: !!feedId && !isDisabled,
+    },
   );
 
   return {

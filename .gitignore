@@ -22,6 +22,7 @@
 !.travis.yml
 !.eslintrc.yaml
 !.cpplint
+!.dockerignore
 
 # === Rules for root dir ===
 /core
@@ -135,3 +136,17 @@ __pycache__
 # dotenv environment variables file
 .env*
 !.env.example
+CLAUDE.md
+AGENTS.md
+nul
+dist
+auth*.json
+**/test-results/*
+**/playwright-report/
+_bmad
+_bmad-output
+skills-lock.json
+
+!docs/
+docs/*
+!docs/adr

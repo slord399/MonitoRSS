@@ -1,14 +1,22 @@
 /* eslint-disable react/jsx-no-useless-fragment */
-import { useMemo } from "react";
-import { SpinnerProps, Text, TextProps, Tooltip, chakra } from "@chakra-ui/react";
-import { Loading } from "@/components";
-import { useDiscordServerChannels } from "../../hooks";
+import { useMemo, useState } from "react";
+import { Text, TextProps, chakra, Button, Skeleton } from "@chakra-ui/react";
+import {
+  DialogRoot,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogCloseTrigger,
+  DialogBody,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { PrimaryActionButton } from "@/components/PrimaryActionButton";
+import { useDiscordServerChannels, useDiscordServerActiveThreads } from "../../hooks";
 import { GetDiscordChannelType } from "../../constants";
 
 interface Props {
   serverId?: string;
   channelId: string;
-  spinnerSize?: SpinnerProps["size"];
   textProps?: TextProps;
   parenthesis?: boolean;
   hidden?: boolean;
@@ -17,19 +25,19 @@ interface Props {
 export const DiscordChannelName: React.FC<Props> = ({
   serverId,
   channelId,
-  spinnerSize,
   textProps,
   parenthesis,
   hidden,
 }) => {
   const { data, status, error } = useDiscordServerChannels({
     serverId,
-    include: [
+    types: [
       GetDiscordChannelType.Forum,
       GetDiscordChannelType.Announcement,
       GetDiscordChannelType.Text,
     ],
   });
+  const [open, setOpen] = useState(false);
   const channelNamesById = useMemo(() => {
     const map = new Map<string, string>();
 
@@ -42,29 +50,91 @@ export const DiscordChannelName: React.FC<Props> = ({
     return map;
   }, [data]);
 
+  const channelFound = channelNamesById.has(channelId);
+
+  const { data: threadsData, status: threadsStatus } = useDiscordServerActiveThreads({
+    serverId: !channelFound && status === "success" ? serverId : undefined,
+  });
+
+  const threadName = useMemo(() => {
+    if (!threadsData?.results) {
+      return undefined;
+    }
+
+    return threadsData.results.find((t) => t.id === channelId)?.name;
+  }, [threadsData, channelId]);
+
   if (hidden) {
     return null;
   }
 
-  if (status === "loading") {
-    return <Loading size={spinnerSize || "sm"} />;
-  }
+  const isLoading =
+    status === "loading" || (!channelFound && status === "success" && threadsStatus === "loading");
 
-  if (error) {
+  if (isLoading) {
     return (
-      <Tooltip placement="bottom-start" label={`Unable to get channel name (${error?.message})`}>
-        <Text color="orange.500">{channelId}</Text>
-      </Tooltip>
+      <span>
+        <Skeleton height="1em" width="100px" display="inline-block" />
+      </span>
     );
   }
 
-  const channelName = channelNamesById.get(channelId) || channelId;
+  if (error) {
+    const errorMessage = `Unable to get channel name${
+      error.body?.message ? `: ${error.body.message}` : ""
+    } (${error?.message})`;
+
+    return (
+      <>
+        <Button
+          variant="plain"
+          textDecoration="underline"
+          color="text.warning"
+          display="inline"
+          p={0}
+          h="auto"
+          fontWeight="inherit"
+          fontSize="inherit"
+          onClick={() => setOpen(true)}
+        >
+          ID: {channelId}
+        </Button>
+        <DialogRoot open={open} onOpenChange={(e) => setOpen(e.open)} size="md">
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Failed to get Discord channel name</DialogTitle>
+            </DialogHeader>
+            <DialogCloseTrigger />
+            <DialogBody>
+              <Text>{errorMessage}</Text>
+            </DialogBody>
+            <DialogFooter>
+              <PrimaryActionButton onClick={() => setOpen(false)}>Close</PrimaryActionButton>
+            </DialogFooter>
+          </DialogContent>
+        </DialogRoot>
+      </>
+    );
+  }
+
+  const channelName = channelNamesById.get(channelId) || threadName || channelId;
 
   const useName = parenthesis ? `(#${channelName})` : `#${channelName}`;
 
   return (
-    <chakra.span display="inline" {...textProps}>
-      {useName}
-    </chakra.span>
+    <span>
+      <chakra.a
+        _hover={{
+          textDecoration: "underline",
+        }}
+        href={`https://discord.com/channels/${serverId}/${channelId}`}
+        target="_blank"
+        rel="noreferrer"
+      >
+        <chakra.span display="inline" {...textProps}>
+          {useName}
+        </chakra.span>
+      </chakra.a>
+    </span>
   );
 };

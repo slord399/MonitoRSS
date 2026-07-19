@@ -1,0 +1,1041 @@
+import "@testing-library/jest-dom";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { ChakraProvider } from "@chakra-ui/react";
+import { MemoryRouter } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { system } from "@/utils/theme";
+import { CuratedFeed } from "../features/feed/types";
+import { PricingDialogContext } from "@/features/subscriptionProducts";
+import { FeedScopeProvider } from "../features/feed";
+import { JustConvertedWorkspaceProvider, useJustConvertedWorkspace } from "@/features/workspaces";
+import { UserFeeds } from "./UserFeeds";
+
+const {
+  mockCategories,
+  allFeeds,
+  mockCreateUserFeed,
+  mockUseUserFeedsReturn,
+  curatedFeedsMockImpl,
+  mockUnconfiguredFeedsReturn,
+  mockCurrentWorkspace,
+} = vi.hoisted(() => {
+  const categoriesFixture = [
+    { id: "gaming", label: "Gaming", count: 25 },
+    { id: "specific-games", label: "Specific Games", count: 22 },
+    { id: "anime", label: "Anime & Manga", count: 8 },
+    { id: "tech", label: "Tech & Security", count: 15 },
+    { id: "sports", label: "Sports", count: 12 },
+    { id: "finance", label: "Finance & Crypto", count: 10 },
+    { id: "news", label: "World News", count: 10 },
+    { id: "entertainment", label: "Entertainment", count: 5 },
+  ];
+
+  function makeFeed(
+    overrides: Partial<{
+      id: string;
+      title: string;
+      category: string;
+      domain: string;
+      description: string;
+    }> & { id: string },
+  ) {
+    return {
+      title: `Feed ${overrides.id}`,
+      category: "gaming",
+      domain: "example.com",
+      description: `Description for ${overrides.id}`,
+      ...overrides,
+    };
+  }
+
+  const feedsFixture = categoriesFixture.flatMap((cat) =>
+    Array.from({ length: 3 }, (_, i) =>
+      makeFeed({
+        id: `mock-${cat.id}-${i}`,
+        title: `${cat.label} Feed ${i}`,
+        category: cat.id,
+      }),
+    ),
+  );
+
+  const createUserFeedMock = vi.fn();
+  const useUserFeedsReturnMock = vi.fn();
+  const unconfiguredFeedsReturnMock = vi.fn();
+  // Personal scope (the default for most tests) has no current workspace; the
+  // dormant-activation tests set this to a workspace before rendering.
+  const currentWorkspaceMock: {
+    current:
+      | { id: string; slug: string; name: string; subscription?: { productKey: string } }
+      | undefined;
+  } = { current: undefined };
+
+  const curatedFeedsImplFn = (options?: { search?: string; category?: string }) => {
+    let feeds = feedsFixture;
+
+    if (options?.category) {
+      feeds = feedsFixture.filter((f) => f.category === options.category);
+    } else if (options?.search) {
+      const q = options.search.toLowerCase();
+      feeds = feedsFixture.filter((f) => f.title.toLowerCase().includes(q));
+    }
+
+    return {
+      data: { feeds, categories: categoriesFixture },
+      getHighlightFeeds: () =>
+        categoriesFixture.map((cat) => ({
+          category: cat,
+          feeds: feedsFixture.filter((f) => f.category === cat.id).slice(0, 3),
+        })),
+      getCategoryPreviewText: (categoryId: string) => {
+        const catFeeds = feedsFixture.filter((f) => f.category === categoryId);
+
+        return catFeeds
+          .slice(0, 3)
+          .map((f) => f.title)
+          .join(", ");
+      },
+      isLoading: false,
+      isFetching: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+  };
+
+  return {
+    mockCategories: categoriesFixture,
+    allFeeds: feedsFixture,
+    mockCreateUserFeed: createUserFeedMock,
+    mockUseUserFeedsReturn: useUserFeedsReturnMock,
+    curatedFeedsMockImpl: curatedFeedsImplFn,
+    mockUnconfiguredFeedsReturn: unconfiguredFeedsReturnMock,
+    mockCurrentWorkspace: currentWorkspaceMock,
+  };
+});
+
+vi.mock("../features/feed", async () => {
+  const actual = (await vi.importActual("../features/feed")) as Record<string, unknown>;
+
+  return {
+    ...actual,
+    UserFeedsTable: () => <div data-testid="user-feeds-table" />,
+    FeedDiscoverySearch: ({
+      onSearchChange,
+      onAdd,
+    }: {
+      onAdd: (feed: CuratedFeed) => void;
+      onSearchChange: (query: string) => void;
+    }) => (
+      <div role="search">
+        <label htmlFor="mock-feed-search-input">
+          Search popular feeds or paste a URL
+          <input
+            id="mock-feed-search-input"
+            aria-label="Search popular feeds or paste a URL"
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+              onSearchChange(e.target.value);
+            }}
+          />
+        </label>
+        <button
+          type="button"
+          aria-label="Go"
+          onClick={() => {
+            onSearchChange("Gaming");
+          }}
+        >
+          Go
+        </button>
+        <button
+          type="button"
+          aria-label="Clear search"
+          onClick={() => {
+            onSearchChange("");
+          }}
+        >
+          Clear search
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            onAdd({
+              id: "mock-gaming-0",
+              title: "Gaming Feed 0",
+              category: "gaming",
+              domain: "example.com",
+              description: "A gaming feed",
+            })
+          }
+        >
+          Add Gaming Feed 0 feed
+        </button>
+      </div>
+    ),
+    CategoryGrid: ({
+      categories,
+      totalFeedCount,
+      getCategoryPreviewText,
+      onSelectCategory,
+    }: {
+      categories: Array<{ id: string; label: string; count: number }>;
+      totalFeedCount: number;
+      getCategoryPreviewText: (id: string) => string;
+      onSelectCategory: (id?: string) => void;
+    }) => (
+      <div role="group" aria-label="Feed categories">
+        {categories.map((cat: { id: string; label: string; count: number }) => (
+          <button
+            key={cat.id}
+            type="button"
+            aria-label={`${cat.label}. ${getCategoryPreviewText(cat.id)}`}
+            onClick={() => onSelectCategory(cat.id)}
+          >
+            {cat.label}
+            <span>{getCategoryPreviewText(cat.id)}</span>
+          </button>
+        ))}
+        <button type="button" onClick={() => onSelectCategory(undefined)}>
+          <span>Browse All Categories</span>
+          <span>{totalFeedCount} popular feeds to explore →</span>
+        </button>
+      </div>
+    ),
+    BrowseFeedsModal: ({
+      isOpen,
+      onClose,
+      onAdd,
+      isAtLimit,
+    }: {
+      isOpen: boolean;
+      onClose: () => void;
+      onAdd: (feed: CuratedFeed) => void;
+      isAtLimit: boolean;
+    }) =>
+      isOpen ? (
+        <div role="dialog">
+          <span>Add a Feed</span>
+          <span data-testid="browse-modal-at-limit">{String(isAtLimit)}</span>
+          <button type="button" aria-label="Close" onClick={onClose}>
+            Close
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              onAdd({
+                id: "mock-test-feed",
+                title: "Test Feed",
+                category: "gaming",
+                domain: "example.com",
+                description: "A test feed",
+              })
+            }
+          >
+            Add test feed
+          </button>
+        </div>
+      ) : null,
+    CloneUserFeedDialog: ({ trigger }: { trigger: React.ReactNode }) => trigger,
+    FeedManagementInvitesDialog: ({ trigger }: { trigger: React.ReactNode }) => trigger,
+    useUserFeeds: () => mockUseUserFeedsReturn(),
+    useDeleteUserFeeds: () => ({ mutateAsync: vi.fn() }),
+    useDisableUserFeeds: () => ({ mutateAsync: vi.fn() }),
+    useEnableUserFeeds: () => ({ mutateAsync: vi.fn() }),
+    useUserFeedManagementInvitesCount: () => ({ data: { total: 0 } }),
+    useCreateUserFeed: () => ({ mutateAsync: mockCreateUserFeed }),
+    useCuratedFeeds: curatedFeedsMockImpl,
+  };
+});
+
+vi.mock("../features/feed/hooks", async () => {
+  const actual = (await vi.importActual("../features/feed/hooks")) as Record<string, unknown>;
+
+  return {
+    ...actual,
+    useCuratedFeeds: curatedFeedsMockImpl,
+  };
+});
+
+vi.mock("../features/discordUser", () => ({
+  useUserMe: () => ({ data: { result: { preferences: {} } } }),
+  useDiscordUserMe: () => ({ data: { maxUserFeeds: 25 } }),
+}));
+
+vi.mock("../features/feed/hooks/useCreateUserFeedUrlValidation", () => ({
+  useCreateUserFeedUrlValidation: () => ({
+    mutateAsync: vi.fn(),
+    status: "idle",
+    error: null,
+    data: undefined,
+    reset: vi.fn(),
+  }),
+}));
+
+vi.mock("../features/feed/components/CopyUserFeedSettingsDialog", () => ({
+  CopyUserFeedSettingsDialog: () => null,
+}));
+
+vi.mock("@/features/subscriptionProducts", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  ReducedLimitAlert: () => null,
+}));
+
+vi.mock("@/features/workspaces", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  // Stand in for the dormant activation surface so the dormant feeds page can be
+  // rendered without the workspace/paddle hook graph the real component pulls in.
+  WorkspaceActivationEmptyState: () => <div data-testid="workspace-activation-empty-state" />,
+  useCurrentWorkspace: () => mockCurrentWorkspace.current,
+}));
+
+vi.mock("../features/feed/components/FeedLimitBar", () => ({
+  FeedLimitBar: () => null,
+}));
+
+vi.mock("../features/feed/hooks/useUnconfiguredFeeds", () => ({
+  useUnconfiguredFeeds: () => mockUnconfiguredFeedsReturn(),
+}));
+
+vi.mock("../features/feed/components/SetupChecklist", () => ({
+  SetupChecklist: ({
+    feeds,
+    onDismiss,
+  }: {
+    feeds: Array<{ id: string }>;
+    onDismiss: () => void;
+  }) => (
+    <div data-testid="setup-checklist" role="region" aria-label="Feed delivery setup">
+      <span>{feeds.length} feeds need delivery connections</span>
+      <button type="button" onClick={onDismiss}>
+        Done
+      </button>
+    </div>
+  ),
+}));
+
+const renderPage = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  const user = userEvent.setup();
+  const result = render(
+    <QueryClientProvider client={queryClient}>
+      <ChakraProvider value={system}>
+        <MemoryRouter>
+          <PricingDialogContext.Provider value={{ onOpen: vi.fn() }}>
+            <UserFeeds />
+          </PricingDialogContext.Provider>
+        </MemoryRouter>
+      </ChakraProvider>
+    </QueryClientProvider>,
+  );
+
+  return { user, ...result };
+};
+
+describe("UserFeeds - Discovery Mode", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseUserFeedsReturn.mockReturnValue({
+      data: { results: [], total: 0, feedsWithoutConnections: 0 },
+    });
+    mockUnconfiguredFeedsReturn.mockReturnValue({ data: undefined, refetch: vi.fn() });
+  });
+
+  it("shows discovery UI when total is 0", () => {
+    renderPage();
+    expect(screen.getByText("Get news delivered to your Discord")).toBeInTheDocument();
+    expect(
+      screen.getByText("Browse popular feeds to get started, or paste a URL to check any website."),
+    ).toBeInTheDocument();
+  });
+
+  it("shows search bar in discovery mode", () => {
+    renderPage();
+    expect(screen.getByRole("search")).toBeInTheDocument();
+  });
+
+  it("shows category card grid with all categories plus Browse All", () => {
+    renderPage();
+    const categoryGroup = screen.getByRole("group", { name: "Feed categories" });
+    const items = within(categoryGroup).getAllByRole("button");
+
+    expect(items).toHaveLength(mockCategories.length + 1);
+  });
+
+  it("shows category cards as buttons with accessible names including preview text", () => {
+    renderPage();
+    const gamingButton = screen.getByRole("button", {
+      name: /^Gaming\./,
+    });
+
+    expect(gamingButton).toBeInTheDocument();
+  });
+
+  it("shows category preview text from getCategoryPreviewText", () => {
+    renderPage();
+    expect(screen.getByText("Gaming Feed 0, Gaming Feed 1, Gaming Feed 2")).toBeInTheDocument();
+  });
+
+  it("shows Browse All card with feed count", () => {
+    renderPage();
+    expect(screen.getByText("Browse All Categories")).toBeInTheDocument();
+    expect(screen.getByText(`${allFeeds.length} popular feeds to explore →`)).toBeInTheDocument();
+  });
+
+  it("shows tip text", () => {
+    renderPage();
+    expect(screen.getByText(/Many websites support feeds/)).toBeInTheDocument();
+  });
+
+  it("does not show user feeds table in discovery mode", () => {
+    renderPage();
+    expect(screen.queryByTestId("user-feeds-table")).not.toBeInTheDocument();
+  });
+
+  it("does not show added count when no feeds have been added", () => {
+    renderPage();
+    expect(screen.queryByText(/feed.*added/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("UserFeeds - Category card interactions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseUserFeedsReturn.mockReturnValue({
+      data: { results: [], total: 0, feedsWithoutConnections: 0 },
+    });
+    mockUnconfiguredFeedsReturn.mockReturnValue({ data: undefined, refetch: vi.fn() });
+  });
+
+  it("clicking a category card opens the browse modal", async () => {
+    const { user } = renderPage();
+    const gamingButton = screen.getByRole("button", {
+      name: /^Gaming\./,
+    });
+    await user.click(gamingButton);
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByText("Add a Feed")).toBeInTheDocument();
+  });
+
+  it("clicking Browse All opens the modal", async () => {
+    const { user } = renderPage();
+    const browseAllButton = screen.getByText("Browse All Categories").closest("button")!;
+    await user.click(browseAllButton);
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+});
+
+describe("UserFeeds - Search interaction", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseUserFeedsReturn.mockReturnValue({
+      data: { results: [], total: 0, feedsWithoutConnections: 0 },
+    });
+    mockUnconfiguredFeedsReturn.mockReturnValue({ data: undefined, refetch: vi.fn() });
+  });
+
+  it("hides category cards when search is active", async () => {
+    const { user } = renderPage();
+    const searchInput = screen.getByLabelText("Search popular feeds or paste a URL");
+
+    await user.type(searchInput, "Gaming");
+    await user.click(screen.getByRole("button", { name: "Go" }));
+
+    expect(screen.queryByRole("group", { name: "Feed categories" })).not.toBeInTheDocument();
+  });
+
+  it("restores category cards when search is cleared", async () => {
+    const { user } = renderPage();
+    const searchInput = screen.getByLabelText("Search popular feeds or paste a URL");
+
+    await user.type(searchInput, "Gaming");
+    await user.click(screen.getByRole("button", { name: "Go" }));
+    expect(screen.queryByRole("group", { name: "Feed categories" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Clear search" }));
+    expect(screen.getByRole("group", { name: "Feed categories" })).toBeInTheDocument();
+  });
+
+  it("hides tip text when search is active", async () => {
+    const { user } = renderPage();
+    const searchInput = screen.getByLabelText("Search popular feeds or paste a URL");
+
+    await user.type(searchInput, "Gaming");
+    await user.click(screen.getByRole("button", { name: "Go" }));
+
+    expect(screen.queryByText(/Many websites support feeds/)).not.toBeInTheDocument();
+  });
+});
+
+describe("UserFeeds - Feed adding & inline banner", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseUserFeedsReturn.mockReturnValue({
+      data: { results: [], total: 0, feedsWithoutConnections: 0 },
+    });
+    mockUnconfiguredFeedsReturn.mockReturnValue({ data: undefined, refetch: vi.fn() });
+    mockCreateUserFeed.mockResolvedValue({ result: { id: "feed-123" } });
+  });
+
+  it("replaces hero text with success banner after adding a feed", async () => {
+    const { user } = renderPage();
+    const searchInput = screen.getByLabelText("Search popular feeds or paste a URL");
+
+    await user.type(searchInput, "Gaming");
+    await user.click(screen.getByRole("button", { name: "Go" }));
+
+    const addButtons = screen.getAllByRole("button", { name: /^Add .+ feed$/ });
+    await user.click(addButtons[0]);
+
+    expect(screen.getByRole("heading", { level: 2, name: /1 feed added!/ })).toBeInTheDocument();
+    expect(screen.queryByText("Get news delivered to your Discord")).not.toBeInTheDocument();
+  });
+
+  it("success banner is inside an aria-live region for screen reader announcements", async () => {
+    const { user } = renderPage();
+    const searchInput = screen.getByLabelText("Search popular feeds or paste a URL");
+
+    await user.type(searchInput, "Gaming");
+    await user.click(screen.getByRole("button", { name: "Go" }));
+
+    const addButtons = screen.getAllByRole("button", { name: /^Add .+ feed$/ });
+    await user.click(addButtons[0]);
+
+    // The page mounts an always-present (empty) PageAlert live region too, so
+    // select the status region that actually carries the banner copy.
+    const liveRegion = screen
+      .getAllByRole("status")
+      .find((r) => /1 feed added!/.test(r.textContent ?? ""));
+    expect(liveRegion).toBeDefined();
+    expect(liveRegion).toHaveAttribute("aria-live", "polite");
+    expect(liveRegion).toHaveTextContent("1 feed added!");
+  });
+
+  it("stays in discovery mode after adding a feed", async () => {
+    const { user } = renderPage();
+    const searchInput = screen.getByLabelText("Search popular feeds or paste a URL");
+
+    await user.type(searchInput, "Gaming");
+    await user.click(screen.getByRole("button", { name: "Go" }));
+
+    const addButtons = screen.getAllByRole("button", { name: /^Add .+ feed$/ });
+    await user.click(addButtons[0]);
+
+    expect(screen.getByRole("heading", { level: 2, name: /1 feed added!/ })).toBeInTheDocument();
+    expect(screen.queryByTestId("user-feeds-table")).not.toBeInTheDocument();
+  });
+
+  it("shows 'View your feeds' button in success banner", async () => {
+    const { user } = renderPage();
+    const searchInput = screen.getByLabelText("Search popular feeds or paste a URL");
+
+    await user.type(searchInput, "Gaming");
+    await user.click(screen.getByRole("button", { name: "Go" }));
+
+    const addButtons = screen.getAllByRole("button", { name: /^Add .+ feed$/ });
+    await user.click(addButtons[0]);
+
+    expect(screen.getByRole("button", { name: /View your feeds/ })).toBeInTheDocument();
+  });
+});
+
+describe("UserFeeds - Exit discovery mode", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockCreateUserFeed.mockResolvedValue({ result: { id: "feed-123" } });
+    mockUnconfiguredFeedsReturn.mockReturnValue({
+      data: {
+        results: [{ id: "feed-123", title: "Test", url: "https://test.com", connectionCount: 0 }],
+        total: 1,
+        feedsWithoutConnections: 1,
+      },
+      refetch: vi.fn(),
+    });
+  });
+
+  it("exits discovery mode and shows setup checklist when clicking 'View your feeds'", async () => {
+    let totalFeeds = 0;
+    mockUseUserFeedsReturn.mockImplementation(() => ({
+      data: { results: [], total: totalFeeds, feedsWithoutConnections: totalFeeds > 0 ? 1 : 0 },
+    }));
+
+    const { user } = renderPage();
+
+    const searchInput = screen.getByLabelText("Search popular feeds or paste a URL");
+    await user.type(searchInput, "Gaming");
+    await user.click(screen.getByRole("button", { name: "Go" }));
+
+    const addButtons = screen.getAllByRole("button", { name: /^Add .+ feed$/ });
+    await user.click(addButtons[0]);
+
+    totalFeeds = 1;
+
+    await user.click(screen.getByRole("button", { name: /View your feeds/ }));
+
+    expect(screen.queryByText("Get news delivered to your Discord")).not.toBeInTheDocument();
+    expect(screen.getByTestId("setup-checklist")).toBeInTheDocument();
+    expect(screen.getByTestId("user-feeds-table")).toBeInTheDocument();
+  });
+});
+
+describe("UserFeeds - Non-discovery mode", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUnconfiguredFeedsReturn.mockReturnValue({ data: undefined, refetch: vi.fn() });
+  });
+
+  it("shows feed table when user has feeds", () => {
+    mockUseUserFeedsReturn.mockReturnValue({
+      data: { results: [{ id: "1" }], total: 5, feedsWithoutConnections: 0 },
+    });
+    renderPage();
+
+    expect(screen.getByTestId("user-feeds-table")).toBeInTheDocument();
+    expect(screen.queryByText("Get news delivered to your Discord")).not.toBeInTheDocument();
+  });
+
+  it("re-enters discovery mode when all feeds are deleted", async () => {
+    mockUseUserFeedsReturn.mockReturnValue({
+      data: { results: [{ id: "1" }], total: 5, feedsWithoutConnections: 0 },
+    });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const { rerender } = renderPage();
+
+    expect(screen.getByTestId("user-feeds-table")).toBeInTheDocument();
+
+    mockUseUserFeedsReturn.mockReturnValue({
+      data: { results: [], total: 0, feedsWithoutConnections: 0 },
+    });
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <ChakraProvider value={system}>
+          <MemoryRouter>
+            <PricingDialogContext.Provider value={{ onOpen: vi.fn() }}>
+              <UserFeeds />
+            </PricingDialogContext.Provider>
+          </MemoryRouter>
+        </ChakraProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText("Get news delivered to your Discord")).toBeInTheDocument();
+    expect(screen.queryByTestId("user-feeds-table")).not.toBeInTheDocument();
+  });
+
+  it("shows a fresh intro, not a stale 'feeds added' panel, after deleting all feeds back to empty", async () => {
+    mockCreateUserFeed.mockResolvedValue({ result: { id: "feed-123" } });
+    let totalFeeds = 0;
+    mockUseUserFeedsReturn.mockImplementation(() => ({
+      data: { results: [], total: totalFeeds, feedsWithoutConnections: 0 },
+    }));
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const renderUserFeeds = () => (
+      <QueryClientProvider client={queryClient}>
+        <ChakraProvider value={system}>
+          <MemoryRouter>
+            <PricingDialogContext.Provider value={{ onOpen: vi.fn() }}>
+              <UserFeeds />
+            </PricingDialogContext.Provider>
+          </MemoryRouter>
+        </ChakraProvider>
+      </QueryClientProvider>
+    );
+    const user = userEvent.setup();
+    const { rerender } = render(renderUserFeeds());
+
+    // Add a feed in discovery, then exit to the table once it appears.
+    const searchInput = screen.getByLabelText("Search popular feeds or paste a URL");
+    await user.type(searchInput, "Gaming");
+    await user.click(screen.getByRole("button", { name: "Go" }));
+    const addButtons = screen.getAllByRole("button", { name: /^Add .+ feed$/ });
+    await user.click(addButtons[0]);
+    expect(screen.getByRole("button", { name: /View your feeds/ })).toBeInTheDocument();
+
+    totalFeeds = 1;
+    await user.click(screen.getByRole("button", { name: /View your feeds/ }));
+    expect(screen.getByTestId("user-feeds-table")).toBeInTheDocument();
+
+    // Delete every feed: the scope returns to empty and discovery re-enters.
+    totalFeeds = 0;
+    rerender(renderUserFeeds());
+
+    // The re-entered discovery must show the plain intro, not the prior session's
+    // "N feeds added!" success panel (the per-session add state is cleared on the
+    // transition back to empty).
+    expect(screen.getByText("Get news delivered to your Discord")).toBeInTheDocument();
+    expect(screen.queryByText(/feed.*added!/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /View your feeds/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("UserFeeds - Returning user Add Feed button", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseUserFeedsReturn.mockReturnValue({
+      data: { results: [{ id: "1" }], total: 5, feedsWithoutConnections: 0 },
+    });
+    mockUnconfiguredFeedsReturn.mockReturnValue({ data: undefined, refetch: vi.fn() });
+    mockCreateUserFeed.mockResolvedValue({ result: { id: "feed-new" } });
+  });
+
+  it("'Add Feed' button opens browse modal", async () => {
+    const { user } = renderPage();
+
+    await user.click(screen.getByRole("button", { name: /Add Feed/ }));
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByText("Add a Feed")).toBeInTheDocument();
+  });
+
+  it("dropdown still has 'Add multiple feeds' option", async () => {
+    const { user } = renderPage();
+
+    await user.click(screen.getByRole("button", { name: "Additional add feed options" }));
+
+    expect(screen.getByText("Add multiple feeds")).toBeInTheDocument();
+  });
+
+  it("shows success banner when modal closed after adding feeds", async () => {
+    const { user } = renderPage();
+
+    await user.click(screen.getByRole("button", { name: /Add Feed/ }));
+    await user.click(screen.getByText("Add test feed"));
+    await user.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(screen.getByText("1 feed added")).toBeInTheDocument();
+    expect(
+      screen.getByText("Open a feed to set up where articles are delivered."),
+    ).toBeInTheDocument();
+  });
+
+  it("does not show success banner when modal closed without adding feeds", async () => {
+    const { user } = renderPage();
+
+    await user.click(screen.getByRole("button", { name: /Add Feed/ }));
+    await user.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(screen.queryByText(/feed.* added/)).not.toBeInTheDocument();
+  });
+});
+
+describe("UserFeeds - Setup checklist after exiting discovery", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockCreateUserFeed.mockResolvedValue({ result: { id: "feed-123" } });
+    mockUnconfiguredFeedsReturn.mockReturnValue({
+      data: { results: [], total: 0, feedsWithoutConnections: 0 },
+      refetch: vi.fn(),
+    });
+  });
+
+  const addFeedAndExitDiscovery = async (user: ReturnType<typeof userEvent.setup>) => {
+    const searchInput = screen.getByLabelText("Search popular feeds or paste a URL");
+    await user.type(searchInput, "Gaming");
+    await user.click(screen.getByRole("button", { name: "Go" }));
+
+    const addButtons = screen.getAllByRole("button", { name: /^Add .+ feed$/ });
+    await user.click(addButtons[0]);
+
+    await user.click(screen.getByRole("button", { name: /View your feeds/ }));
+  };
+
+  it("shows setup checklist and feeds table after exiting discovery mode", async () => {
+    let totalFeeds = 0;
+    mockUseUserFeedsReturn.mockImplementation(() => ({
+      data: { results: [], total: totalFeeds, feedsWithoutConnections: totalFeeds > 0 ? 1 : 0 },
+    }));
+    mockUnconfiguredFeedsReturn.mockReturnValue({
+      data: {
+        results: [{ id: "feed-123", title: "Test", url: "https://test.com", connectionCount: 0 }],
+        total: 1,
+        feedsWithoutConnections: 1,
+      },
+      refetch: vi.fn(),
+    });
+
+    const { user } = renderPage();
+    totalFeeds = 1;
+    await addFeedAndExitDiscovery(user);
+
+    expect(screen.getByTestId("setup-checklist")).toBeInTheDocument();
+    expect(screen.getByTestId("user-feeds-table")).toBeInTheDocument();
+  });
+
+  it("does not show setup checklist when all feeds have connections", async () => {
+    let totalFeeds = 0;
+    mockUseUserFeedsReturn.mockImplementation(() => ({
+      data: { results: [], total: totalFeeds, feedsWithoutConnections: 0 },
+    }));
+
+    const { user } = renderPage();
+    totalFeeds = 1;
+    await addFeedAndExitDiscovery(user);
+
+    expect(screen.queryByTestId("setup-checklist")).not.toBeInTheDocument();
+    expect(screen.getByTestId("user-feeds-table")).toBeInTheDocument();
+  });
+});
+
+describe("UserFeeds - Inline setup checklist", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUnconfiguredFeedsReturn.mockReturnValue({ data: undefined, refetch: vi.fn() });
+  });
+
+  it("shows setup checklist when feedsWithoutConnections > 0", () => {
+    mockUseUserFeedsReturn.mockReturnValue({
+      data: { results: [{ id: "1" }], total: 5, feedsWithoutConnections: 3 },
+    });
+    mockUnconfiguredFeedsReturn.mockReturnValue({
+      data: {
+        results: [{ id: "1", title: "Test", url: "https://test.com", connectionCount: 0 }],
+        total: 1,
+        feedsWithoutConnections: 1,
+      },
+      refetch: vi.fn(),
+    });
+    renderPage();
+
+    expect(screen.getByTestId("setup-checklist")).toBeInTheDocument();
+    expect(screen.getByTestId("user-feeds-table")).toBeInTheDocument();
+  });
+
+  it("does not show setup checklist when feedsWithoutConnections is 0", () => {
+    mockUseUserFeedsReturn.mockReturnValue({
+      data: { results: [{ id: "1" }], total: 5, feedsWithoutConnections: 0 },
+    });
+    renderPage();
+
+    expect(screen.queryByTestId("setup-checklist")).not.toBeInTheDocument();
+    expect(screen.getByTestId("user-feeds-table")).toBeInTheDocument();
+  });
+});
+
+describe("UserFeeds - Dormant workspace activation", () => {
+  const tier2 = { productKey: "tier2" } as const;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUnconfiguredFeedsReturn.mockReturnValue({ data: undefined, refetch: vi.fn() });
+    mockCurrentWorkspace.current = { id: "ws-1", slug: "ws-1", name: "Workspace One" };
+  });
+
+  afterEach(() => {
+    mockCurrentWorkspace.current = undefined;
+  });
+
+  // Stands in for the convert dialog confirming a move: flips the just-converted
+  // context flag when `marked` is true so the feeds page shows the success banner.
+  const ConversionMarker = ({ marked }: { marked: boolean }) => {
+    const { markConverted } = useJustConvertedWorkspace();
+
+    useEffect(() => {
+      if (marked) {
+        markConverted();
+      }
+    }, [marked, markConverted]);
+
+    return null;
+  };
+
+  const renderDormant = (dormant: boolean, marked = false) => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+
+    const tree = (isDormant: boolean, isMarked: boolean) => (
+      <QueryClientProvider client={queryClient}>
+        <ChakraProvider value={system}>
+          <MemoryRouter>
+            <PricingDialogContext.Provider value={{ onOpen: vi.fn() }}>
+              <FeedScopeProvider
+                value={{ workspaceId: "ws-1", workspaceSlug: "ws-1", workspaceDormant: isDormant }}
+              >
+                <JustConvertedWorkspaceProvider>
+                  <ConversionMarker marked={isMarked} />
+                  <UserFeeds />
+                </JustConvertedWorkspaceProvider>
+              </FeedScopeProvider>
+            </PricingDialogContext.Provider>
+          </MemoryRouter>
+        </ChakraProvider>
+      </QueryClientProvider>
+    );
+
+    const result = render(tree(dormant, marked));
+
+    return {
+      ...result,
+      rerender: (isDormant: boolean, isMarked = marked) =>
+        result.rerender(tree(isDormant, isMarked)),
+    };
+  };
+
+  it("shows the table (not discovery) once feeds re-home as the workspace activates", () => {
+    // Dormant + empty: the activation pitch shows, NOT discovery. While dormant,
+    // an empty feed list must not start an add-first-feeds session, or it would
+    // outlive activation and suppress the table once converted feeds arrive.
+    mockUseUserFeedsReturn.mockReturnValue({
+      data: { results: [], total: 0, feedsWithoutConnections: 0 },
+    });
+    const { rerender } = renderDormant(true);
+
+    expect(screen.getByTestId("workspace-activation-empty-state")).toBeInTheDocument();
+
+    // Activation lands and the conversion re-homes a feed into the workspace.
+    mockCurrentWorkspace.current = { ...mockCurrentWorkspace.current!, subscription: tier2 };
+    mockUseUserFeedsReturn.mockReturnValue({
+      data: { results: [{ id: "1" }], total: 1, feedsWithoutConnections: 0 },
+    });
+    rerender(false);
+
+    expect(screen.getByTestId("user-feeds-table")).toBeInTheDocument();
+    expect(screen.queryByTestId("workspace-activation-empty-state")).not.toBeInTheDocument();
+  });
+
+  it("shows the table even when dormancy clears a frame before the empty feed count refetches", () => {
+    // Reproduces the activation race: the workspace subscription lands (dormancy
+    // clears) one render BEFORE the feed summary refetches off its stale total: 0.
+    // In that window total === 0 && !dormant, which would start an add-first-feeds
+    // session and latch discovery open over the re-homed feeds. Clearing the session
+    // on activation must win so the table appears once the real count arrives.
+    mockUseUserFeedsReturn.mockReturnValue({
+      data: { results: [], total: 0, feedsWithoutConnections: 0 },
+    });
+    const { rerender } = renderDormant(true);
+
+    expect(screen.getByTestId("workspace-activation-empty-state")).toBeInTheDocument();
+
+    // Frame 1: subscription appears (dormant -> false) but the summary still reads 0.
+    mockCurrentWorkspace.current = { ...mockCurrentWorkspace.current!, subscription: tier2 };
+    rerender(false);
+
+    // Frame 2: the summary refetch lands with the re-homed feed.
+    mockUseUserFeedsReturn.mockReturnValue({
+      data: { results: [{ id: "1" }], total: 1, feedsWithoutConnections: 0 },
+    });
+    rerender(false);
+
+    expect(screen.getByTestId("user-feeds-table")).toBeInTheDocument();
+    expect(screen.queryByTestId("workspace-activation-empty-state")).not.toBeInTheDocument();
+  });
+
+  it("confirms the move with a banner when a conversion just activated the workspace", () => {
+    // The convert dialog marks the workspace before activation; the feeds page then
+    // surfaces a one-time success banner so the owner knows the move worked and which
+    // scope they are viewing, instead of the pitch silently giving way to the table.
+    mockUseUserFeedsReturn.mockReturnValue({
+      data: { results: [], total: 0, feedsWithoutConnections: 0 },
+    });
+    const { rerender } = renderDormant(true, true);
+
+    expect(screen.queryByText(/your plan moved to this workspace/i)).not.toBeInTheDocument();
+
+    mockCurrentWorkspace.current = { ...mockCurrentWorkspace.current!, subscription: tier2 };
+    mockUseUserFeedsReturn.mockReturnValue({
+      data: { results: [{ id: "1" }], total: 1, feedsWithoutConnections: 0 },
+    });
+    rerender(false);
+
+    expect(screen.getByText(/your plan moved to this workspace/i)).toBeInTheDocument();
+  });
+
+  it("does not show the move banner on a plain reload of an active workspace", () => {
+    // No conversion marker set: an already-active workspace rendering its table must
+    // not show the move confirmation.
+    mockCurrentWorkspace.current = {
+      id: "ws-1",
+      slug: "ws-1",
+      name: "Workspace One",
+      subscription: tier2,
+    };
+    mockUseUserFeedsReturn.mockReturnValue({
+      data: { results: [{ id: "1" }], total: 1, feedsWithoutConnections: 0 },
+    });
+    renderDormant(false);
+
+    expect(screen.getByTestId("user-feeds-table")).toBeInTheDocument();
+    expect(screen.queryByText(/your plan moved to this workspace/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("UserFeeds - scope-aware feed limit", () => {
+  // Regression: in workspace scope the feed-discovery "at limit" gate must key on
+  // the WORKSPACE limit (maxFeeds), not the owner's personal maxUserFeeds. The
+  // personal mock is 25; a workspace with maxFeeds 70 and 30 feeds has headroom,
+  // but the old code compared 30 >= 25 (personal) and reported at-limit, showing
+  // "Limit reached" throughout discovery despite 40 free slots.
+  const tier2 = { productKey: "tier2" } as const;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUnconfiguredFeedsReturn.mockReturnValue({ data: undefined, refetch: vi.fn() });
+  });
+
+  afterEach(() => {
+    mockCurrentWorkspace.current = undefined;
+  });
+
+  const renderWorkspaceScope = (maxFeeds: number) => {
+    mockCurrentWorkspace.current = {
+      id: "ws-1",
+      slug: "ws-1",
+      name: "Workspace One",
+      subscription: tier2,
+    };
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const user = userEvent.setup();
+    const result = render(
+      <QueryClientProvider client={queryClient}>
+        <ChakraProvider value={system}>
+          <MemoryRouter>
+            <PricingDialogContext.Provider value={{ onOpen: vi.fn() }}>
+              <FeedScopeProvider value={{ workspaceId: "ws-1", workspaceSlug: "ws-1", maxFeeds }}>
+                <UserFeeds />
+              </FeedScopeProvider>
+            </PricingDialogContext.Provider>
+          </MemoryRouter>
+        </ChakraProvider>
+      </QueryClientProvider>,
+    );
+
+    return { user, ...result };
+  };
+
+  it("is not at limit when the workspace has headroom despite a lower personal limit", async () => {
+    // 30 feeds, workspace cap 70 (headroom), personal cap 25. Buggy code keyed on
+    // the personal 25 and reported at-limit; the fix keys on the workspace 70.
+    mockUseUserFeedsReturn.mockReturnValue({
+      data: { results: [{ id: "1" }], total: 30, feedsWithoutConnections: 0 },
+    });
+    const { user } = renderWorkspaceScope(70);
+
+    await user.click(screen.getByRole("button", { name: "Add Feed" }));
+
+    const modal = screen.getByRole("dialog");
+    expect(within(modal).getByTestId("browse-modal-at-limit")).toHaveTextContent("false");
+  });
+
+  it("is at limit when the workspace's own limit is reached", async () => {
+    // 70 feeds against a workspace cap of 70: genuinely at the workspace limit.
+    mockUseUserFeedsReturn.mockReturnValue({
+      data: { results: [{ id: "1" }], total: 70, feedsWithoutConnections: 0 },
+    });
+    const { user } = renderWorkspaceScope(70);
+
+    await user.click(screen.getByRole("button", { name: "Add Feed" }));
+
+    const modal = screen.getByRole("dialog");
+    expect(within(modal).getByTestId("browse-modal-at-limit")).toHaveTextContent("true");
+  });
+});

@@ -3,12 +3,12 @@ export interface FetchFeedDetailsDto {
     | 'INTERNAL_ERROR'
     | 'BAD_STATUS_CODE'
     | 'SUCCESS'
-    | 'PENDING'
     | 'FETCH_ERROR'
     | 'PARSE_ERROR'
     | 'FETCH_TIMEOUT'
     | 'REFUSED_LARGE_FEED'
-    | 'MATCHED_HASH';
+    | 'MATCHED_HASH'
+    | 'INVALID_SSL_CERTIFICATE';
   response?: {
     hash?: string | null;
     statusCode: number;

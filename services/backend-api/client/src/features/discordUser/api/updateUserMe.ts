@@ -6,6 +6,28 @@ export interface UpdateUserMeInput {
   details: {
     preferences?: {
       alertOnDisabledFeeds?: boolean;
+      dateFormat?: string;
+      dateTimezone?: string;
+      dateLocale?: string;
+      feedListSort?: {
+        key: string;
+        direction: "asc" | "desc";
+      } | null;
+      feedListColumnVisibility?: {
+        computedStatus?: boolean;
+        title?: boolean;
+        url?: boolean;
+        createdAt?: boolean;
+        ownedByUser?: boolean;
+        refreshRateSeconds?: boolean;
+      };
+      feedListColumnOrder?: {
+        columns: string[];
+      };
+      feedListStatusFilters?: {
+        statuses: string[];
+      };
+      lastActiveWorkspaceSlug?: string | null;
     };
   };
 }

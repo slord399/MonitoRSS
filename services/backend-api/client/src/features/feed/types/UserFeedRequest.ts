@@ -8,12 +8,22 @@ export enum UserFeedRequestStatus {
   FETCH_TIMEOUT = "FETCH_TIMEOUT",
   PARSE_ERROR = "PARSE_ERROR",
   TIMED_OUT = "TIMED_OUT",
+  INVALID_SSL_CERTIFICATE = "INVALID_SSL_CERTIFICATE",
 }
 
 export const UserFeedRequestSchema = object({
-  id: number().required(),
+  id: string().required(),
+  url: string().required(),
   status: string().oneOf(Object.values(UserFeedRequestStatus)).required(),
   createdAt: number().required(),
+  createdAtIso: string().required(),
+  finishedAtIso: string().optional().nullable(),
+  headers: object().nullable(),
+  response: object({
+    statusCode: number().nullable(),
+    headers: object().nullable(),
+  }).required(),
+  freshnessLifetimeMs: number().nullable().optional(),
 });
 
 export type UserFeedRequest = InferType<typeof UserFeedRequestSchema>;

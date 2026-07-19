@@ -1,123 +1,122 @@
-import { Route, Routes } from "react-router-dom";
-import Feed from "./Feed";
-import FeedFilters from "./FeedFilters";
-import FeedMessage from "./FeedMessage";
-import FeedMiscOptions from "./FeedMiscOptions";
-import FeedSubscribers from "./FeedSubscribers";
-import Home from "./Home";
-import ServerDasboard from "./ServerDashboard";
-import Servers from "./Servers";
+import { Route, Routes, Navigate } from "react-router-dom";
+import * as Sentry from "@sentry/react";
+import { Heading, Stack } from "@chakra-ui/react";
+import { Suspense } from "react";
 import { RequireAuth } from "@/features/auth";
-import { PageContent } from "@/components/PageContent";
-import { ServerSettings } from "./ServerSettings";
-import FeedClone from "./FeedClone";
-import FeedComparisons from "./FeedComparisons";
-import Feeds from "./Feeds";
-import { RequireDiscordServers } from "@/features/discordServers";
 import { PageContentV2 } from "../components/PageContentV2";
-import { UserFeeds } from "./UserFeeds";
-import { UserFeed } from "./UserFeed";
-import { ConnectionDiscordChannelSettings } from "./ConnectionDiscordChannelSettings";
+import { AppHeader } from "./AppHeader";
 import { pages } from "../constants";
 import { FeedConnectionType } from "../types";
-import UserFeedsFAQ from "./UserFeedsFAQ";
-import { NewHeader } from "../components";
-import { UserFeedStatusFilterProvider } from "../contexts";
-import { AlertSettings } from "./AlertSettings";
-import { Pricing } from "./Pricing";
+import { Loading, LoadingFallback } from "../components";
+import { UserFeedStatusFilterProvider, MultiSelectUserFeedProvider } from "@/features/feed";
+import { WorkspaceScopeLayout, InvitePage } from "@/features/workspaces";
+import { NotFound } from "./NotFound";
+import { RevertVerifiedEmail } from "./RevertVerifiedEmail";
+import { ScopeAwareLanding } from "./ScopeAwareLanding";
+import { SuspenseErrorBoundary } from "../components/SuspenseErrorBoundary";
+
+import { lazyWithRetries } from "../utils/lazyImportWithRetry";
+
+const MessageBuilder = lazyWithRetries(() =>
+  import("./MessageBuilder").then(({ MessageBuilder: c }) => ({ default: c })),
+);
+
+const UserFeeds = lazyWithRetries(() =>
+  import("./UserFeeds").then(({ UserFeeds: c }) => ({ default: c })),
+);
+
+const UserFeed = lazyWithRetries(() =>
+  import("./UserFeed").then(({ UserFeed: c }) => ({ default: c })),
+);
+
+const ConnectionSettings = lazyWithRetries(() =>
+  import("./ConnectionSettings").then(({ ConnectionSettings: c }) => ({
+    default: c,
+  })),
+);
+
+const AddUserFeeds = lazyWithRetries(() => import("./AddUserFeeds"));
+
+const UserSettings = lazyWithRetries(() =>
+  import("./UserSettings").then(({ UserSettings: c }) => ({ default: c })),
+);
+
+const Checkout = lazyWithRetries(() =>
+  import("./Checkout").then(({ Checkout: c }) => ({ default: c })),
+);
+
+const WorkspaceSettingsPage = lazyWithRetries(() =>
+  import("./WorkspaceSettings").then(({ WorkspaceSettingsPage: c }) => ({ default: c })),
+);
+
+const WorkspaceBillingPage = lazyWithRetries(() =>
+  import("./WorkspaceBilling").then(({ WorkspaceBillingPage: c }) => ({ default: c })),
+);
+
+const SentryRoutes = Sentry.withSentryReactRouterV6Routing(Routes);
 
 const Pages: React.FC = () => (
-  <Routes>
-    <Route path="/" element={<Home />} />
-    <Route path="/pricing" element={<Pricing />} />
+  <SentryRoutes>
+    <Route path={pages.notFound()} element={<NotFound />} />
     <Route
-      path="/servers"
+      path="/"
       element={
-        <RequireAuth>
-          <RequireDiscordServers>
-            <Servers />
-          </RequireDiscordServers>
+        <RequireAuth waitForUserFetch>
+          <ScopeAwareLanding />
         </RequireAuth>
       }
     />
     <Route
-      path="/servers/:serverId"
+      path={pages.checkout(":priceId")}
       element={
         <RequireAuth>
-          <RequireDiscordServers>
-            <PageContent>
-              <ServerDasboard />
-            </PageContent>
-          </RequireDiscordServers>
-        </RequireAuth>
-      }
-    />
-    <Route
-      path="/servers/:serverId/settings"
-      element={
-        <RequireAuth>
-          <RequireDiscordServers>
-            <PageContent>
-              <ServerSettings />
-            </PageContent>
-          </RequireDiscordServers>
-        </RequireAuth>
-      }
-    />
-    <Route
-      path="/servers/:serverId/feeds"
-      element={
-        <RequireAuth>
-          <RequireDiscordServers>
-            <PageContent>
-              <Feeds />
-            </PageContent>
-          </RequireDiscordServers>
-        </RequireAuth>
-      }
-    />
-    <Route
-      path={pages.alerting()}
-      element={
-        <RequireAuth>
-          <PageContentV2 invertBackground>
-            <AlertSettings />
+          <PageContentV2 header={<AppHeader invertBackground />}>
+            <SuspenseErrorBoundary>
+              <Suspense fallback={<LoadingFallback />}>
+                <Checkout cancelUrl={pages.userFeeds()} />
+              </Suspense>
+            </SuspenseErrorBoundary>
           </PageContentV2>
+        </RequireAuth>
+      }
+    />
+    <Route
+      path={pages.userSettings()}
+      element={
+        <RequireAuth>
+          <PageContentV2 header={<AppHeader />}>
+            <SuspenseErrorBoundary>
+              <Suspense fallback={<LoadingFallback />}>
+                <UserSettings />
+              </Suspense>
+            </SuspenseErrorBoundary>
+          </PageContentV2>
+        </RequireAuth>
+      }
+    />
+    <Route
+      path={pages.addFeeds()}
+      element={
+        <RequireAuth waitForUserFetch>
+          <AppHeader invertBackground />
+          <Suspense fallback={<LoadingFallback />}>
+            <AddUserFeeds />
+          </Suspense>
         </RequireAuth>
       }
     />
     <Route
       path={pages.userFeeds()}
       element={
-        <RequireAuth>
-          {/* <PageContentV2 invertBackground> */}
-          <NewHeader invertBackground />
-          <UserFeedStatusFilterProvider>
-            <UserFeeds />
-          </UserFeedStatusFilterProvider>
-          {/* </PageContentV2> */}
-        </RequireAuth>
-      }
-    />
-    <Route
-      path={pages.userFeedsFaq()}
-      element={
-        <RequireAuth>
-          <PageContentV2 invertBackground>
-            <UserFeedsFAQ />
-          </PageContentV2>
-        </RequireAuth>
-      }
-    />
-    <Route
-      path="/servers/:serverId/feeds/:feedId"
-      element={
-        <RequireAuth>
-          <RequireDiscordServers>
-            <PageContent requireFeed>
-              <Feed />
-            </PageContent>
-          </RequireDiscordServers>
+        <RequireAuth waitForUserFetch>
+          <AppHeader />
+          <Suspense fallback={<LoadingFallback />}>
+            <MultiSelectUserFeedProvider>
+              <UserFeedStatusFilterProvider>
+                <UserFeeds />
+              </UserFeedStatusFilterProvider>
+            </MultiSelectUserFeedProvider>
+          </Suspense>
         </RequireAuth>
       }
     />
@@ -125,8 +124,10 @@ const Pages: React.FC = () => (
       path={pages.userFeed(":feedId")}
       element={
         <RequireAuth>
-          <PageContentV2 requireFeed>
-            <UserFeed />
+          <PageContentV2 header={<AppHeader />}>
+            <Suspense fallback={<LoadingFallback />}>
+              <UserFeed />
+            </Suspense>
           </PageContentV2>
         </RequireAuth>
       }
@@ -139,85 +140,151 @@ const Pages: React.FC = () => (
       })}
       element={
         <RequireAuth>
-          <PageContentV2>
-            <ConnectionDiscordChannelSettings />
+          <PageContentV2 header={<AppHeader />}>
+            <Suspense fallback={<LoadingFallback />}>
+              <ConnectionSettings connectionType={FeedConnectionType.DiscordChannel} />
+            </Suspense>
           </PageContentV2>
         </RequireAuth>
       }
     />
     <Route
-      path="/servers/:serverId/feeds/:feedId/message"
+      path={pages.messageBuilder({
+        feedId: ":feedId",
+        connectionId: ":connectionId",
+        connectionType: FeedConnectionType.DiscordChannel,
+      })}
       element={
         <RequireAuth>
-          <RequireDiscordServers>
-            <PageContent requireFeed>
-              <FeedMessage />
-            </PageContent>
-          </RequireDiscordServers>
+          <SuspenseErrorBoundary>
+            <Suspense
+              fallback={
+                <Stack alignItems="center" justifyContent="center" height="100%" gap="2rem">
+                  <Loading size="xl" />
+                  <Heading>Loading Message Builder...</Heading>
+                </Stack>
+              }
+            >
+              <MessageBuilder />
+            </Suspense>
+          </SuspenseErrorBoundary>
         </RequireAuth>
       }
     />
+    {/* Workspace-scoped routes reuse the same page components as personal scope.
+        WorkspaceScopeLayout provides the workspace + feed scope so feed queries,
+        mutations, and links stay workspace-scoped. Each child renders its own header
+        (mirroring the personal routes) so the message-builder route can be
+        full-screen with no header, exactly like personal scope. */}
     <Route
-      path="/servers/:serverId/feeds/:feedId/filters"
+      path="/workspaces/:workspaceSlug"
       element={
-        <RequireAuth>
-          <RequireDiscordServers>
-            <PageContent requireFeed>
-              <FeedFilters />
-            </PageContent>
-          </RequireDiscordServers>
+        <RequireAuth waitForUserFetch>
+          <WorkspaceScopeLayout />
         </RequireAuth>
       }
-    />
+    >
+      <Route index element={<Navigate to="feeds" replace />} />
+      <Route
+        path="feeds"
+        element={
+          <>
+            <AppHeader />
+            <Suspense fallback={<LoadingFallback />}>
+              <MultiSelectUserFeedProvider>
+                <UserFeedStatusFilterProvider>
+                  <UserFeeds />
+                </UserFeedStatusFilterProvider>
+              </MultiSelectUserFeedProvider>
+            </Suspense>
+          </>
+        }
+      />
+      <Route
+        path="add-feeds"
+        element={
+          <>
+            <AppHeader invertBackground />
+            <Suspense fallback={<LoadingFallback />}>
+              <AddUserFeeds />
+            </Suspense>
+          </>
+        }
+      />
+      <Route
+        path="feeds/:feedId"
+        element={
+          <PageContentV2 header={<AppHeader />}>
+            <Suspense fallback={<LoadingFallback />}>
+              <UserFeed />
+            </Suspense>
+          </PageContentV2>
+        }
+      />
+      <Route
+        path="feeds/:feedId/discord-channel-connections/:connectionId"
+        element={
+          <PageContentV2 header={<AppHeader />}>
+            <Suspense fallback={<LoadingFallback />}>
+              <ConnectionSettings connectionType={FeedConnectionType.DiscordChannel} />
+            </Suspense>
+          </PageContentV2>
+        }
+      />
+      <Route
+        path="feeds/:feedId/discord-channel-connections/:connectionId/message-builder"
+        element={
+          <SuspenseErrorBoundary>
+            <Suspense
+              fallback={
+                <Stack alignItems="center" justifyContent="center" height="100%" gap="2rem">
+                  <Loading size="xl" />
+                  <Heading>Loading Message Builder...</Heading>
+                </Stack>
+              }
+            >
+              <MessageBuilder />
+            </Suspense>
+          </SuspenseErrorBoundary>
+        }
+      />
+      <Route
+        path="settings"
+        element={
+          <>
+            <AppHeader />
+            <WorkspaceSettingsPage />
+          </>
+        }
+      />
+      <Route
+        path="settings/billing"
+        element={
+          <>
+            <AppHeader />
+            <WorkspaceBillingPage />
+          </>
+        }
+      />
+    </Route>
+    {/* Invitation landing page. RequireAuth bootstraps a logged-out invitee
+        through Discord OAuth and returns them here (the path is preserved via
+        the OAuth state), so the link works whether or not they're signed in. */}
     <Route
-      path="/servers/:serverId/feeds/:feedId/comparisons"
+      path={pages.workspaceInvite(":inviteId")}
       element={
-        <RequireAuth>
-          <RequireDiscordServers>
-            <PageContent requireFeed>
-              <FeedComparisons />
-            </PageContent>
-          </RequireDiscordServers>
+        <RequireAuth waitForUserFetch>
+          <PageContentV2 header={<AppHeader />}>
+            <InvitePage />
+          </PageContentV2>
         </RequireAuth>
       }
     />
-    <Route
-      path="/servers/:serverId/feeds/:feedId/subscribers"
-      element={
-        <RequireAuth>
-          <RequireDiscordServers>
-            <PageContent requireFeed>
-              <FeedSubscribers />
-            </PageContent>
-          </RequireDiscordServers>
-        </RequireAuth>
-      }
-    />
-    <Route
-      path="/servers/:serverId/feeds/:feedId/misc-options"
-      element={
-        <RequireAuth>
-          <RequireDiscordServers>
-            <PageContent requireFeed>
-              <FeedMiscOptions />
-            </PageContent>
-          </RequireDiscordServers>
-        </RequireAuth>
-      }
-    />
-    <Route
-      path="/servers/:serverId/feeds/:feedId/clone"
-      element={
-        <RequireAuth>
-          <RequireDiscordServers>
-            <PageContent requireFeed>
-              <FeedClone />
-            </PageContent>
-          </RequireDiscordServers>
-        </RequireAuth>
-      }
-    />
-  </Routes>
+    {/* Public: the revert link is clicked from an email by someone who may not
+        be signed in, and is authorized solely by the signed token it carries. */}
+    <Route path={pages.revertVerifiedEmail()} element={<RevertVerifiedEmail />} />
+    <Route path="*" element={<Navigate to="/not-found" />} />
+  </SentryRoutes>
 );
 
 export default Pages;

@@ -1,4 +1,6 @@
 import { FeedConnectionType } from "../types";
+import { UserFeedConnectionTabSearchParam } from "./userFeedConnectionTabSearchParam";
+import { UserFeedTabSearchParam } from "./userFeedTabSearchParam";
 
 const getConnectionPathByType = (type: FeedConnectionType) => {
   switch (type) {
@@ -9,14 +11,64 @@ const getConnectionPathByType = (type: FeedConnectionType) => {
   }
 };
 
+/**
+ * Workspace scope uses a human-readable slug.
+ * Personal-scope routes (no `workspaceSlug`) stay unprefixed so existing bookmarks survive.
+ */
+export type RouteScope = { workspaceSlug?: string };
+
+const scopePrefix = (scope?: RouteScope) =>
+  scope?.workspaceSlug ? `/workspaces/${scope.workspaceSlug}` : "";
+
 export const pages = {
-  alerting: () => "/alerting",
-  userFeeds: () => "/feeds",
-  userFeed: (feedId: string) => `/feeds/${feedId}`,
-  userFeedConnection: (data: {
+  checkout: (priceId: string, feeds?: { quantity: number; priceId: string }) =>
+    `/paddle-checkout/${priceId}?${feeds ? `feeds=${feeds.quantity},${feeds.priceId}` : ""}`,
+  messageBuilder: (data: {
     feedId: string;
     connectionType: FeedConnectionType;
     connectionId: string;
-  }) => `/feeds/${data.feedId}${getConnectionPathByType(data.connectionType)}/${data.connectionId}`,
-  userFeedsFaq: () => "/feeds/faq",
+    scope?: RouteScope;
+  }) => `${pages.userFeedConnection(data)}/message-builder`,
+  addFeeds: (scope?: RouteScope) => `${scopePrefix(scope)}/add-feeds`,
+  userSettings: () => "/settings",
+  workspaceSettings: (workspaceSlug: string) => `/workspaces/${workspaceSlug}/settings`,
+  workspaceBilling: (workspaceSlug: string, opts?: { feeds?: number }) => {
+    const path = `/workspaces/${workspaceSlug}/settings/billing`;
+
+    return opts?.feeds ? `${path}?feeds=${opts.feeds}` : path;
+  },
+  workspaceInvite: (inviteId: string) => `/invites/${inviteId}`,
+  // Landing for the "this wasn't me, revert" link in the verified-email-changed
+  // email. The signed revert token is carried in the `token` query parameter.
+  revertVerifiedEmail: () => "/email-verification/revert",
+  userFeeds: (scope?: RouteScope) => `${scopePrefix(scope)}/feeds`,
+  notFound: () => "/not-found",
+  testPaddle: () => "/test-paddle",
+  userFeed: (
+    feedId: string,
+    opts?: { tab?: UserFeedTabSearchParam; new?: boolean; scope?: RouteScope },
+  ) => {
+    let str = `${scopePrefix(opts?.scope)}/feeds/${feedId}${opts?.tab ? opts.tab : ""}`;
+
+    if (opts?.tab && opts.new) {
+      str += "&new=true";
+    } else if (opts?.new) {
+      str += "?new=true";
+    }
+
+    return str;
+  },
+  userFeedConnection: (
+    data: {
+      feedId: string;
+      connectionType: FeedConnectionType;
+      connectionId: string;
+      scope?: RouteScope;
+    },
+    opts?: { tab?: UserFeedConnectionTabSearchParam },
+  ) =>
+    `${scopePrefix(data.scope)}/feeds/${data.feedId}${getConnectionPathByType(
+      data.connectionType,
+    )}/${data.connectionId}${opts?.tab ? opts.tab : ""}`,
+  loginReddit: () => "/api/v1/reddit/login",
 };

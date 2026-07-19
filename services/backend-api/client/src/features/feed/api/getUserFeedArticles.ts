@@ -1,8 +1,9 @@
 import { array, boolean, InferType, number, object, string } from "yup";
 import fetchRest from "../../../utils/fetchRest";
-import { GetArticlesFilterReturnType } from "../constants";
+import { GetArticlesFilterReturnType, SelectArticlePropertyType } from "../constants";
 import { UserFeedArticleRequestStatus } from "../types";
-import { CustomPlaceholder } from "../../../types";
+import { ExternalProperty } from "@/types";
+import { CustomPlaceholder } from "@/types/CustomPlaceholder";
 
 export interface GetUserFeedArticlesInput {
   feedId: string;
@@ -11,20 +12,25 @@ export interface GetUserFeedArticlesInput {
     limit: number;
     random?: boolean;
     selectProperties?: string[];
+    selectPropertyTypes?: SelectArticlePropertyType[];
+    includeHtmlInErrors?: boolean;
     filters?: {
       expression?: Record<string, any>;
       returnType?: GetArticlesFilterReturnType;
       articleId?: string;
+      articleIdHashes?: string[];
       search?: string;
     };
     formatter: {
       customPlaceholders?: CustomPlaceholder[] | null;
+      externalProperties?: ExternalProperty[] | null;
       options: {
         formatTables: boolean;
         stripImages: boolean;
         dateFormat: string | undefined;
         dateTimezone: string | undefined;
         disableImageLinkPreviews?: boolean;
+        ignoreNewLines: boolean | undefined;
       };
     };
   };
@@ -40,17 +46,31 @@ const GetUserFeedArticlesOutputSchema = object({
       articles: array(
         object({
           id: string().required(),
-        })
+          idHash: string().required(),
+        }),
       ).required(),
       totalArticles: number().required(),
       selectedProperties: array(string().required()).required(),
       filterStatuses: array(
         object({
           passed: boolean().required(),
-        }).required()
+        }).required(),
       )
         .optional()
         .default([]),
+      externalContentErrors: array(
+        object({
+          articleId: string().required(),
+          sourceField: string().required(),
+          label: string().required(),
+          cssSelector: string().required(),
+          errorType: string().required(),
+          message: string().optional(),
+          statusCode: number().optional(),
+          pageHtml: string().optional(),
+          pageHtmlTruncated: boolean().optional(),
+        }),
+      ).optional(),
     })
     .required(),
 }).required();
@@ -58,7 +78,7 @@ const GetUserFeedArticlesOutputSchema = object({
 export type GetUserFeedArticlesOutput = InferType<typeof GetUserFeedArticlesOutputSchema>;
 
 export const getUserFeedArticles = async (
-  options: GetUserFeedArticlesInput
+  options: GetUserFeedArticlesInput,
 ): Promise<GetUserFeedArticlesOutput> => {
   const res = await fetchRest(`/api/v1/user-feeds/${options.feedId}/get-articles`, {
     requestOptions: {

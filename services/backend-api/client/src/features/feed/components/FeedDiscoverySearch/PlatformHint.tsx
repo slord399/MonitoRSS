@@ -1,0 +1,98 @@
+import { Box, Text } from "@chakra-ui/react";
+
+interface PlatformHintEntry {
+  keywords: string[];
+  description: string;
+  example: string;
+}
+
+const PLATFORM_HINTS: PlatformHintEntry[] = [
+  {
+    keywords: ["youtube", "yt"],
+    description: "To add a YouTube channel, paste the channel URL.",
+    example: "https://www.youtube.com/@ChannelName",
+  },
+  {
+    keywords: ["reddit"],
+    description: "To add a subreddit, paste the subreddit URL.",
+    example: "https://www.reddit.com/r/SubredditName",
+  },
+];
+
+const EXPECTED_RESOLUTION_HOSTNAMES = new Set([
+  "youtube.com",
+  "www.youtube.com",
+  "m.youtube.com",
+  "youtu.be",
+  "reddit.com",
+  "www.reddit.com",
+  "old.reddit.com",
+]);
+
+export function isExpectedResolutionUrl(url: string): boolean {
+  try {
+    const { hostname } = new URL(url);
+
+    return EXPECTED_RESOLUTION_HOSTNAMES.has(hostname);
+  } catch {
+    return false;
+  }
+}
+
+export function getPlatformHint(query: string): PlatformHintEntry | null {
+  const q = query.toLowerCase().trim();
+
+  return PLATFORM_HINTS.find((hint) => hint.keywords.some((kw) => q.includes(kw))) ?? null;
+}
+
+export function getNoResultsAnnouncement(query: string): string {
+  const hint = getPlatformHint(query);
+
+  if (hint) {
+    return `${hint.description} For example: ${hint.example}`;
+  }
+
+  return `No results for ${query}. Many websites have feeds - try pasting a URL (e.g., a YouTube channel or news site) and we'll check automatically.`;
+}
+
+export const PlatformHint = ({ query }: { query: string }) => {
+  const hint = getPlatformHint(query);
+
+  if (hint) {
+    return (
+      <Box
+        borderWidth="1px"
+        borderColor="colorPalette.emphasized"
+        borderRadius="l3"
+        bg="colorPalette.subtle"
+        colorPalette="brand"
+        px={4}
+        py={3}
+      >
+        <Text fontSize="sm" color="fg">
+          {hint.description}
+        </Text>
+        <Text fontSize="sm" color="fg.muted" mt={2}>
+          For example:{" "}
+          <Text as="code" fontFamily="mono">
+            {hint.example}
+          </Text>
+        </Text>
+      </Box>
+    );
+  }
+
+  return (
+    <Text color="fg.muted">
+      No results for &ldquo;{query}&rdquo;. Many websites have feeds - try pasting a URL (e.g., a
+      YouTube channel or news site) and we&apos;ll check automatically.
+    </Text>
+  );
+};
+
+export const SearchOwnFeedHint = () => (
+  <Text fontSize="sm" color="fg.muted">
+    Don&apos;t see what you&apos;re looking for? Many websites have feeds - try pasting a URL (e.g.,
+    a YouTube channel or news site) above and we&apos;ll check automatically.
+  </Text>
+);

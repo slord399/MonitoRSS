@@ -1,4 +1,4 @@
-import { Alert, AlertDescription, AlertTitle, Box, Stack } from "@chakra-ui/react";
+import { Alert as ChakraAlert, Box, Stack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { ThemedSelect } from "@/components";
 import { useDiscordServerActiveThreads } from "../../hooks";
@@ -11,9 +11,14 @@ interface Props {
   value?: string;
   isDisabled?: boolean;
   isClearable?: boolean;
+  inputId?: string;
+  ariaLabelledBy: string;
+  isInvalid: boolean;
+  placeholder?: string;
 }
 
 export const DiscordActiveThreadDropdown: React.FC<Props> = ({
+  placeholder,
   serverId,
   parentChannelId,
   onChange,
@@ -21,6 +26,9 @@ export const DiscordActiveThreadDropdown: React.FC<Props> = ({
   value,
   isDisabled,
   isClearable,
+  inputId,
+  ariaLabelledBy,
+  isInvalid,
 }) => {
   const { data, error, isFetching } = useDiscordServerActiveThreads({
     serverId,
@@ -36,10 +44,10 @@ export const DiscordActiveThreadDropdown: React.FC<Props> = ({
     })) || [];
 
   return (
-    <Stack>
+    <Stack alignSelf="stretch">
       <ThemedSelect
         loading={isFetching}
-        isDisabled={isDisabled || isFetching || !!error}
+        isDisabled={isDisabled || !!error}
         options={options}
         onChange={(val, optionData) => {
           onChange(val, optionData?.name);
@@ -47,18 +55,31 @@ export const DiscordActiveThreadDropdown: React.FC<Props> = ({
         onBlur={onBlur}
         value={value}
         isClearable={isClearable}
+        selectProps={
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          {
+            inputId,
+            "aria-labelledby": ariaLabelledBy,
+            "aria-busy": isFetching,
+            openMenuOnClick: !isFetching,
+            openMenuOnFocus: !isFetching,
+          } as any
+        }
+        isInvalid={isInvalid}
+        placeholder={placeholder}
       />
       {serverId && error && (
-        <Alert status="error">
+        <ChakraAlert.Root status="error">
+          <ChakraAlert.Indicator />
           <Box>
-            <AlertTitle>
+            <ChakraAlert.Title>
               {t(
-                "features.feed.components.addDiscordChannelThreadConnectionDialog.failedToGetThreads"
+                "features.feed.components.addDiscordChannelThreadConnectionDialog.failedToGetThreads",
               )}
-            </AlertTitle>
-            <AlertDescription>{error?.message}</AlertDescription>
+            </ChakraAlert.Title>
+            <ChakraAlert.Description>{error?.message}</ChakraAlert.Description>
           </Box>
-        </Alert>
+        </ChakraAlert.Root>
       )}
     </Stack>
   );

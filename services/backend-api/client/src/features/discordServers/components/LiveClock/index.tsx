@@ -1,8 +1,7 @@
 /* eslint-disable react/jsx-no-useless-fragment */
-import moment from "moment-timezone";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import getChakraColor from "@/utils/getChakraColor";
+import dayjs from "dayjs";
 
 interface Props {
   dateFormat?: string;
@@ -17,11 +16,11 @@ export const LiveClock: React.FC<Props> = ({ dateFormat, timezone }) => {
       return "";
     }
 
-    if (!moment.tz.zone(timezone)) {
+    if (!Intl.supportedValuesOf("timeZone").includes(timezone)) {
       return "";
     }
 
-    return moment().tz(timezone).format(dateFormat);
+    return dayjs().tz(timezone).format(dateFormat);
   };
 
   const [timeNow, setTimeNow] = useState(getCurrentTime());
@@ -47,7 +46,7 @@ export const LiveClock: React.FC<Props> = ({ dateFormat, timezone }) => {
   return (
     <span
       style={{
-        color: getChakraColor("red.500"),
+        color: "var(--app-text-error)",
       }}
     >
       {t("features.discordServers.components.liveClock.invalidSettings")}

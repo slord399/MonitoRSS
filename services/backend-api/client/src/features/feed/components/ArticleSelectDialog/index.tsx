@@ -1,47 +1,45 @@
 import {
   Alert,
-  AlertDescription,
   Box,
   Button,
   Center,
-  Divider,
   Flex,
-  FormControl,
-  FormLabel,
   HStack,
   Input,
   InputGroup,
-  InputLeftElement,
-  Modal,
-  ModalBody,
-  ModalCloseButton,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  ModalOverlay,
+  Separator,
   Spinner,
   Stack,
   Text,
-  useDisclosure,
+  chakra,
+  Field as ChakraField,
 } from "@chakra-ui/react";
-import React, { useEffect, useState } from "react";
+import React, { ReactElement, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { RepeatIcon, SearchIcon } from "@chakra-ui/icons";
-import { Loading, Menu, ThemedSelect } from "@/components";
-import { GetArticlesFilterReturnType } from "../../constants";
+import { FaArrowsRotate, FaMagnifyingGlass } from "react-icons/fa6";
+import { Loading, Menu, Panel, ThemedSelect } from "@/components";
 import { useUserFeedArticleProperties, useUserFeedArticlesWithPagination } from "../../hooks";
-import getChakraColor from "../../../../utils/getChakraColor";
-import { GetUserFeedArticlesInput } from "../../api";
 import { useDebounce } from "../../../../hooks";
-import { useGetUserFeedArticlesError } from "../../../feedConnections/hooks";
+import { useGetUserFeedArticlesError } from "@/features/feedConnections";
+import { DiscordFormatOptions } from "@/types/discord/DiscordFormatOptions";
+import {
+  DialogRoot,
+  DialogContent,
+  DialogHeader,
+  DialogBody,
+  DialogFooter,
+  DialogTitle,
+  DialogCloseTrigger,
+} from "@/components/ui/dialog";
+import { Field } from "@/components/ui/field";
 
 interface Props {
   feedId: string;
   trigger: React.ReactElement;
   onArticleSelected: (articleId: string) => void;
-  onClickRandomArticle: () => void;
-  articleFormatter: GetUserFeedArticlesInput["data"]["formatter"];
+  onClickRandomArticle?: () => void;
   singleProperty?: string;
+  articleFormatOptions: DiscordFormatOptions;
 }
 
 export const ArticleSelectDialog = ({
@@ -49,17 +47,26 @@ export const ArticleSelectDialog = ({
   trigger,
   onArticleSelected,
   onClickRandomArticle,
-  articleFormatter,
   singleProperty,
+  articleFormatOptions,
 }: Props) => {
-  const { isOpen, onClose, onOpen } = useDisclosure();
+  const [open, setOpen] = useState(false);
+  const onOpen = () => setOpen(true);
+  const onClose = () => setOpen(false);
   const { t } = useTranslation();
   const [selectedArticleProperty, setSelectedArticleProperty] = useState<string | undefined>(
-    singleProperty || "title"
+    singleProperty || "title",
   );
   const [search, setSearch] = useState("");
   const { data: feedArticlePropertiesResult, status: feedArticlePropertiesStatus } =
-    useUserFeedArticleProperties({ feedId });
+    useUserFeedArticleProperties({
+      feedId,
+      data: {
+        customPlaceholders: articleFormatOptions.customPlaceholders,
+      },
+      isDisabled: !open,
+    });
+
   const debouncedSearch = useDebounce(search, 500);
   const {
     data: userFeedArticlesResults,
@@ -72,6 +79,7 @@ export const ArticleSelectDialog = ({
     limit,
     refetch,
   } = useUserFeedArticlesWithPagination({
+    isDisabled: !open,
     feedId,
     data: {
       selectProperties: selectedArticleProperty
@@ -82,11 +90,12 @@ export const ArticleSelectDialog = ({
           ]
             .concat(["id"])
             .filter((i) => i) as string[]),
-      filters: {
-        returnType: GetArticlesFilterReturnType.IncludeEvaluationResults,
-        search: debouncedSearch,
-      },
-      formatter: articleFormatter,
+      filters: debouncedSearch
+        ? {
+            search: debouncedSearch,
+          }
+        : undefined,
+      formatOptions: articleFormatOptions,
     },
   });
   const { alertComponent } = useGetUserFeedArticlesError({
@@ -102,7 +111,7 @@ export const ArticleSelectDialog = ({
   const onClickArticle = async (articleId?: string) => {
     if (articleId) {
       onArticleSelected(articleId);
-    } else {
+    } else if (onClickRandomArticle) {
       onClickRandomArticle();
     }
 
@@ -125,24 +134,49 @@ export const ArticleSelectDialog = ({
   return (
     <>
       {React.cloneElement(trigger, {
-        onClick: onOpen,
+        onClick: () => {
+          if (trigger.props["aria-disabled"]) {
+            return;
+          }
+
+          onOpen();
+        },
       })}
-      <Modal isOpen={isOpen} onClose={onClose} size="xl">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>{t("features.userFeeds.components.articleSelectPrompt.title")}</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <Stack spacing={4}>
-              {/* <Divider /> */}
+      <DialogRoot open={open} onOpenChange={(e) => setOpen(e.open)} size="xl">
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {t("features.userFeeds.components.articleSelectPrompt.title")}
+            </DialogTitle>
+          </DialogHeader>
+          <DialogCloseTrigger />
+          <DialogBody>
+            <Box aria-live="polite" srOnly>
+              {userFeedArticlesStatus === "loading" && (
+                <span>
+                  Loading articles ${skip + 1} through ${skip + limit}
+                </span>
+              )}
+              {userFeedArticlesStatus === "success" && (
+                <span>
+                  Finished loading articles ${skip + 1} through ${Math.max(skip + limit)}
+                </span>
+              )}
+              {userFeedArticlesStatus === "success" && fetchStatus === "fetching" && (
+                <span>
+                  Loading articles ${skip + 1} through ${skip + limit}
+                </span>
+              )}
+            </Box>
+            <Stack gap={4}>
               <Box>
                 {userFeedArticlesStatus === "loading" && (
-                  <Stack>
+                  <Stack aria-hidden>
                     <Center>
                       <Loading />
                     </Center>
                     <Center>
-                      <Text color="gray.300">
+                      <Text color="fg.subtle">
                         {t("features.userFeeds.components.articleSelectPrompt.loadingArticles")}
                       </Text>
                     </Center>
@@ -153,10 +187,20 @@ export const ArticleSelectDialog = ({
                   <Stack>
                     <Flex>
                       <HStack alignItems="center" flexGrow={1} flexWrap="wrap">
-                        <FormControl flexGrow={1}>
-                          <FormLabel>Property</FormLabel>
+                        <ChakraField.Root flexGrow={1}>
+                          <ChakraField.Label
+                            id="article-select-dialog-property-label"
+                            htmlFor="article-select-dialog-property-select"
+                          >
+                            Article Property
+                          </ChakraField.Label>
                           {/* {!singleProperty && ( */}
                           <ThemedSelect
+                            isInvalid={false}
+                            selectProps={{
+                              inputId: "article-select-dialog-property-select",
+                              "aria-labelledby": "article-select-dialog-property-label",
+                            }}
                             options={
                               feedArticlePropertiesResult?.result.properties.map((property) => ({
                                 value: property,
@@ -171,33 +215,47 @@ export const ArticleSelectDialog = ({
                             value={useArticleProperty}
                             onChange={onChangeFeedArticleProperty}
                           />
-                        </FormControl>
+                          <ChakraField.HelperText>
+                            The article property to display for each article for selection.
+                          </ChakraField.HelperText>
+                        </ChakraField.Root>
                       </HStack>
                     </Flex>
                     <Stack>
-                      <FormControl>
-                        <FormLabel>Search</FormLabel>
-                        <HStack flexWrap="wrap">
-                          <InputGroup flex={1}>
-                            <InputLeftElement pointerEvents="none">
-                              <SearchIcon color="gray.300" />
-                            </InputLeftElement>
+                      <Field label="Search">
+                        <HStack flexWrap="wrap" w="full">
+                          <InputGroup
+                            flex={1}
+                            startElement={<FaMagnifyingGlass color="fg.muted" />}
+                          >
                             <Input
                               onChange={(e) => setSearch(e.target.value)}
-                              placeholder="Search..."
+                              placeholder="Search through article property values"
                             />
                           </InputGroup>
                           <Button
-                            leftIcon={<RepeatIcon />}
-                            isLoading={fetchStatus === "fetching"}
-                            onClick={() => refetch()}
+                            onClick={() => {
+                              if (fetchStatus === "fetching") {
+                                return;
+                              }
+
+                              refetch();
+                            }}
+                            aria-label="Refresh list of articles"
                           >
-                            Reload
+                            {fetchStatus === "fetching" ? (
+                              <Spinner size="sm" />
+                            ) : (
+                              <>
+                                <FaArrowsRotate />
+                                <span>Refresh Articles</span>
+                              </>
+                            )}
                           </Button>
                         </HStack>
-                      </FormControl>
+                      </Field>
                     </Stack>
-                    <Stack spacing={8} position="relative" rounded="lg">
+                    <Stack gap={8} position="relative" rounded="lg">
                       {fetchStatus === "fetching" && (
                         <Flex
                           bg="blackAlpha.700"
@@ -208,34 +266,47 @@ export const ArticleSelectDialog = ({
                           justifyContent="center"
                           alignItems="center"
                         >
-                          <Spinner />
+                          <span>
+                            <Spinner />
+                          </span>
                         </Flex>
                       )}
-                      <Stack spacing={4} bg="gray.700" rounded="lg">
-                        <Box
+                      <Stack gap={4} rounded="lg">
+                        <Panel
+                          surface="transparent"
+                          borderRadius="lg"
                           overflow="auto"
                           height="100%"
                           maxHeight={400}
-                          border={`solid 2px ${getChakraColor("gray.600")}`}
-                          borderRadius="lg"
                         >
                           <Menu
-                            items={articles.map((article) => ({
-                              id: article.id,
-                              title: article[useArticleProperty as never] || (
-                                <Text color="gray.400">(empty)</Text>
-                              ),
-                              value: article.id,
-                              description: "",
-                            }))}
+                            items={articles.map((article) => {
+                              const articleValue = article[useArticleProperty as never];
+
+                              let title: ReactElement;
+
+                              if (!articleValue) {
+                                title = <Text color="fg.muted">(empty)</Text>;
+                              } else {
+                                title = (
+                                  <chakra.span whiteSpace="pre-wrap">{articleValue}</chakra.span>
+                                );
+                              }
+
+                              return {
+                                id: article.id,
+                                title: title as never,
+                                value: article.id,
+                                description: "",
+                              };
+                            })}
                             boxProps={{
                               background: "transparent",
-                              // border: `solid 2px ${getChakraColor("gray.600")}`,
                             }}
                             onSelectedValue={onClickArticle}
                             shown
                           />
-                        </Box>
+                        </Panel>
                       </Stack>
                     </Stack>
                     <Flex justifyContent="space-between" alignItems="center">
@@ -250,18 +321,30 @@ export const ArticleSelectDialog = ({
                         <Button
                           width="min-content"
                           size="sm"
-                          onClick={prevPage}
-                          isDisabled={onFirstPage || fetchStatus === "fetching"}
+                          onClick={() => {
+                            if (onFirstPage || fetchStatus === "fetching") {
+                              return;
+                            }
+
+                            prevPage();
+                          }}
+                          aria-disabled={onFirstPage || fetchStatus === "fetching"}
                         >
-                          {t("features.feedConnections.components.filtersTabSection.prevPage")}
+                          <span>Previous Page</span>
                         </Button>
                         <Button
                           size="sm"
                           width="min-content"
-                          onClick={nextPage}
-                          isDisabled={onLastPage || fetchStatus === "fetching"}
+                          onClick={() => {
+                            if (onLastPage || fetchStatus === "fetching") {
+                              return;
+                            }
+
+                            nextPage();
+                          }}
+                          aria-disabled={onLastPage || fetchStatus === "fetching"}
                         >
-                          {t("features.feedConnections.components.filtersTabSection.nextPage")}
+                          <span>Next Page</span>
                         </Button>
                       </HStack>
                     </Flex>
@@ -270,28 +353,35 @@ export const ArticleSelectDialog = ({
               </Box>
               {!alertComponent && (
                 <>
-                  <Alert borderRadius="md">
-                    <AlertDescription>
+                  <Alert.Root role={undefined}>
+                    <Alert.Description>
                       <Text fontSize="sm">
                         {t("features.userFeeds.components.articleSelectPrompt.mayBeDelayWarning")}
                       </Text>
-                    </AlertDescription>
-                  </Alert>
-                  <Divider />
-                  <Button onClick={() => onClickArticle()} leftIcon={<RepeatIcon />}>
-                    {t("features.userFeeds.components.articleSelectPrompt.selectRandom")}
-                  </Button>
+                    </Alert.Description>
+                  </Alert.Root>
+                  {onClickRandomArticle && (
+                    <>
+                      <Separator />
+                      <Button onClick={() => onClickArticle()}>
+                        <FaArrowsRotate />
+                        <span>
+                          {t("features.userFeeds.components.articleSelectPrompt.selectRandom")}
+                        </span>
+                      </Button>
+                    </>
+                  )}
                 </>
               )}
             </Stack>
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="ghost" onClick={onClose}>
-              {t("common.buttons.close")}
+          </DialogBody>
+          <DialogFooter>
+            <Button onClick={onClose}>
+              <span>{t("common.buttons.close")}</span>
             </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+          </DialogFooter>
+        </DialogContent>
+      </DialogRoot>
     </>
   );
 };

@@ -2,6 +2,10 @@ import { Entity, Property, PrimaryKey, Index } from '@mikro-orm/core';
 
 @Entity()
 @Index({ properties: ['statusCode'], name: 'status_code_index' })
+@Index({
+  properties: ['createdAt'],
+  name: 'createdat_index',
+})
 export class Response {
   @PrimaryKey({
     autoincrement: true,
@@ -55,4 +59,7 @@ export class Response {
     nullable: true,
   })
   createdAt: Date = new Date();
+
+  responseHashKey!: string | null;
+  content!: string | null;
 }

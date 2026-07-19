@@ -1,0 +1,818 @@
+{
+  "categories": [
+    {
+      "id": "gaming",
+      "label": "Gaming"
+    },
+    {
+      "id": "specific-games",
+      "label": "Specific Games"
+    },
+    {
+      "id": "anime",
+      "label": "Anime & Manga"
+    },
+    {
+      "id": "tech",
+      "label": "Tech & Security"
+    },
+    {
+      "id": "sports",
+      "label": "Sports"
+    },
+    {
+      "id": "finance",
+      "label": "Finance & Crypto"
+    },
+    {
+      "id": "news",
+      "label": "World News"
+    },
+    {
+      "id": "entertainment",
+      "label": "Entertainment"
+    }
+  ],
+  "feeds": [
+    {
+      "id": "mock0000000000000000000000",
+      "title": "IGN",
+      "category": "gaming",
+      "domain": "ign.com",
+      "description": "Gaming news, reviews, and videos",
+      "popular": true
+    },
+    {
+      "id": "mock0000000000000000000001",
+      "title": "Steam News",
+      "category": "gaming",
+      "domain": "store.steampowered.com",
+      "description": "Official Steam platform updates",
+      "popular": true
+    },
+    {
+      "id": "mock0000000000000000000002",
+      "title": "PC Gamer",
+      "category": "gaming",
+      "domain": "pcgamer.com",
+      "description": "PC gaming news and reviews",
+      "popular": true
+    },
+    {
+      "id": "mock0000000000000000000003",
+      "title": "Kotaku",
+      "category": "gaming",
+      "domain": "kotaku.com",
+      "description": "Gaming and pop culture commentary"
+    },
+    {
+      "id": "mock0000000000000000000004",
+      "title": "GameSpot",
+      "category": "gaming",
+      "domain": "gamespot.com",
+      "description": "Game reviews, news, and trailers"
+    },
+    {
+      "id": "mock0000000000000000000005",
+      "title": "Eurogamer",
+      "category": "gaming",
+      "domain": "eurogamer.net",
+      "description": "European gaming news and analysis"
+    },
+    {
+      "id": "mock0000000000000000000006",
+      "title": "Rock Paper Shotgun",
+      "category": "gaming",
+      "domain": "rockpapershotgun.com",
+      "description": "PC gaming coverage with editorial depth"
+    },
+    {
+      "id": "mock0000000000000000000007",
+      "title": "Polygon",
+      "category": "gaming",
+      "domain": "polygon.com",
+      "description": "Gaming culture and industry reporting"
+    },
+    {
+      "id": "mock0000000000000000000008",
+      "title": "Destructoid",
+      "category": "gaming",
+      "domain": "destructoid.com",
+      "description": "Irreverent gaming news and reviews"
+    },
+    {
+      "id": "mock0000000000000000000009",
+      "title": "GamesRadar+",
+      "category": "gaming",
+      "domain": "gamesradar.com",
+      "description": "Multi-platform gaming guides and news"
+    },
+    {
+      "id": "mock0000000000000000000010",
+      "title": "VG247",
+      "category": "gaming",
+      "domain": "vg247.com",
+      "description": "Breaking video game news and scoops"
+    },
+    {
+      "id": "mock0000000000000000000011",
+      "title": "DualShockers",
+      "category": "gaming",
+      "domain": "dualshockers.com",
+      "description": "PlayStation and multiplatform gaming coverage"
+    },
+    {
+      "id": "mock0000000000000000000012",
+      "title": "Push Square",
+      "category": "gaming",
+      "domain": "pushsquare.com",
+      "description": "PlayStation news, reviews, and features"
+    },
+    {
+      "id": "mock0000000000000000000013",
+      "title": "Nintendo Life",
+      "category": "gaming",
+      "domain": "nintendolife.com",
+      "description": "Nintendo news, reviews, and features"
+    },
+    {
+      "id": "mock0000000000000000000014",
+      "title": "PurePlayStation",
+      "category": "gaming",
+      "domain": "pureplaystation.com",
+      "description": "PlayStation trophy guides and news"
+    },
+    {
+      "id": "mock0000000000000000000015",
+      "title": "Steam Daily Deals",
+      "category": "gaming",
+      "domain": "store.steampowered.com",
+      "description": "Daily discount highlights on Steam"
+    },
+    {
+      "id": "mock0000000000000000000016",
+      "title": "Steam - Free Games Finder",
+      "category": "gaming",
+      "domain": "steamfreegamesfinder.com",
+      "description": "Free game giveaways on Steam"
+    },
+    {
+      "id": "mock0000000000000000000017",
+      "title": "Siliconera",
+      "category": "gaming",
+      "domain": "siliconera.com",
+      "description": "Japanese and niche gaming coverage"
+    },
+    {
+      "id": "mock0000000000000000000018",
+      "title": "Vandal",
+      "category": "gaming",
+      "domain": "vandal.elespanol.com",
+      "description": "Spanish video game news, reviews and guides"
+    },
+    {
+      "id": "mock0000000000000000000019",
+      "title": "GoHa.ru - Games",
+      "category": "gaming",
+      "domain": "goha.ru",
+      "description": "Russian video game news and coverage"
+    },
+    {
+      "id": "mock0000000000000000000020",
+      "title": "TheGamer",
+      "category": "gaming",
+      "domain": "thegamer.com",
+      "description": "Gaming features, lists, and opinions"
+    },
+    {
+      "id": "mock0000000000000000000021",
+      "title": "Dexerto",
+      "category": "gaming",
+      "domain": "dexerto.com",
+      "description": "Esports and gaming entertainment news"
+    },
+    {
+      "id": "mock0000000000000000000022",
+      "title": "NME Gaming",
+      "category": "gaming",
+      "domain": "nme.com",
+      "description": "Gaming news from the music and culture outlet"
+    },
+    {
+      "id": "mock0000000000000000000023",
+      "title": "TechRaptor",
+      "category": "gaming",
+      "domain": "techraptor.net",
+      "description": "Indie and tabletop gaming coverage"
+    },
+    {
+      "id": "mock0000000000000000000024",
+      "title": "Game Informer",
+      "category": "gaming",
+      "domain": "gameinformer.com",
+      "description": "Long-form gaming journalism and previews"
+    },
+    {
+      "id": "mock0000000000000000000025",
+      "title": "FFXIV Lodestone",
+      "category": "specific-games",
+      "domain": "finalfantasyxiv.com",
+      "description": "Final Fantasy XIV official news and maintenance",
+      "popular": true
+    },
+    {
+      "id": "mock0000000000000000000026",
+      "title": "Path of Exile News",
+      "category": "specific-games",
+      "domain": "pathofexile.com",
+      "description": "Path of Exile patches and league announcements",
+      "popular": true
+    },
+    {
+      "id": "mock0000000000000000000027",
+      "title": "Warframe Forums",
+      "category": "specific-games",
+      "domain": "warframe.com",
+      "description": "Warframe updates, devstreams, and community",
+      "popular": true
+    },
+    {
+      "id": "mock0000000000000000000028",
+      "title": "Minecraft Updates",
+      "category": "specific-games",
+      "domain": "minecraft.net",
+      "description": "Official Minecraft patch notes and snapshots"
+    },
+    {
+      "id": "mock0000000000000000000029",
+      "title": "League of Legends",
+      "category": "specific-games",
+      "domain": "leagueoflegends.com",
+      "description": "LoL patches, champion reveals, and esports"
+    },
+    {
+      "id": "mock0000000000000000000030",
+      "title": "Dota 2 Blog",
+      "category": "specific-games",
+      "domain": "dota2.com",
+      "description": "Dota 2 updates and gameplay patches"
+    },
+    {
+      "id": "mock0000000000000000000031",
+      "title": "Guild Wars 2",
+      "category": "specific-games",
+      "domain": "guildwars2.com",
+      "description": "GW2 living world and balance updates"
+    },
+    {
+      "id": "mock0000000000000000000032",
+      "title": "Call of Duty Blog",
+      "category": "specific-games",
+      "domain": "callofduty.com",
+      "description": "CoD Warzone and multiplayer news"
+    },
+    {
+      "id": "mock0000000000000000000033",
+      "title": "Elden Ring News",
+      "category": "specific-games",
+      "domain": "eldenring.jp",
+      "description": "Elden Ring DLC and community updates"
+    },
+    {
+      "id": "mock0000000000000000000034",
+      "title": "Counter-Strike Blog",
+      "category": "specific-games",
+      "domain": "counter-strike.net",
+      "description": "CS2 updates, maps, and operations"
+    },
+    {
+      "id": "mock0000000000000000000035",
+      "title": "Destiny 2 - Bungie",
+      "category": "specific-games",
+      "domain": "bungie.net",
+      "description": "Destiny 2 TWABs and season reveals"
+    },
+    {
+      "id": "mock0000000000000000000036",
+      "title": "Valorant News",
+      "category": "specific-games",
+      "domain": "playvalorant.com",
+      "description": "Valorant agents, maps, and patch notes"
+    },
+    {
+      "id": "mock0000000000000000000037",
+      "title": "Fortnite News",
+      "category": "specific-games",
+      "domain": "fortnite.com",
+      "description": "Fortnite events, collabs, and battle passes"
+    },
+    {
+      "id": "mock0000000000000000000038",
+      "title": "Genshin Impact",
+      "category": "specific-games",
+      "domain": "genshin.hoyoverse.com",
+      "description": "Genshin banner and version updates"
+    },
+    {
+      "id": "mock0000000000000000000039",
+      "title": "Apex Legends",
+      "category": "specific-games",
+      "domain": "ea.com",
+      "description": "Apex Legends seasons and legend reveals"
+    },
+    {
+      "id": "mock0000000000000000000040",
+      "title": "RuneScape News",
+      "category": "specific-games",
+      "domain": "runescape.com",
+      "description": "RuneScape quests and skilling updates"
+    },
+    {
+      "id": "mock0000000000000000000041",
+      "title": "Wowhead News",
+      "category": "specific-games",
+      "domain": "wowhead.com",
+      "description": "World of Warcraft datamining and guides"
+    },
+    {
+      "id": "mock0000000000000000000042",
+      "title": "Stardew Valley Blog",
+      "category": "specific-games",
+      "domain": "stardewvalley.net",
+      "description": "Stardew Valley development updates"
+    },
+    {
+      "id": "mock0000000000000000000043",
+      "title": "Terraria News",
+      "category": "specific-games",
+      "domain": "terraria.org",
+      "description": "Terraria content and crossover events"
+    },
+    {
+      "id": "mock0000000000000000000044",
+      "title": "Overwatch News",
+      "category": "specific-games",
+      "domain": "overwatch.blizzard.com",
+      "description": "Overwatch hero updates and competitive seasons"
+    },
+    {
+      "id": "mock0000000000000000000045",
+      "title": "Halo Waypoint",
+      "category": "specific-games",
+      "domain": "halowaypoint.com",
+      "description": "Halo campaign and multiplayer updates"
+    },
+    {
+      "id": "mock0000000000000000000046",
+      "title": "Pokemon News",
+      "category": "specific-games",
+      "domain": "pokemon.com",
+      "description": "Pokemon games, TCG, and event announcements"
+    },
+    {
+      "id": "mock0000000000000000000047",
+      "title": "MyAnimeList",
+      "category": "anime",
+      "domain": "myanimelist.net",
+      "description": "Anime and manga news, rankings, and reviews",
+      "popular": true
+    },
+    {
+      "id": "mock0000000000000000000048",
+      "title": "Crunchyroll News",
+      "category": "anime",
+      "domain": "crunchyroll.com",
+      "description": "Anime streaming announcements and simulcasts",
+      "popular": true
+    },
+    {
+      "id": "mock0000000000000000000049",
+      "title": "Anime News Network",
+      "category": "anime",
+      "domain": "animenewsnetwork.com",
+      "description": "Comprehensive anime industry news and reviews",
+      "popular": true
+    },
+    {
+      "id": "mock0000000000000000000050",
+      "title": "Otaku USA Magazine",
+      "category": "anime",
+      "domain": "otakuusamagazine.com",
+      "description": "Anime, manga, and J-culture features"
+    },
+    {
+      "id": "mock0000000000000000000051",
+      "title": "CBR Anime",
+      "category": "anime",
+      "domain": "cbr.com",
+      "description": "Anime lists, reviews, and recommendations"
+    },
+    {
+      "id": "mock0000000000000000000052",
+      "title": "Manga.Tokyo",
+      "category": "anime",
+      "domain": "manga.tokyo",
+      "description": "Japanese pop culture and manga updates"
+    },
+    {
+      "id": "mock0000000000000000000053",
+      "title": "Senpai.moe",
+      "category": "anime",
+      "domain": "senpai.moe",
+      "description": "Seasonal anime charts and schedules"
+    },
+    {
+      "id": "mock0000000000000000000054",
+      "title": "AniList News",
+      "category": "anime",
+      "domain": "anilist.co",
+      "description": "Anime and manga tracking community updates"
+    },
+    {
+      "id": "mock0000000000000000000055",
+      "title": "The Hacker News",
+      "category": "tech",
+      "domain": "thehackernews.com",
+      "description": "Cybersecurity news, vulnerabilities, and threat intelligence",
+      "popular": true
+    },
+    {
+      "id": "mock0000000000000000000056",
+      "title": "Hacker News (YC)",
+      "category": "tech",
+      "domain": "news.ycombinator.com",
+      "description": "Tech and startup news from Y Combinator",
+      "popular": true
+    },
+    {
+      "id": "mock0000000000000000000057",
+      "title": "TechCrunch",
+      "category": "tech",
+      "domain": "techcrunch.com",
+      "description": "Startup and technology industry coverage",
+      "popular": true
+    },
+    {
+      "id": "mock0000000000000000000058",
+      "title": "The Verge",
+      "category": "tech",
+      "domain": "theverge.com",
+      "description": "Technology, science, art, and culture"
+    },
+    {
+      "id": "mock0000000000000000000059",
+      "title": "BleepingComputer",
+      "category": "tech",
+      "domain": "bleepingcomputer.com",
+      "description": "Cybersecurity news and malware analysis"
+    },
+    {
+      "id": "mock0000000000000000000060",
+      "title": "Ars Technica",
+      "category": "tech",
+      "domain": "arstechnica.com",
+      "description": "In-depth technology and science analysis"
+    },
+    {
+      "id": "mock0000000000000000000061",
+      "title": "WIRED",
+      "category": "tech",
+      "domain": "wired.com",
+      "description": "Technology, culture, and future trends"
+    },
+    {
+      "id": "mock0000000000000000000062",
+      "title": "Krebs on Security",
+      "category": "tech",
+      "domain": "krebsonsecurity.com",
+      "description": "Investigative cybersecurity journalism"
+    },
+    {
+      "id": "mock0000000000000000000063",
+      "title": "Schneier on Security",
+      "category": "tech",
+      "domain": "schneier.com",
+      "description": "Security commentary from Bruce Schneier"
+    },
+    {
+      "id": "mock0000000000000000000064",
+      "title": "The Register",
+      "category": "tech",
+      "domain": "theregister.com",
+      "description": "Enterprise IT and biting tech commentary"
+    },
+    {
+      "id": "mock0000000000000000000065",
+      "title": "Engadget",
+      "category": "tech",
+      "domain": "engadget.com",
+      "description": "Consumer tech reviews and gadget news"
+    },
+    {
+      "id": "mock0000000000000000000066",
+      "title": "9to5Mac",
+      "category": "tech",
+      "domain": "9to5mac.com",
+      "description": "Apple news, rumors, and product reviews"
+    },
+    {
+      "id": "mock0000000000000000000067",
+      "title": "Android Authority",
+      "category": "tech",
+      "domain": "androidauthority.com",
+      "description": "Android news, reviews, and app deals"
+    },
+    {
+      "id": "mock0000000000000000000068",
+      "title": "Tom's Hardware",
+      "category": "tech",
+      "domain": "tomshardware.com",
+      "description": "Hardware benchmarks, reviews, and PC builds"
+    },
+    {
+      "id": "mock0000000000000000000069",
+      "title": "VentureBeat",
+      "category": "tech",
+      "domain": "venturebeat.com",
+      "description": "AI, gaming, and enterprise tech business news"
+    },
+    {
+      "id": "mock0000000000000000000070",
+      "title": "ESPN Top Headlines",
+      "category": "sports",
+      "domain": "espn.com",
+      "description": "Breaking sports news across all leagues",
+      "popular": true
+    },
+    {
+      "id": "mock0000000000000000000071",
+      "title": "Formula 1 Official",
+      "category": "sports",
+      "domain": "formula1.com",
+      "description": "F1 race results, standings, and team news",
+      "popular": true
+    },
+    {
+      "id": "mock0000000000000000000072",
+      "title": "Motorsport.com",
+      "category": "sports",
+      "domain": "motorsport.com",
+      "description": "Motorsport racing news across all series",
+      "popular": true
+    },
+    {
+      "id": "mock0000000000000000000073",
+      "title": "BBC Sport",
+      "category": "sports",
+      "domain": "bbc.co.uk",
+      "description": "UK and world sports coverage from the BBC"
+    },
+    {
+      "id": "mock0000000000000000000074",
+      "title": "Sky Sports Football",
+      "category": "sports",
+      "domain": "skysports.com",
+      "description": "Premier League and European football news"
+    },
+    {
+      "id": "mock0000000000000000000075",
+      "title": "NBA News",
+      "category": "sports",
+      "domain": "nba.com",
+      "description": "NBA scores, trades, and player updates"
+    },
+    {
+      "id": "mock0000000000000000000076",
+      "title": "NFL News",
+      "category": "sports",
+      "domain": "nfl.com",
+      "description": "NFL scores, drafts, and analysis"
+    },
+    {
+      "id": "mock0000000000000000000077",
+      "title": "MLB News",
+      "category": "sports",
+      "domain": "mlb.com",
+      "description": "Baseball scores, stats, and transactions"
+    },
+    {
+      "id": "mock0000000000000000000078",
+      "title": "UFC News",
+      "category": "sports",
+      "domain": "ufc.com",
+      "description": "MMA fight cards, results, and rankings"
+    },
+    {
+      "id": "mock0000000000000000000079",
+      "title": "Marca",
+      "category": "sports",
+      "domain": "marca.com",
+      "description": "Spanish sports daily covering La Liga and more"
+    },
+    {
+      "id": "mock0000000000000000000080",
+      "title": "The Athletic",
+      "category": "sports",
+      "domain": "theathletic.com",
+      "description": "In-depth sports journalism and analysis"
+    },
+    {
+      "id": "mock0000000000000000000081",
+      "title": "Cycling News",
+      "category": "sports",
+      "domain": "cyclingnews.com",
+      "description": "Pro cycling races, transfers, and tech"
+    },
+    {
+      "id": "mock0000000000000000000082",
+      "title": "Cointelegraph",
+      "category": "finance",
+      "domain": "cointelegraph.com",
+      "description": "Crypto, blockchain, and fintech news and analysis",
+      "popular": true
+    },
+    {
+      "id": "mock0000000000000000000083",
+      "title": "Bloomberg Markets",
+      "category": "finance",
+      "domain": "bloomberg.com",
+      "description": "Global financial markets and economic data",
+      "popular": true
+    },
+    {
+      "id": "mock0000000000000000000084",
+      "title": "Decrypt",
+      "category": "finance",
+      "domain": "decrypt.co",
+      "description": "Web3, DeFi, and crypto ecosystem coverage",
+      "popular": true
+    },
+    {
+      "id": "mock0000000000000000000085",
+      "title": "CoinDesk",
+      "category": "finance",
+      "domain": "coindesk.com",
+      "description": "Crypto market analysis and blockchain reporting"
+    },
+    {
+      "id": "mock0000000000000000000086",
+      "title": "CNBC Top News",
+      "category": "finance",
+      "domain": "cnbc.com",
+      "description": "Business news, market data, and analysis"
+    },
+    {
+      "id": "mock0000000000000000000087",
+      "title": "MarketWatch",
+      "category": "finance",
+      "domain": "marketwatch.com",
+      "description": "Stock market news and financial analysis"
+    },
+    {
+      "id": "mock0000000000000000000088",
+      "title": "Financial Times",
+      "category": "finance",
+      "domain": "ft.com",
+      "description": "Global business and economic reporting"
+    },
+    {
+      "id": "mock0000000000000000000089",
+      "title": "Bitcoin Magazine",
+      "category": "finance",
+      "domain": "bitcoinmagazine.com",
+      "description": "Bitcoin news, culture, and technical analysis"
+    },
+    {
+      "id": "mock0000000000000000000090",
+      "title": "Investopedia",
+      "category": "finance",
+      "domain": "investopedia.com",
+      "description": "Financial education and market explainers"
+    },
+    {
+      "id": "mock0000000000000000000091",
+      "title": "Seeking Alpha",
+      "category": "finance",
+      "domain": "seekingalpha.com",
+      "description": "Crowd-sourced stock analysis and investment ideas"
+    },
+    {
+      "id": "mock0000000000000000000092",
+      "title": "BBC World News",
+      "category": "news",
+      "domain": "bbc.co.uk",
+      "description": "International news and breaking stories from the BBC",
+      "popular": true
+    },
+    {
+      "id": "mock0000000000000000000093",
+      "title": "New York Times - World",
+      "category": "news",
+      "domain": "nytimes.com",
+      "description": "Global reporting from the New York Times",
+      "popular": true
+    },
+    {
+      "id": "mock0000000000000000000094",
+      "title": "Al Jazeera",
+      "category": "news",
+      "domain": "aljazeera.com",
+      "description": "International news from a global perspective",
+      "popular": true
+    },
+    {
+      "id": "mock0000000000000000000095",
+      "title": "Reuters Top News",
+      "category": "news",
+      "domain": "reuters.com",
+      "description": "Breaking world news and global reporting"
+    },
+    {
+      "id": "mock0000000000000000000096",
+      "title": "The Guardian World",
+      "category": "news",
+      "domain": "theguardian.com",
+      "description": "International news and investigative journalism"
+    },
+    {
+      "id": "mock0000000000000000000097",
+      "title": "Washington Post - World",
+      "category": "news",
+      "domain": "washingtonpost.com",
+      "description": "Global news from the Washington Post"
+    },
+    {
+      "id": "mock0000000000000000000098",
+      "title": "NHK World",
+      "category": "news",
+      "domain": "nhk.or.jp",
+      "description": "Japan and Asia-Pacific news in English"
+    },
+    {
+      "id": "mock0000000000000000000099",
+      "title": "France 24",
+      "category": "news",
+      "domain": "france24.com",
+      "description": "International news from France's perspective"
+    },
+    {
+      "id": "mock0000000000000000000100",
+      "title": "DW News",
+      "category": "news",
+      "domain": "dw.com",
+      "description": "German international news and analysis"
+    },
+    {
+      "id": "mock0000000000000000000101",
+      "title": "ABC News World",
+      "category": "news",
+      "domain": "abcnews.go.com",
+      "description": "US and world news headlines from ABC"
+    },
+    {
+      "id": "mock0000000000000000000102",
+      "title": "XKCD",
+      "category": "entertainment",
+      "domain": "xkcd.com",
+      "description": "Webcomic of romance, sarcasm, math, and language",
+      "popular": true
+    },
+    {
+      "id": "mock0000000000000000000103",
+      "title": "SensaCine",
+      "category": "entertainment",
+      "domain": "sensacine.com",
+      "description": "Spanish movie news, reviews, and trailers",
+      "popular": true
+    },
+    {
+      "id": "mock0000000000000000000104",
+      "title": "OzBargain",
+      "category": "entertainment",
+      "domain": "ozbargain.com.au",
+      "description": "Australian deals, coupons, and freebies",
+      "popular": true
+    },
+    {
+      "id": "mock0000000000000000000105",
+      "title": "Rotten Tomatoes News",
+      "category": "entertainment",
+      "domain": "rottentomatoes.com",
+      "description": "Movie reviews and critic consensus scores"
+    },
+    {
+      "id": "mock0000000000000000000106",
+      "title": "SMBC Comics",
+      "category": "entertainment",
+      "domain": "smbc-comics.com",
+      "description": "Daily webcomic about science, philosophy, and life"
+    },
+    {
+      "id": "mock0000000000000000000107",
+      "title": "Test Error Feed",
+      "category": "entertainment",
+      "domain": "example.com",
+      "description": "Test feed that returns a 500 error"
+    }
+  ]
+}

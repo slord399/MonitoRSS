@@ -1,5 +1,5 @@
-import { WarningTwoIcon } from "@chakra-ui/icons";
-import { Code, Divider, Heading, Stack, Text } from "@chakra-ui/react";
+import { FaTriangleExclamation } from "react-icons/fa6";
+import { Heading, Icon, Separator, Stack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 interface Props {
@@ -8,6 +8,8 @@ interface Props {
 
 export const ErrorAlert: React.FC<Props> = ({ description }) => {
   const { t } = useTranslation();
+
+  const isGoogleTranslateUsed = !!document.getElementById("goog-gt-tt");
 
   return (
     <Stack
@@ -19,21 +21,31 @@ export const ErrorAlert: React.FC<Props> = ({ description }) => {
       paddingBottom="10rem"
       textAlign="center"
       paddingX="12"
-      spacing="6"
+      gap="6"
+      role="alert"
     >
       <Stack display="flex" justifyContent="center" alignItems="center">
-        <WarningTwoIcon fontSize="8rem" color="red.500" />
+        <Icon
+          as={FaTriangleExclamation}
+          fontSize="8rem"
+          colorPalette="red"
+          color="colorPalette.solid"
+        />
         <Heading>{t("common.errors.somethingWentWrong")}</Heading>
         <Text fontSize="lg">{t("common.errors.tryAgainLater")}</Text>
       </Stack>
       {description && (
         <>
-          <Divider maxWidth="50%" />
+          <Separator maxWidth="50%" />
           <Stack>
-            <Text color="gray.500">{t("common.errors.detailsTitle")}</Text>
-            <Code marginTop="4" color="gray.400">
-              {description}
-            </Code>
+            <Text color="fg.muted">{t("common.errors.detailsTitle")}</Text>
+            <Text>{description}</Text>
+            {isGoogleTranslateUsed && (
+              <Text>
+                If you are using Google Translate and are facing persistent issues, you may try
+                disabling it as there are known issues with it.
+              </Text>
+            )}
           </Stack>
         </>
       )}

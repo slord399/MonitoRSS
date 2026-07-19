@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 import { Schema, ValidationError } from "yup";
 import ApiAdapterError from "./ApiAdapterError";
-import { getStandardErrorCodeMessage } from "./getStandardErrorCodeMessage copy";
+import { getStandardErrorCodeMessage } from "./getStandardErrorCodeMessage";
 import getStatusCodeErrorMessage from "./getStatusCodeErrorMessage";
 
 interface StandardApiError {
@@ -63,6 +63,7 @@ const fetchRest = async <T>(url: string, fetchOptions?: FetchOptions<T>): Promis
       const validationResult = await fetchOptions.validateSchema.validate(json, {
         strict: true,
         abortEarly: false,
+        stripUnknown: true,
       });
 
       return validationResult;
@@ -91,9 +92,9 @@ const fetchRest = async <T>(url: string, fetchOptions?: FetchOptions<T>): Promis
       }
 
       // eslint-disable-next-line no-console
-      console.error(url, yupErr.errors);
+      console.error("API contract violation for URL: %s", url, yupErr.errors);
       throw new ApiAdapterError(
-        "Sorry, there was an internal error (API contract violation). Try again later."
+        "Sorry, there was an internal error (API contract violation). Try again later.",
       );
     }
   }
@@ -108,7 +109,14 @@ const fetchRest = async <T>(url: string, fetchOptions?: FetchOptions<T>): Promis
 const determineHeaders = (requestOptions?: RequestInit) => {
   const headers: RequestInit["headers"] = {};
 
-  if (["POST", "PUT", "PATCH", "GET"].includes(requestOptions?.method?.toUpperCase() || "")) {
+  const isJsonMethod = ["POST", "PUT", "PATCH", "GET"].includes(
+    requestOptions?.method?.toUpperCase() || "",
+  );
+
+  // Only advertise a JSON content type when a body is actually present. Fastify's
+  // JSON parser rejects an empty body when Content-Type is application/json, which
+  // breaks bodiless POSTs (e.g. billing cancel/resume).
+  if (isJsonMethod && requestOptions?.body != null) {
     headers["Content-Type"] = "application/json";
   }
 
@@ -128,7 +136,12 @@ const handleStatusCode = async (res: Response) => {
   try {
     json = await res.json();
 
-    if (json.isStandardized) {
+    if (res.status === 401) {
+      throw new ApiAdapterError("Unauthorized", {
+        statusCode: res.status,
+      });
+    } else if (json.isStandardized) {
+      // console.log("is standard", getStandardErrorCodeMessage(json.code));
       throw new ApiAdapterError(getStandardErrorCodeMessage(json.code), {
         statusCode: res.status,
         errorCode: json.code,
@@ -141,6 +154,7 @@ const handleStatusCode = async (res: Response) => {
     } else {
       throw new ApiAdapterError(getStatusCodeErrorMessage(res.status), {
         statusCode: res.status,
+        body: json,
       });
     }
   } catch (err) {
