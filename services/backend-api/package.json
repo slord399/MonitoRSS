@@ -27,7 +27,7 @@
     "nodemailer": "^9.0.3",
     "qs": "^6.15.3",
     "rabbitmq-client": "^5.0.8",
-    "undici": "^7.28.0",
+    "undici": "^7.29.0",
     "zod": "^3.23.8"
   },
   "scripts": {
