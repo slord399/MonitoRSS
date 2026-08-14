@@ -75,7 +75,7 @@
     "reflect-metadata": "^0.2.2",
     "rimraf": "^5.0.5",
     "rxjs": "^7.2.0",
-    "undici": "^6.27.0"
+    "undici": "^7.29.0"
   },
   "devDependencies": {
     "@mikro-orm/cli": "^6.4.6",

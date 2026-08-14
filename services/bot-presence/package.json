@@ -18,13 +18,13 @@
   },
   "dependencies": {
     "@discordjs/core": "^2.4.0",
-    "@monitorss/logger": "^1.1.2",
     "@discordjs/rest": "^2.6.0",
     "@discordjs/ws": "^2.0.4",
+    "@monitorss/logger": "^1.1.2",
     "amqp-connection-manager": "^4.1.14",
     "amqplib": "^0.10.3",
     "bufferutil": "^4.0.8",
-    "undici": "^6.27.0",
+    "undici": "^7.29.0",
     "utf-8-validate": "^6.0.3"
   },
   "overrides": {
