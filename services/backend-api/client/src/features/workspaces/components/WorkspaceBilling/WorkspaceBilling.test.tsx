@@ -1139,7 +1139,7 @@ describe("WorkspaceBilling", () => {
     // the list is shown up front (no disclosure to expand) with the choose-which
     // framing.
     expect(await screen.findByText(/0 of 1 selected/)).toBeInTheDocument();
-    expect(screen.getByText(/more feeds than this plan allows/i)).toBeInTheDocument();
+    expect(await screen.findByText(/more feeds than this plan allows/i)).toBeInTheDocument();
 
     const confirmButton = screen.getByRole("button", { name: /^move plan$/i });
     fireEvent.change(screen.getByLabelText(/type "my-team" to confirm/i), {
@@ -1213,7 +1213,7 @@ describe("WorkspaceBilling", () => {
 
     expect(await screen.findByText(/0 of 1 selected/)).toBeInTheDocument();
     // One action fills to the cap, never past it: 1 of 1, not 2.
-    await userEvent.click(screen.getByRole("button", { name: /select my newest 1 feeds/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /select my newest 1 feeds/i }));
     expect(await screen.findByText(/1 of 1 selected/)).toBeInTheDocument();
 
     // The conversion moves exactly the auto-picked feed, not both.
