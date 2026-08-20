@@ -44,7 +44,10 @@
     "find-my-way": "^9.7.0",
     "js-yaml": "^3.15.1",
     "react-router": "^7.18.0",
-    "react-router-dom": "^7.18.0"
+    "react-router-dom": "^7.18.0",
+    "@synzen/discord-rest": {
+      "undici": "^6.28.0"
+    }
   },
   "dependencies": {
     "deepmerge": "^4.3.1",
