@@ -39,7 +39,13 @@
     "amqplib": "0.10.9",
     "undici": "$undici",
     "mongoose": "6.13.10",
-    "ajv-keywords": "^5.1.0"
+    "ajv-keywords": "^5.1.0",
+    "brace-expansion": "^5.0.9",
+    "fast-uri": "^3.1.5",
+    "find-my-way": "^9.7.0",
+    "@nestjs/platform-fastify": {
+      "find-my-way": "^9.7.0"
+    }
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.387.0",
