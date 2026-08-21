@@ -12,7 +12,13 @@ import type { PaddleService } from "../../services/paddle/paddle.service";
 import type { PaddleSubscriptionPreviewResponse } from "../../services/supporter-subscriptions/types";
 import type { ISupporterRepository } from "../../repositories/interfaces/supporter.types";
 import type { IUserFeedRepository } from "../../repositories/interfaces/user-feed.types";
-import type { FeedCredentialsService } from "../../services/feed-credentials/feed-credentials.service";
+import type { PersonalFeedMovesService } from "../personal-feed-moves/personal-feed-moves.service";
+import type { PersonalFeedMoveReceipt } from "../../repositories/interfaces/user-feed.types";
+import {
+  PersonalFeedMoveCapacityExceededError,
+  PersonalFeedMoveInvalidSelectionError,
+  PersonalFeedMoveWorkspaceNotFoundError,
+} from "../../repositories/interfaces/user-feed.types";
 import { SubscriptionAlreadyCancelledException } from "../../shared/exceptions/paddle.exceptions";
 import { WorkspaceNotSubscribedException } from "../../shared/exceptions/user-feeds.exceptions";
 import {
@@ -41,7 +47,7 @@ export interface WorkspaceBillingServiceDeps {
   paddleService: PaddleService;
   supporterRepository: ISupporterRepository;
   userFeedRepository: IUserFeedRepository;
-  feedCredentialsService: FeedCredentialsService;
+  personalFeedMovesService: PersonalFeedMovesService;
   // Test seam: shrinks the local poll interval/tries so timeout paths can be
   // exercised without the production ~51s wait. Defaults to production timing.
   pollOptions?: { intervalMs?: number; maxTries?: number };
@@ -289,7 +295,8 @@ export class WorkspaceBillingService {
       );
     }
 
-    const supporter = await this.deps.supporterRepository.findById(discordUserId);
+    const supporter =
+      await this.deps.supporterRepository.findById(discordUserId);
     const personalSubscription = supporter?.paddleCustomer?.subscription;
     const convertible = resolvePersonalConvertibility(personalSubscription);
 
@@ -299,12 +306,6 @@ export class WorkspaceBillingService {
       );
     }
 
-    await this.assertConvertibleFeedSelection(
-      discordUserId,
-      feedIds,
-      convertible.feedLimit,
-    );
-
     // Guard first, atomically: while it is set, workspace feed-limit
     // enforcement skips its disable step, so the feeds can't be flicked off in
     // the window between the re-parent and the subscription record appearing.
@@ -312,10 +313,11 @@ export class WorkspaceBillingService {
     // attempt can't acquire a live guard and is rejected before touching any
     // feeds or Paddle (so it can't run a duplicate move or clear the in-flight
     // conversion's guard in the catch below).
-    const acquired = await this.deps.workspaceRepository.setConversionInProgress(
-      workspace.id,
-      CONVERSION_GUARD_TTL_MS,
-    );
+    const acquired =
+      await this.deps.workspaceRepository.setConversionInProgress(
+        workspace.id,
+        CONVERSION_GUARD_TTL_MS,
+      );
 
     if (!acquired) {
       throw new ConversionAlreadyInProgressException(
@@ -323,35 +325,38 @@ export class WorkspaceBillingService {
       );
     }
 
-    try {
-      await this.deps.userFeedRepository.reparentFeedsToWorkspace(
-        feedIds,
-        workspace.id,
-      );
+    let moveReceipt: PersonalFeedMoveReceipt | undefined;
 
-      // The scope flip changes which credential backs each feed, so the lookup
-      // key (which routes a feed to the credentialed vs plain-URL delivery
-      // loop) must be reconciled against the new scope. Without this a moved
-      // Reddit feed keeps its personal-scope key, is excluded from the
-      // plain-URL loop, resolves no workspace credential in the credentialed
-      // loop, and is silently fetched by neither.
-      await this.deps.feedCredentialsService.syncLookupKeys({ feedIds });
+    try {
+      moveReceipt = await this.deps.personalFeedMovesService.moveToWorkspace({
+        discordUserId,
+        feedIds,
+        workspaceId: workspace.id,
+        maxWorkspaceFeeds: convertible.feedLimit,
+      });
 
       await this.deps.paddleService.updateSubscriptionCustomData(
         personalSubscription.id,
         { workspaceId: workspace.id },
       );
     } catch (err) {
-      // Anything up to and including the Paddle patch failing means no
-      // workspace subscription record was ever written (the webhook never
-      // fires) and the user is financially whole. Unwind every local write —
-      // return the feeds to personal, reconcile their lookup keys back, and
-      // clear the guard — then surface the failure.
-      await this.deps.userFeedRepository.reparentFeedsToPersonal(feedIds);
-      await this.deps.feedCredentialsService.syncLookupKeys({ feedIds });
-      await this.deps.workspaceRepository.clearConversionInProgress(
-        workspace.id,
-      );
+      try {
+        if (moveReceipt) {
+          await this.deps.personalFeedMovesService.rollback(moveReceipt);
+        }
+      } finally {
+        await this.deps.workspaceRepository.clearConversionInProgress(
+          workspace.id,
+        );
+      }
+
+      if (
+        err instanceof PersonalFeedMoveInvalidSelectionError ||
+        err instanceof PersonalFeedMoveCapacityExceededError ||
+        err instanceof PersonalFeedMoveWorkspaceNotFoundError
+      ) {
+        throw new InvalidConversionFeedSelectionException(err.message);
+      }
 
       throw err;
     }
@@ -367,39 +372,6 @@ export class WorkspaceBillingService {
       // Timed out waiting for the webhook; the conversion is committed and
       // will reconcile when it lands. The client polls the workspace detail
       // for the recorded subscription and shows a confirming state meanwhile.
-    }
-  }
-
-  private async assertConvertibleFeedSelection(
-    discordUserId: string,
-    feedIds: string[],
-    maxFeeds: number,
-  ): Promise<void> {
-    if (!this.deps.userFeedRepository.areAllValidIds(feedIds)) {
-      throw new InvalidConversionFeedSelectionException(
-        "One or more selected feeds are not valid feeds",
-      );
-    }
-
-    if (feedIds.length > maxFeeds) {
-      throw new InvalidConversionFeedSelectionException(
-        `Cannot move ${feedIds.length} feeds; the plan allows ${maxFeeds}`,
-      );
-    }
-
-    const feeds = await this.deps.userFeedRepository.findByIds(feedIds);
-
-    const allOwnedAndPersonal =
-      feeds.length === feedIds.length &&
-      feeds.every(
-        (feed) =>
-          feed.user.discordUserId === discordUserId && !feed.workspaceId,
-      );
-
-    if (!allOwnedAndPersonal) {
-      throw new InvalidConversionFeedSelectionException(
-        "Selected feeds must all be your own personal feeds",
-      );
     }
   }
 
@@ -472,9 +444,7 @@ export class WorkspaceBillingService {
     // Paddle replaces the subscription's item set with whatever is sent, so
     // an add-on-only array would silently drop the base plan.
     const hasBaseTier = items.some((item) =>
-      WORKSPACE_BASE_TIER_KEYS.has(
-        productKeyByPriceId.get(item.priceId) ?? "",
-      ),
+      WORKSPACE_BASE_TIER_KEYS.has(productKeyByPriceId.get(item.priceId) ?? ""),
     );
 
     if (!hasBaseTier) {

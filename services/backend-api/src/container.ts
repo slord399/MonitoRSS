@@ -58,8 +58,10 @@ import { FeedSchedulingService } from "./services/feed-scheduling/feed-schedulin
 import { FeedsService } from "./services/feeds/feeds.service";
 import { NotificationsService } from "./services/notifications/notifications.service";
 import { EmailVerificationService } from "./features/users/email-verification.service";
+import { AccountService } from "./features/account/account.service";
 import { WorkspacesService } from "./features/workspaces/workspaces.service";
 import { WorkspaceBillingService } from "./features/workspaces/workspace-billing.service";
+import { PersonalFeedMovesService } from "./features/personal-feed-moves/personal-feed-moves.service";
 import { DiscordServersService } from "./services/discord-servers/discord-servers.service";
 import { UserFeedConnectionEventsService } from "./services/user-feed-connection-events/user-feed-connection-events.service";
 import { MongoMigrationsService } from "./services/mongo-migrations/mongo-migrations.service";
@@ -130,8 +132,10 @@ export interface Container {
   feedsService: FeedsService;
   notificationsService: NotificationsService;
   emailVerificationService: EmailVerificationService;
+  accountService: AccountService;
   workspacesService: WorkspacesService;
   workspaceBillingService: WorkspaceBillingService;
+  personalFeedMovesService: PersonalFeedMovesService;
   discordServersService: DiscordServersService;
   userFeedConnectionEventsService: UserFeedConnectionEventsService;
   mongoMigrationsService: MongoMigrationsService;
@@ -237,6 +241,7 @@ export function createContainer(deps: {
     discordApiService,
     supporterRepository,
     userFeedLimitOverrideRepository,
+    patronRepository,
     workspaceRepository,
   });
 
@@ -247,6 +252,7 @@ export function createContainer(deps: {
     supporterRepository,
     supportersService,
     paddleService,
+    redditApiService,
   });
 
   const discordUsersService = new DiscordUsersService({
@@ -325,13 +331,18 @@ export function createContainer(deps: {
     workspacesService,
   });
 
+  const personalFeedMovesService = new PersonalFeedMovesService({
+    userFeedRepository,
+    feedCredentialsService,
+  });
+
   const workspaceBillingService = new WorkspaceBillingService({
     config: deps.config,
     workspaceRepository,
     paddleService,
     supporterRepository,
     userFeedRepository,
-    feedCredentialsService,
+    personalFeedMovesService,
   });
 
   const feedConnectionsDiscordChannelsService =
@@ -373,6 +384,19 @@ export function createContainer(deps: {
       supportersService,
     },
   );
+
+  const accountService = new AccountService({
+    config: deps.config,
+    userRepository,
+    emailVerificationService,
+    usersService,
+    userFeedsService,
+    workspacesService,
+    supportersService,
+    userFeedLimitOverrideRepository,
+    supporterRepository,
+    patronRepository,
+  });
 
   const paddleWebhooksService = new PaddleWebhooksService({
     config: deps.config,
@@ -474,8 +498,10 @@ export function createContainer(deps: {
     feedsService,
     notificationsService,
     emailVerificationService,
+    accountService,
     workspacesService,
     workspaceBillingService,
+    personalFeedMovesService,
     discordServersService,
     userFeedConnectionEventsService,
     mongoMigrationsService,
