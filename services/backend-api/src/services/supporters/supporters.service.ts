@@ -10,6 +10,7 @@ import type {
   ISupporter,
 } from "../../repositories/interfaces/supporter.types";
 import type { IUserFeedLimitOverrideRepository } from "../../repositories/interfaces/user-feed-limit-override.types";
+import type { IPatronRepository } from "../../repositories/interfaces/patron.types";
 import type { WorkspaceMongooseRepository } from "../../repositories/mongoose/workspace.mongoose.repository";
 import type { IPaddleCustomerSubscription } from "../../repositories/interfaces/supporter.types";
 import {
@@ -24,6 +25,7 @@ import type {
   BenefitsFromSupporter,
   SupporterSubscriptionResult,
   DiscordUserBenefits,
+  FeedBenefits,
 } from "./types";
 import type { GuildSubscriptionFormatted } from "../guild-subscriptions/types";
 import logger from "../../infra/logger";
@@ -36,6 +38,7 @@ export interface SupportersServiceDeps {
   discordApiService: DiscordApiService;
   supporterRepository: ISupporterRepository;
   userFeedLimitOverrideRepository: IUserFeedLimitOverrideRepository;
+  patronRepository: IPatronRepository;
   workspaceRepository: WorkspaceMongooseRepository;
 }
 
@@ -532,6 +535,42 @@ export class SupportersService {
     };
   }
 
+  async resolveFeedBenefits(feed: {
+    workspaceId?: string;
+    user: { discordUserId: string };
+  }): Promise<FeedBenefits> {
+    if (feed.workspaceId) {
+      const benefits = await this.getWorkspaceBenefits(feed.workspaceId);
+
+      return {
+        ...benefits,
+        allowCustomPlaceholders: !benefits.dormant,
+        allowExternalProperties: !benefits.dormant,
+        articleRateLimits: [
+          {
+            max: benefits.maxDailyArticles,
+            timeWindowSeconds: 86400,
+          },
+        ],
+      };
+    }
+
+    const benefits = await this.getBenefitsOfDiscordUser(
+      feed.user.discordUserId,
+    );
+
+    return {
+      maxFeeds: benefits.maxUserFeeds,
+      maxDailyArticles: benefits.maxDailyArticles,
+      refreshRateSeconds: benefits.refreshRateSeconds,
+      allowWebhooks: benefits.isSupporter,
+      allowCustomPlaceholders: benefits.allowCustomPlaceholders,
+      allowExternalProperties: benefits.allowExternalProperties,
+      articleRateLimits: benefits.articleRateLimits,
+      dormant: false,
+    };
+  }
+
   async setGuilds(
     userId: string,
     guildIds: string[],
@@ -833,5 +872,15 @@ export class SupportersService {
         supporterBenefits: serverBenefits,
       });
     });
+  }
+
+  // Account erasure: strips the user's personal email from the billing records
+  // (the supporter's Paddle subdocument and any patron rows) while keeping the
+  // rows themselves under a legal-retention exemption. The Paddle subscription
+  // is not cancelled here; that is the operator's billing-side duty. Idempotent:
+  // safe when no billing rows or emails exist.
+  async stripBillingEmailForUser(discordUserId: string): Promise<void> {
+    await this.deps.supporterRepository.clearPaddleEmailById(discordUserId);
+    await this.deps.patronRepository.clearEmailByDiscordId(discordUserId);
   }
 }
