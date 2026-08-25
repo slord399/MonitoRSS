@@ -1,10 +1,8 @@
 import {
-  ApplicationCommandType,
   Client,
   GatewayDispatchEvents,
   GatewayIntentBits,
   GatewayOpcodes,
-  InteractionType,
 } from "@discordjs/core";
 import { REST } from "@discordjs/rest";
 import { Routes } from "discord-api-types/v10";
@@ -149,8 +147,6 @@ export async function createDiscordClient(
     );
   }
 
-  logger.info("Registering commands...");
-  await registerCommands(client, config);
   logger.info("Listening to events...");
   listenToEvents(client, config, broker);
 
@@ -161,63 +157,11 @@ export async function createDiscordClient(
   };
 }
 
-async function registerCommands(client: Client, config: AppConfig) {
-  const botClientId = config.botClientId;
-
-  if (!botClientId) {
-    logger.info(
-      "No BOT_PRESENCE_DISCORD_BOT_CLIENT_ID found. Skipping registration of commands.",
-    );
-    return;
-  }
-
-  try {
-    const commands =
-      await client.api.applicationCommands.getGlobalCommands(botClientId);
-
-    if (commands.some((c) => c.name === "help")) {
-      logger.info("Help command already registered.");
-      return;
-    }
-
-    await client.api.applicationCommands.createGlobalCommand(botClientId, {
-      name: "help",
-      description: "Show information on how to use MonitoRSS.",
-      type: ApplicationCommandType.ChatInput,
-    });
-
-    logger.info("Help command registered successfully.");
-  } catch (err) {
-    logger.error("Error registering commands", {
-      error: (err as Error).message,
-    });
-  }
-}
-
 function listenToEvents(
   client: Client,
   config: AppConfig,
   broker: MessageBroker,
 ) {
-  client.on(GatewayDispatchEvents.InteractionCreate, (interaction) => {
-    if (interaction.data.type !== InteractionType.ApplicationCommand) {
-      return;
-    }
-
-    if (interaction.data.data.name === "help") {
-      client.api.interactions
-        .reply(interaction.data.id, interaction.data.token, {
-          content:
-            'To add and manage feeds, please visit the "Control Panel" at <https://monitorss.xyz> to add and control feeds.\n\nFor support, please either reach out to support@monitorss.xyz or join the support Discord server at https://discord.gg/pudv7Rx.',
-        })
-        .catch((err) => {
-          logger.error("Error replying to interaction", {
-            error: (err as Error).message,
-          });
-        });
-    }
-  });
-
   if (!config.supporterGuildId) {
     return;
   }
