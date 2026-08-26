@@ -90,6 +90,9 @@
     "fastify": "$fastify",
     "lodash": "$lodash",
     "ajv": "$ajv",
-    "uuid": "^11.1.1"
+    "uuid": "^11.1.1",
+    "@synzen/discord-rest": {
+      "undici": "^5.28.5"
+    }
   }
 }
