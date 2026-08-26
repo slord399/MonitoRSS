@@ -17,8 +17,8 @@
   "author": "synzen",
   "license": "MIT",
   "dependencies": {
-    "@mikro-orm/core": "^6.6.14",
-    "@mikro-orm/mongodb": "^6.6.14",
+    "@mikro-orm/core": "^6.6.16",
+    "@mikro-orm/mongodb": "^6.6.16",
     "@synzen/discord-rest": "^0.7.0-beta.9",
     "amqp-connection-manager": "^5.0.0",
     "amqplib": "^0.10.9",
