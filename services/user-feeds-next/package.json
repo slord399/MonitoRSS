@@ -38,7 +38,7 @@
     "amqplib": "0.10.9",
     "undici": "$undici",
     "brace-expansion": "^5.0.9",
-    "fast-uri": "^3.1.5",
+    "fast-uri": "^3.1.7",
     "find-my-way": "^9.7.0",
     "@synzen/discord-rest": {
       "undici": "^5.28.5"
