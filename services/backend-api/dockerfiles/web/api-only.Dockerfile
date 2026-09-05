@@ -4,7 +4,7 @@ WORKDIR /usr/src/app
 
 COPY package*.json ./
 
-RUN npm install -g npm@12.0.1
+RUN npm install -g npm@12.0.2
 
 RUN echo "allow-scripts=true" > .npmrc && \
     mv package.json package.json.bak || true && \
@@ -18,7 +18,7 @@ FROM node:24 AS build-prod
 WORKDIR /usr/src/app
 COPY --from=build /usr/src/app ./
 
-RUN npm install -g npm@12.0.1
+RUN npm install -g npm@12.0.2
 
 RUN npm run build
 
@@ -30,7 +30,7 @@ RUN mv package.json package.json.bak || true && \
 FROM node:24-slim AS prod
 
 # Update npm
-RUN npm install -g npm@12.0.1
+RUN npm install -g npm@12.0.2
 
 RUN apt-get update && apt-get install -y wget
 WORKDIR /usr/src/app

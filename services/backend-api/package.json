@@ -17,7 +17,7 @@
     "commander": "^12.0.0",
     "dayjs": "^1.11.19",
     "dotenv": "^17.2.3",
-    "fastify": "^5.10.0",
+    "fastify": "^5.12.1",
     "feedparser": "^2.2.10",
     "handlebars": "^4.7.8",
     "html-to-text": "^8.2.1",
@@ -65,7 +65,7 @@
   },
   "engines": {
     "node": ">=18.0.0",
-    "npm": ">=12.0.1"
+    "npm": ">=12.0.2"
   },
   "overrides": {
     "glob": "^12.0.0",
@@ -85,7 +85,7 @@
     "file-type": "^21.3.4",
     "@fastify/middie": "^9.3.3",
     "fast-uri": "^3.1.7",
-    "find-my-way": "^9.7.0",
+    "find-my-way": "$find-my-way",
     "brace-expansion": "^5.0.9",
     "fastify": "$fastify",
     "lodash": "$lodash",
@@ -93,6 +93,15 @@
     "uuid": "^11.1.1",
     "@synzen/discord-rest": {
       "undici": "^5.28.5"
-    }
+    },
+    "js-yaml": "^3.15.1",
+    "form-data": "^4.0.1",
+    "ws": "^8.21.0",
+    "@babel/core": "^7.29.6",
+    "@tootallnate/once": "^2.0.1",
+    "braces": "^3.0.3",
+    "flatted": "^3.4.2",
+    "minimatch": "^10.2.5",
+    "picomatch": "^4.0.5"
   }
 }

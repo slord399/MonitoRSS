@@ -9,7 +9,7 @@ COPY packages/logger ./packages/logger/
 COPY services/backend-api ./services/backend-api/
 
 # Global configuration layer (runs completely standalone first)
-RUN npm install -g npm@12.0.1
+RUN npm install -g npm@12.0.2
 
 # Build packages first so they are available (each in clean separate layers)
 WORKDIR /usr/src/app/packages/contracts

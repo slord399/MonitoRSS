@@ -8,7 +8,7 @@ COPY packages/contracts ./packages/contracts/
 COPY packages/logger ./packages/logger/
 COPY services/user-feeds-next ./services/user-feeds-next/
 
-RUN npm install -g npm@12.0.1
+RUN npm install -g npm@12.0.2
 
 # Build packages first so they are available (each in clean separate layers)
 WORKDIR /usr/src/app/packages/contracts
