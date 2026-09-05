@@ -36,13 +36,10 @@
     "node-domexception": "^1.0.0",
     "amqp-connection-manager": "5.0.0",
     "amqplib": "0.10.9",
-    "undici": "$undici",
+    "undici": "^7.29.0",
     "brace-expansion": "^5.0.9",
     "fast-uri": "^3.1.7",
     "find-my-way": "$find-my-way",
-    "@synzen/discord-rest": {
-      "undici": "^5.28.5"
-    },
     "qs": "^6.16.0",
     "js-yaml": "^3.15.1",
     "lodash": "^4.18.1",
@@ -54,7 +51,10 @@
     "braces": "^3.0.3",
     "flatted": "^3.4.2",
     "minimatch": "^10.2.5",
-    "picomatch": "^4.0.5"
+    "picomatch": "^4.0.5",
+    "@synzen/discord-rest": {
+      "undici": "^6.28.0"
+    }
   },
   "scripts": {
     "build": "tsc",
