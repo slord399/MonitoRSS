@@ -9,7 +9,7 @@ COPY packages/logger ./packages/logger/
 COPY services/backend-api ./services/backend-api/
 
 # Global configuration layer
-RUN npm install -g npm@11.1.0
+RUN npm install -g npm@12.0.2
 
 # Build packages first so they are available (each in clean separate layers)
 WORKDIR /usr/src/app/packages/contracts
@@ -67,7 +67,7 @@ RUN npm run build && cd client && npm run build && mkdir -p /usr/src/backend-api
 
 FROM build AS build-prod
 
-RUN npm install -g npm@11.1.0
+RUN npm install -g npm@12.0.2
 
 WORKDIR /usr/src/app/services/backend-api
 
@@ -79,7 +79,7 @@ RUN mv ../../package.json ../../package.json.bak || true && \
 FROM node:24-slim AS prod
 
 # Update npm
-RUN npm install -g npm@11.1.0
+RUN npm install -g npm@12.0.2
 
 RUN apt-get update && apt-get install -y wget
 WORKDIR /usr/src/app
