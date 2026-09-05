@@ -8,7 +8,7 @@ COPY packages/contracts ./packages/contracts/
 COPY packages/logger ./packages/logger/
 COPY services/user-feeds-next ./services/user-feeds-next/
 
-RUN npm install -g npm@12.0.1
+RUN npm install -g npm@12.0.2
 
 # Build packages first so they are available (each in clean separate layers)
 WORKDIR /usr/src/app/packages/contracts
@@ -38,7 +38,7 @@ RUN echo "allow-scripts=true" > .npmrc && \
 
 FROM build AS build-prod
 WORKDIR /usr/src/app/services/user-feeds-next
-RUN npm install -g npm@12.0.1
+RUN npm install -g npm@12.0.2
 RUN mv ../../package.json ../../package.json.bak || true && \
     npm prune --legacy-peer-deps --omit=dev --ignore-scripts && \
     mv ../../package.json.bak ../../package.json || true
@@ -47,7 +47,7 @@ FROM node:24-alpine AS prod
 WORKDIR /usr/src/app
 
 # Update npm in the prod image too
-RUN npm install -g npm@12.0.1
+RUN npm install -g npm@12.0.2
 
 COPY --from=build-prod /usr/src/app/packages /usr/src/app/packages
 COPY --from=build-prod /usr/src/app/services/user-feeds-next/package*.json ./

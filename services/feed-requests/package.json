@@ -7,7 +7,7 @@
   "license": "MIT",
   "engines": {
     "node": ">=18.0.0",
-    "npm": ">=12.0.1"
+    "npm": ">=12.0.2"
   },
   "scripts": {
     "prebuild": "rimraf dist",
@@ -41,11 +41,23 @@
     "mongoose": "6.13.10",
     "ajv-keywords": "^5.1.0",
     "brace-expansion": "^5.0.9",
-    "fast-uri": "^3.1.5",
-    "find-my-way": "^9.7.0",
+    "fast-uri": "^3.1.7",
+    "find-my-way": "$find-my-way",
     "@nestjs/platform-fastify": {
       "find-my-way": "^9.7.0"
-    }
+    },
+    "qs": "^6.16.0",
+    "js-yaml": "^3.15.1",
+    "lodash": "^4.18.1",
+    "fastify": "^5.12.1",
+    "form-data": "^4.0.1",
+    "ws": "^8.21.0",
+    "@babel/core": "^7.29.6",
+    "@tootallnate/once": "^2.0.1",
+    "braces": "^3.0.3",
+    "flatted": "^3.4.2",
+    "minimatch": "^10.2.5",
+    "picomatch": "^4.0.5"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.387.0",
@@ -70,7 +82,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.0",
     "dayjs": "^1.11.1",
-    "fastify": "^5.10.0",
+    "fastify": "^5.12.1",
     "form-data": "^4.0.1",
     "iconv-lite": "^0.6.3",
     "lodash": "^4.18.1",
