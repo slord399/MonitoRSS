@@ -563,6 +563,7 @@ async function main(): Promise<number> {
   appendLog(
     context.runnerLog,
     `Playwright arguments: ${JSON.stringify(effectiveArgs)}\n`,
+    )
   );
 
   const upCode = await runProcess(
