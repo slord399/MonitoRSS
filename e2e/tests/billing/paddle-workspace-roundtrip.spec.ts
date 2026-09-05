@@ -219,9 +219,11 @@ test.describe("Paddle workspace roundtrip", () => {
       const slider = changeDialog.getByRole("slider", { name: /how many feeds/i });
       await expect(slider).toBeVisible({ timeout: 10000 });
       // Seeded at the current 70 feeds; step up two detents (70 -> 100 -> 140).
-      await slider.focus();
-      await page.keyboard.press("ArrowRight");
-      await page.keyboard.press("ArrowRight");
+      // Press the slider itself, not page.keyboard, so each key lands on the
+      // thumb even if a re-render moves document focus between presses.
+      await slider.press("ArrowRight");
+      await expect(slider).toHaveAttribute("aria-valuetext", "100 feeds", { timeout: 5000 });
+      await slider.press("ArrowRight");
       await expect(slider).toHaveAttribute("aria-valuetext", "140 feeds", { timeout: 5000 });
       // Only the prorated preview is webhook-gated; it is the one slow wait here.
       await expect(changeDialog.getByText("Total due today")).toBeVisible({ timeout: 15000 });
@@ -252,7 +254,7 @@ test.describe("Paddle workspace roundtrip", () => {
     await expect(page.getByText("This workspace is not subscribed")).toHaveCount(0);
 
     await expect(
-      page.getByRole("heading", { name: "Add feeds for your workspace" }),
+      page.getByRole("heading", { name: /^Add feeds to / }),
     ).toBeVisible({ timeout: 15000 });
     const search = page.getByRole("textbox", { name: "Search popular feeds or paste a URL" });
     await search.fill(MOCK_RSS_FEED_URL);
@@ -380,9 +382,17 @@ test.describe("Paddle workspace roundtrip", () => {
     // The activation slider starts at the base 70 feeds; drag it up two detents
     // (70 -> 100 -> 140) so the single Subscribe button targets 140-feed capacity.
     const activationSlider = page.getByRole("slider", { name: /how many feeds/i });
-    await activationSlider.focus();
-    await page.keyboard.press("ArrowRight");
-    await page.keyboard.press("ArrowRight");
+    // Press the slider itself rather than page.keyboard: page-level keys go to
+    // whatever the document has focused, and re-rendering the panel between
+    // presses (the live price resolving) can move focus off the thumb, silently
+    // dropping the second step and leaving capacity at 100. Locator.press
+    // re-targets the thumb for each key. Confirm each detent so a lost press
+    // fails here rather than as a confusing wrong-capacity checkout later.
+    await activationSlider.press("ArrowRight");
+    await expect(activationSlider).toHaveAttribute("aria-valuetext", "100 feeds", {
+      timeout: 5000,
+    });
+    await activationSlider.press("ArrowRight");
     await expect(activationSlider).toHaveAttribute("aria-valuetext", "140 feeds", {
       timeout: 5000,
     });
@@ -413,8 +423,7 @@ test.describe("Paddle workspace roundtrip", () => {
       await expect(slider).toBeVisible({ timeout: 10000 });
       // Seeded at the current 140 feeds (detent index 2); one step up is 200.
       await expect(slider).toHaveAttribute("aria-valuetext", "140 feeds", { timeout: 5000 });
-      await slider.focus();
-      await page.keyboard.press("ArrowRight");
+      await slider.press("ArrowRight");
       await expect(slider).toHaveAttribute("aria-valuetext", "200 feeds", { timeout: 5000 });
       // Only the prorated preview is webhook-gated; it is the one slow wait here.
       await expect(changeDialog.getByText("Total due today")).toBeVisible({ timeout: 15000 });

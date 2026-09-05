@@ -4,7 +4,7 @@ WORKDIR /usr/src/app
 
 COPY package*.json ./
 
-RUN npm install -g npm@12.0.1
+RUN npm install -g npm@11.1.0
 
 RUN echo "allow-scripts=true" > .npmrc && \
     npm install --legacy-peer-deps --foreground-scripts && \
@@ -12,14 +12,14 @@ RUN echo "allow-scripts=true" > .npmrc && \
 
 COPY . ./
 
-FROM node:24 AS build-prod
+# docker-compose.base.yml runs this target directly, so it must contain dist/main.js.
+RUN npm run build
+
+FROM build AS build-prod
 
 WORKDIR /usr/src/app
-COPY --from=build /usr/src/app ./
 
-RUN npm install -g npm@12.0.1
-
-RUN npm run build
+RUN npm install -g npm@11.1.0
 
 RUN npm prune --legacy-peer-deps --omit=dev --ignore-scripts
 

@@ -56,10 +56,15 @@ export class FeedFetcherListenerService {
 
   calculateCurrentlyProcessingCacheKeyForMessage = (
     event: BatchRequestMessage['data'][number],
+    rateSeconds: number,
   ) => {
     const lookupKey = event.lookupKey || event.url;
 
-    return `listener-service-${lookupKey}`;
+    // Scope the lock by refresh rate. Feeds sharing a URL but on different
+    // refresh rates each get their own lock, so a fast-refreshing feed can't
+    // starve a slower one by holding a URL-wide lock and causing its cycles to
+    // be skipped (which drops the fetch-completed event and delays delivery).
+    return `listener-service-${lookupKey}-${rateSeconds}`;
   };
 
   static BASE_FAILED_ATTEMPT_WAIT_MINUTES = 5;
@@ -126,7 +131,10 @@ export class FeedFetcherListenerService {
             }
 
             const cacheKey =
-              this.calculateCurrentlyProcessingCacheKeyForMessage(message);
+              this.calculateCurrentlyProcessingCacheKeyForMessage(
+                message,
+                rateSeconds,
+              );
             const lockExpSeconds = Math.min(
               Math.floor(rateSeconds * 0.75),
               120,
@@ -316,19 +324,35 @@ export class FeedFetcherListenerService {
       return { emitFetchCompleted: false };
     }
 
-    const { isCacheStillActive, latestOkRequest } =
-      await this.isLatestResponseStillFreshInCache({
-        lookupKey: lookupKey || url,
-      });
+    const {
+      isCacheStillActive,
+      latestOkRequest,
+      freshnessLifetimeMs,
+      responseAgeMs,
+    } = await this.isLatestResponseStillFreshInCache({
+      lookupKey: lookupKey || url,
+    });
 
     if (isCacheStillActive) {
-      contextLogger.debug(
-        `Request with lookup key ${
-          lookupKey || url
-        } still has active cache-control, skipping`,
-      );
+      const cacheSkipMessage =
+        `Request with lookup key ${lookupKey || url} still has active` +
+        ` cache-control, skipping fetch but emitting fetch completed`;
 
-      return { emitFetchCompleted: false };
+      if (data.saveToObjectStorage) {
+        contextLogger.info(cacheSkipMessage, {
+          freshnessLifetimeMs,
+          responseAgeMs,
+          rateSeconds,
+        });
+      } else {
+        contextLogger.debug(cacheSkipMessage);
+      }
+
+      // The cached response may have been fetched by a cycle of a different
+      // refresh rate on the same URL, whose fetch-completed event only
+      // triggers delivery for feeds on that rate. Feeds on this rate must
+      // still be notified or they starve until timing happens to align.
+      return { emitFetchCompleted: true };
     }
 
     if (data.saveToObjectStorage) {
@@ -558,6 +582,8 @@ export class FeedFetcherListenerService {
     lookupKey: string;
   }): Promise<{
     isCacheStillActive: boolean;
+    freshnessLifetimeMs?: number;
+    responseAgeMs?: number;
     latestOkRequest?: Awaited<
       ReturnType<
         typeof FeedFetcherListenerService.prototype.partitionedRequestsStoreService.getLatestRequestWithOkStatus
@@ -593,6 +619,8 @@ export class FeedFetcherListenerService {
     return {
       latestOkRequest,
       isCacheStillActive: freshnessLifetime ? responseIsFresh : false,
+      freshnessLifetimeMs: freshnessLifetime,
+      responseAgeMs: currentAgeOfResponse,
     };
   }
 

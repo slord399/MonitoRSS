@@ -487,9 +487,23 @@ export interface PersonalFeedMoveReceipt {
   feeds: Array<{
     id: string;
     shareManageOptions?: IUserFeedShareManageOptions;
+    disabledCode?: UserFeedDisabledCode;
   }>;
 }
 
+export class PersonalFeedMoveFeedMissingError extends Error {
+  constructor() {
+    super("One or more selected feeds no longer exist");
+    this.name = "PersonalFeedMoveFeedMissingError";
+  }
+}
+
+export class PersonalFeedMoveOwnershipChangedError extends Error {
+  constructor() {
+    super("One or more selected feeds are no longer owned personal feeds");
+    this.name = "PersonalFeedMoveOwnershipChangedError";
+  }
+}
 export interface MovePersonalFeedsToWorkspaceInput {
   feedIds: string[];
   discordUserId: string;
