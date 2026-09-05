@@ -557,9 +557,9 @@ async function main(): Promise<number> {
   console.log(
     `Starting E2E Docker stack (instance: ${instance}, project: ${context.projectName})...`,
   );
-  const ports = portsForInstance(instance);
   console.log(
-    `  backend=${ports[0]} frontend=${ports[1]} mongo=${ports[2]} rss-mock=${ports[3]} discord-mock=${ports[4]} smtp-mock=${ports[5]}/${ports[6]} reddit-mock=${ports[7]}`,
+    `  backend=${context.env.E2E_BACKEND_PORT} frontend=${context.env.E2E_FRONTEND_PORT} mongo=${context.env.E2E_MONGO_PORT} rss-mock=${context.env.E2E_MOCK_RSS_PORT} discord-mock=${context.env.E2E_MOCK_DISCORD_PORT} smtp-mock=${context.env.E2E_MOCK_SMTP_PORT}/${context.env.E2E_MOCK_SMTP_HTTP_PORT} reddit-mock=${context.env.E2E_MOCK_REDDIT_PORT}`,
+)
   );
   appendLog(
     context.runnerLog,

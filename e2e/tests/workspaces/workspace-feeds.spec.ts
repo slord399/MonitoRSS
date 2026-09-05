@@ -35,7 +35,7 @@ async function addFeedViaDiscovery(page: Page): Promise<void> {
   // 0 workspace feeds -> the page renders the discovery UI, with the workspace-scoped
   // heading (personal scope uses "Get news delivered to your Discord").
   await expect(
-    page.getByRole("heading", { name: "Add feeds for your workspace" }),
+    page.getByRole("heading", { name: /^Add feeds to / }),
   ).toBeVisible({ timeout: 15000 });
   const search = page.getByRole("textbox", {
     name: "Search popular feeds or paste a URL",
@@ -68,7 +68,7 @@ test.describe("Workspace feeds", () => {
     await expect(page.getByRole("link", { name: /^Configure/ })).toBeVisible();
 
     // Bulk add ("Add multiple feeds") is available and stays workspace-scoped.
-    await page.getByRole("button", { name: /Additional add feed options/i }).click();
+    await page.getByRole("button", { name: "More ways to add feeds" }).click();
     await page.getByRole("menuitem", { name: /add multiple feeds/i }).click();
     await expect(page).toHaveURL(new RegExp(`/workspaces/${slug}/add-feeds$`));
   });
