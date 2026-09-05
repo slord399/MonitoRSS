@@ -559,7 +559,6 @@ async function main(): Promise<number> {
   );
   console.log(
     `  backend=${context.env.E2E_BACKEND_PORT} frontend=${context.env.E2E_FRONTEND_PORT} mongo=${context.env.E2E_MONGO_PORT} rss-mock=${context.env.E2E_MOCK_RSS_PORT} discord-mock=${context.env.E2E_MOCK_DISCORD_PORT} smtp-mock=${context.env.E2E_MOCK_SMTP_PORT}/${context.env.E2E_MOCK_SMTP_HTTP_PORT} reddit-mock=${context.env.E2E_MOCK_REDDIT_PORT}`,
-)
   );
   appendLog(
     context.runnerLog,
