@@ -60,7 +60,7 @@
     "react-router": "^7.18.0",
     "react-router-dom": "^7.18.0",
     "@synzen/discord-rest": {
-      "undici": "^5.28.5"
+      "undici": "^6.28.0"
     }
   },
   "dependencies": {
