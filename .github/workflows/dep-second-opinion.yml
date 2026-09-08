@@ -1,0 +1,17 @@
+version: 1
+require_dependency_context: true
+production:
+  auto_merge_max_bump: patch
+  major: review
+development:
+  auto_merge_max_bump: minor
+  major: review
+on_osv: high_risk
+on_deprecated: high_risk
+on_registry_missing: high_risk
+supply_chain:
+  new_package_max_age_days: 30
+  on_new_package: review
+  require_repository: false
+  min_weekly_downloads: 0
+ignore: []
