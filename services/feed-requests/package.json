@@ -41,7 +41,7 @@
     "mongoose": "6.13.10",
     "ajv-keywords": "^5.1.0",
     "brace-expansion": "^5.0.9",
-    "fast-uri": "^3.1.7",
+    "fast-uri": "^3.1.8",
     "find-my-way": "$find-my-way",
     "@nestjs/platform-fastify": {
       "find-my-way": "^9.7.0"
