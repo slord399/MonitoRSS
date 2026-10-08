@@ -23,7 +23,7 @@
     "redis": "^4.6.12",
     "undici": "^7.29.0",
     "workerpool": "^10.0.1",
-    "zod": "^4.1.13"
+    "zod": "^4.6.5"
   },
   "overrides": {
     "eslint": "$eslint",
