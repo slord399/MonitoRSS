@@ -97,7 +97,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
       - name: Generate artifact attestation
         if: ${{ github.event_name == 'push' }}
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@v4
         with:
           subject-name: ${{ env.REGISTRY }}/${{ env.USER_FEEDS_IMAGE_NAME}}
           subject-digest: ${{ steps.push.outputs.digest }}
@@ -143,7 +143,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
       - name: Generate artifact attestation
         if: ${{ github.event_name == 'push' }}
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@v4
         with:
           subject-name: ${{ env.REGISTRY }}/${{ env.FEED_REQUESTS_IMAGE_NAME}}
           subject-digest: ${{ steps.push.outputs.digest }}
@@ -190,7 +190,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
       - name: Generate artifact attestation
         if: ${{ github.event_name == 'push' }}
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@v4
         with:
           subject-name: ${{ env.REGISTRY }}/${{ env.MONOLITH_IMAGE_NAME}}
           subject-digest: ${{ steps.push.outputs.digest }}
@@ -236,7 +236,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
       - name: Generate artifact attestation
         if: ${{ github.event_name == 'push' }}
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@v4
         with:
           subject-name: ${{ env.REGISTRY }}/${{ env.BOT_PRESENCE_IMAGE_NAME}}
           subject-digest: ${{ steps.push.outputs.digest }}
@@ -282,7 +282,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
       - name: Generate artifact attestation
         if: ${{ github.event_name == 'push' }}
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@v4
         with:
           subject-name: ${{ env.REGISTRY }}/${{ env.DISCORD_REST_LISTENER_IMAGE_NAME}}
           subject-digest: ${{ steps.push.outputs.digest }}
