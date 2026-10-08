@@ -122,7 +122,7 @@
     "ts-jest": "^29.4.14",
     "ts-loader": "^9.2.3",
     "ts-node": "^10.9.2",
-    "tsconfig-paths": "^3.10.1",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^6.0.3"
   },
   "mikro-orm": {
