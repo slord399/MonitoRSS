@@ -63,7 +63,7 @@
     "lint": "eslint src/"
   },
   "devDependencies": {
-    "@types/flat": "^5.0.5",
+    "@types/flat": "^6.0.1",
     "@types/html-to-text": "^9.0.4",
     "@types/node": "^22.0.0",
     "@types/object-path": "^0.11.4",
