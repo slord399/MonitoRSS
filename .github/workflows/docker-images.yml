@@ -88,7 +88,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
       - name: Build Docker image
         id: push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           platforms: linux/amd64,linux/arm64
           context: services/user-feeds-next
@@ -133,7 +133,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
       - name: Build Docker image
         id: push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           platforms: linux/amd64,linux/arm64
           context: services/feed-requests
@@ -179,7 +179,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
       - name: Build Docker image
         id: push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           platforms: linux/amd64,linux/arm64
           context: services/backend-api
@@ -226,7 +226,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
       - name: Build Docker image
         id: push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           platforms: linux/amd64,linux/arm64
           context: services/bot-presence
@@ -272,7 +272,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
       - name: Build Docker image
         id: push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           platforms: linux/amd64,linux/arm64
           context: services/discord-rest-listener
