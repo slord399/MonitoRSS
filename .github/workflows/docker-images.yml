@@ -83,7 +83,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.USER_FEEDS_IMAGE_NAME }}
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
       - name: Build Docker image
@@ -128,7 +128,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.FEED_REQUESTS_IMAGE_NAME }}
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
       - name: Build Docker image
@@ -174,7 +174,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.MONOLITH_IMAGE_NAME }}
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
       - name: Build Docker image
@@ -221,7 +221,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.BOT_PRESENCE_IMAGE_NAME }}
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
       - name: Build Docker image
@@ -267,7 +267,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.DISCORD_REST_LISTENER_IMAGE_NAME }}
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
       - name: Build Docker image
