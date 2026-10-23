@@ -61,7 +61,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.387.0",
-    "@fastify/compress": "^9.0.0",
+    "@fastify/compress": "^9.2.2",
     "@fastify/middie": "^9.3.2",
     "@fastify/static": "^10.1.6",
     "@golevelup/nestjs-rabbitmq": "^9.0.2",
