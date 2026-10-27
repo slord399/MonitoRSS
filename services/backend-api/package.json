@@ -84,7 +84,7 @@
     "path-to-regexp": "$path-to-regexp",
     "file-type": "^21.3.4",
     "@fastify/middie": "^9.3.3",
-    "fast-uri": "^3.1.8",
+    "fast-uri": "^4.2.3",
     "find-my-way": "$find-my-way",
     "brace-expansion": "^5.0.12",
     "fastify": "^5.12.7",
