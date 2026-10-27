@@ -25,9 +25,9 @@
     "dayjs": "^1.11.2",
     "dotenv": "^16.0.1",
     "source-map-support": "^0.5.21",
-    "undici": "^7.29.0",
+    "undici": "^8.12.3",
     "winston": "^3.3.3",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "overrides": {
     "eslint": "$eslint",
@@ -40,7 +40,7 @@
     "node-domexception": "^1.0.0",
     "amqp-connection-manager": "^5.0.0",
     "amqplib": "^2.2.0",
-    "undici": "^7.29.0",
+    "undici": "^8.12.3",
     "brace-expansion": "^5.0.12",
     "fast-uri": "^4.2.3",
     "find-my-way": "$find-my-way",
@@ -58,7 +58,8 @@
     "picomatch": "^4.0.5",
     "@synzen/discord-rest": {
       "undici": "^6.28.0"
-    }
+    },
+    "body-parser": "^2.4.0"
   },
   "devDependencies": {
     "@types/amqplib": "^0.10.0",
