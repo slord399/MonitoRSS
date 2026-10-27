@@ -37,7 +37,7 @@
     "node-domexception": "^1.0.0",
     "amqp-connection-manager": "5.0.0",
     "amqplib": "0.10.9",
-    "undici": "$undici",
+    "undici": "^8.12.3",
     "ajv-keywords": "^5.1.0",
     "brace-expansion": "^5.0.12",
     "fast-uri": "^4.2.3",
@@ -58,8 +58,8 @@
     "minimatch": "^10.2.5",
     "picomatch": "^4.0.5",
     "proxy-addr": "^2.0.8",
-    "multer": "^2.4.0",
-    "ip-address": "^10.7.1"
+    "multer": "^2.5.0",
+    "ip-address": "^10.7.5"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.387.0",
@@ -95,7 +95,7 @@
     "reflect-metadata": "^0.2.2",
     "rimraf": "^5.0.5",
     "rxjs": "^7.2.0",
-    "undici": "^7.29.0"
+    "undici": "^8.12.3"
   },
   "devDependencies": {
     "@mikro-orm/cli": "^6.6.16",
