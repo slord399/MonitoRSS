@@ -38,12 +38,11 @@
     "unrs-resolver"
   ],
   "overrides": {
-    "fast-uri": "^3.1.7",
     "undici": "^7.29.0",
     "qs": "6.16.0",
     "js-yaml": "^3.15.1",
     "lodash": "^4.18.1",
-    "fastify": "^5.12.1",
+    "fastify": "^5.12.7",
     "form-data": "^4.0.1",
     "ws": "^8.21.0",
     "@babel/core": "^7.29.6",
@@ -55,18 +54,25 @@
     "glob": "^12.0.0",
     "inflight": "^1.0.6",
     "eslint-plugin-unused-imports": "^3.0.0",
-    "brace-expansion": "^5.0.9",
+    "brace-expansion": "^5.0.12",
     "find-my-way": "$find-my-way",
     "react-router": "^7.18.0",
     "react-router-dom": "^7.18.0",
     "@synzen/discord-rest": {
       "undici": "^6.28.0"
-    }
+    },
+    "handlebars": "^4.7.10",
+    "proxy-addr": "^2.0.8",
+    "follow-redirects": "^1.15.6",
+    "@fastify/busboy": "^3.2.2",
+    "multer": "^2.4.0",
+    "ip-address": "^10.7.1",
+    "fast-uri": "^4.2.3"
   },
   "dependencies": {
     "deepmerge": "^4.3.1",
-    "fast-uri": "^3.1.7",
     "find-my-way": "^9.8.0",
-    "undici": "^7.29.0"
+    "undici": "^7.29.0",
+    "fast-uri": "^4.2.3"
   }
 }
