@@ -17,13 +17,13 @@
     "commander": "^12.0.0",
     "dayjs": "^1.11.19",
     "dotenv": "^17.2.3",
-    "fastify": "^5.12.6",
+    "fastify": "^5.12.7",
     "feedparser": "^2.2.10",
     "handlebars": "^4.7.10",
     "html-to-text": "^10.0.1",
     "lodash": "^4.18.1",
     "moment-timezone": "^0.6.5",
-    "mongoose": "^9.11.2",
+    "mongoose": "6.13.10",
     "nodemailer": "^10.0.10",
     "qs": "^6.16.0",
     "rabbitmq-client": "^5.0.8",
@@ -58,7 +58,7 @@
     "@types/qs": "^6.15.1",
     "prettier": "^3.9.10",
     "tsx": "^4.21.0",
-    "typescript": "^6.0.3"
+    "typescript": "^5.6.2"
   },
   "peerDependencies": {
     "typescript": "^5"
@@ -84,10 +84,10 @@
     "path-to-regexp": "$path-to-regexp",
     "file-type": "^21.3.4",
     "@fastify/middie": "^9.3.3",
-    "fast-uri": "^3.1.7",
+    "fast-uri": "^3.1.8",
     "find-my-way": "$find-my-way",
     "brace-expansion": "^5.0.12",
-    "fastify": "$fastify",
+    "fastify": "^5.12.7",
     "lodash": "$lodash",
     "ajv": "$ajv",
     "uuid": "^11.1.1",
@@ -102,6 +102,7 @@
     "picomatch": "^4.0.5",
     "@synzen/discord-rest": {
       "undici": "^6.28.0"
-    }
+    },
+    "handlebars": "^4.7.10"
   }
 }
