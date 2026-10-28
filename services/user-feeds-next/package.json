@@ -38,8 +38,8 @@
     "node-domexception": "^1.0.0",
     "amqp-connection-manager": "5.0.0",
     "amqplib": "0.10.9",
-    "brace-expansion": "$brace-expansion",
-    "fast-uri": "$fast-uri",
+    "brace-expansion": "^5.0.12",
+    "fast-uri": "^3.1.9",
     "find-my-way": "$find-my-way",
     "qs": "^6.16.1",
     "js-yaml": "^3.15.1",
@@ -57,7 +57,7 @@
     },
     "handlebars": "^4.7.10",
     "proxy-addr": "^2.0.8",
-    "zod": "$zod",
+    "zod": "^4.6.7",
     "body-parser": "^2.4.0"
   },
   "scripts": {

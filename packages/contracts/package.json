@@ -41,6 +41,6 @@
     "flatted": "^3.4.2",
     "minimatch": "^10.2.5",
     "picomatch": "^4.0.5",
-    "zod": "$zod"
+    "zod": "^4.6.7"
   }
 }

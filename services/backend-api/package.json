@@ -84,7 +84,7 @@
     "path-to-regexp": "$path-to-regexp",
     "file-type": "^21.3.4",
     "@fastify/middie": "^9.3.3",
-    "fast-uri": "$fast-uri",
+    "fast-uri": "^3.1.9",
     "find-my-way": "$find-my-way",
     "brace-expansion": "^5.0.12",
     "lodash": "$lodash",
@@ -103,7 +103,7 @@
       "undici": "^6.28.0"
     },
     "handlebars": "^4.7.10",
-    "zod": "$zod",
+    "zod": "^4.6.7",
     "nodemailer": "^10.2.1"
   }
 }
