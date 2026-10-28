@@ -57,6 +57,8 @@
     "find-my-way": "$find-my-way",
     "react-router": "^7.18.0",
     "react-router-dom": "^7.18.0",
+    "undici": "^6.29.1",
+    "fast-uri": "^3.1.9",
     "@synzen/discord-rest": {
       "undici": "^6.29.1"
     },
