@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 const moment = require("moment-timezone");
 const htmlConvert = require("html-to-text");
-const htmlDecoder = require("html-to-text/lib/formatter.js").text;
+const htmlDecoder = (text) => htmlConvert.convert(text);
 const FlattenedJSON = require("./FlattenedJSON.js");
 const FilterResults = require("./FilterResults.js");
 const Filter = require("./Filter.js");
@@ -263,7 +263,7 @@ function cleanup(feed, text, imgSrcs, anchorLinks, defaultOptions) {
     return "";
   }
 
-  text = htmlDecoder({ data: text }, {})
+  text = htmlDecoder(text)
     .replace(/\*/gi, "")
     .replace(/<(strong|b)>(.*?)<\/(strong|b)>/gi, "**$2**") // Bolded markdown
     .replace(/<(em|i)>(.*?)<(\/(em|i))>/gi, "*$2*") // Italicized markdown

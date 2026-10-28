@@ -1,7 +1,8 @@
-import type { PipelineStage, FilterQuery } from "mongoose";
+import type { PipelineStage } from "mongoose";
+import type mongoose from "mongoose";
 import type { SlotWindow } from "../types/slot-window.types";
 
-function buildSlotWindowFilter(slotWindow: SlotWindow): FilterQuery<unknown> {
+function buildSlotWindowFilter(slotWindow: SlotWindow): mongoose.FilterQuery<unknown> {
   if (slotWindow.wrapsAroundInterval) {
     const wrappedEndMs = slotWindow.windowEndMs - slotWindow.refreshRateMs;
 
@@ -34,7 +35,7 @@ export function getCommonFeedAggregateStages({
   withLookupKeys?: boolean;
   slotWindow?: SlotWindow;
 }): PipelineStage[] {
-  const query: FilterQuery<unknown> = {
+  const query: mongoose.FilterQuery<unknown> = {
     ...(url ? { url } : {}),
     disabledCode: {
       $exists: false,
