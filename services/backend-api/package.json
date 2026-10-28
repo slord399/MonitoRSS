@@ -17,6 +17,7 @@
     "commander": "^12.0.0",
     "dayjs": "^1.11.19",
     "dotenv": "^17.2.3",
+    "fast-uri": "^3.1.9",
     "fastify": "^5.12.5",
     "feedparser": "^2.2.10",
     "handlebars": "^4.7.10",
@@ -83,7 +84,7 @@
     "path-to-regexp": "$path-to-regexp",
     "file-type": "^21.3.4",
     "@fastify/middie": "^9.3.3",
-    "fast-uri": "^3.1.9",
+    "fast-uri": "$fast-uri",
     "find-my-way": "$find-my-way",
     "brace-expansion": "^5.0.12",
     "lodash": "$lodash",
@@ -102,7 +103,7 @@
       "undici": "^6.28.0"
     },
     "handlebars": "^4.7.10",
-    "zod": "^4.6.7",
+    "zod": "$zod",
     "nodemailer": "^10.2.1"
   }
 }

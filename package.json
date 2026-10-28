@@ -61,19 +61,24 @@
       "undici": "^6.29.1"
     },
     "handlebars": "^4.7.10",
-    "proxy-addr": "^2.0.8",
-    "follow-redirects": "^1.16.1",
-    "@fastify/busboy": "^3.2.2",
-    "multer": "^2.5.0",
+    "proxy-addr": "$proxy-addr",
+    "follow-redirects": "$follow-redirects",
+    "@fastify/busboy": "$@fastify/busboy",
+    "multer": "$multer",
     "ip-address": "^10.7.1",
-    "zod": "^4.6.7",
-    "body-parser": "^1.20.9",
+    "zod": "$zod",
+    "body-parser": "$body-parser",
     "nodemailer": "^10.2.1"
   },
   "dependencies": {
+    "@fastify/busboy": "^3.2.2",
+    "body-parser": "^1.20.9",
     "deepmerge": "^4.3.1",
+    "fast-uri": "^3.1.9",
     "find-my-way": "^9.8.0",
-    "undici": "^6.29.1",
-    "fast-uri": "^3.1.9"
+    "follow-redirects": "^1.16.1",
+    "multer": "^2.5.0",
+    "proxy-addr": "^2.0.8",
+    "undici": "^6.29.1"
   }
 }
