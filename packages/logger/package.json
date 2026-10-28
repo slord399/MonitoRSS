@@ -41,6 +41,7 @@
     "winston": "^3.3.3"
   },
   "overrides": {
+    "deepmerge": "^4.3.1",
     "fast-uri": "^4.2.3",
     "undici": "^7.29.0",
     "qs": "^6.16.1",
