@@ -16,7 +16,7 @@
     "feedparser": "^2.2.10",
     "flat": "^6.0.1",
     "html-to-text": "^10.0.1",
-    "node-html-parser": "^6.1.13",
+    "node-html-parser": "^9.0.5",
     "object-path": "^0.11.8",
     "p-retry": "^8.0.1",
     "pg": "^8.16.3",
