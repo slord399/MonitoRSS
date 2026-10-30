@@ -69,7 +69,7 @@
     "npm": ">=12.0.2"
   },
   "overrides": {
-    "deepmerge": "^4.3.1",
+    "deepmerge": "npm:@stackline/deepmerge@^1.1.0",
     "glob": "^12.0.0",
     "inflight": {
       "once": "^1.4.0"
