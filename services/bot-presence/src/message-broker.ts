@@ -16,8 +16,8 @@ export function createMessageBroker(rabbitMqUrl: string): MessageBroker {
     logger.info("RabbitMQ connected");
   });
 
-  connection.on("disconnect", (err: Error) => {
-    logger.error("RabbitMQ disconnected", { error: err.message });
+  connection.on("disconnect", ({ err }: { err?: Error } = {}) => {
+    logger.error("RabbitMQ disconnected", { error: err?.message });
   });
 
   const channel = connection.createChannel({

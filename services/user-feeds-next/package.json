@@ -28,7 +28,7 @@
     "zod": "^4.6.7"
   },
   "overrides": {
-    "deepmerge": "^4.3.1",
+    "deepmerge": "npm:@stackline/deepmerge@^1.1.0",
     "eslint": "$eslint",
     "glob": "^12.0.0",
     "inflight": {
