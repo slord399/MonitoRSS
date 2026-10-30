@@ -111,7 +111,7 @@
     "cross-env": "^7.0.3",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^8.5.0",
-    "eslint-plugin-prettier": "^4.2.1",
+    "eslint-plugin-prettier": "^5.5.7",
     "eslint-plugin-unused-imports": "^2.0.0",
     "jest": "^30.5.2",
     "mongodb-memory-server": "^11.2.0",
