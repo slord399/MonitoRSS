@@ -70,7 +70,7 @@
   "devDependencies": {
     "@types/flat": "^6.0.1",
     "@types/html-to-text": "^9.0.4",
-    "@types/node": "^22.0.0",
+    "@types/node": "^26.6.5",
     "@types/object-path": "^0.11.4",
     "@types/pg": "^8.16.0",
     "@typescript-eslint/eslint-plugin": "^8.59.4",
