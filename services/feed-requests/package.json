@@ -98,7 +98,7 @@
   },
   "devDependencies": {
     "@mikro-orm/cli": "^6.6.16",
-    "@mikro-orm/migrations": "^6.6.16",
+    "@mikro-orm/migrations": "^7.2.5",
     "@nestjs/cli": "^11.0.23",
     "@nestjs/platform-express": "^11.1.28",
     "@nestjs/schematics": "^12.0.10",
