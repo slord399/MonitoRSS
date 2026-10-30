@@ -25,7 +25,7 @@
   "homepage": "https://github.com/MonitoRSS/typescript-template#readme",
   "devDependencies": {
     "@types/jest": "^30.0.0",
-    "@types/node": "^16.11.6",
+    "@types/node": "^26.6.5",
     "@typescript-eslint/eslint-plugin": "^4.33.0",
     "@typescript-eslint/parser": "^4.33.0",
     "eslint": "^7.32.0",
