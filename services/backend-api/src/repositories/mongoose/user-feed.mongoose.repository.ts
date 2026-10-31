@@ -278,9 +278,9 @@ export class UserFeedMongooseRepository
     return {
       id: this.objectIdToString(doc._id),
       title: doc.title,
-      inputUrl: doc.inputUrl,
+      inputUrl: doc.inputUrl ?? undefined,
       url: doc.url,
-      disabledCode: doc.disabledCode,
+      disabledCode: (doc.disabledCode as any) ?? undefined,
       passingComparisons: doc.passingComparisons,
       blockingComparisons: doc.blockingComparisons,
       externalProperties: doc.externalProperties,
@@ -292,12 +292,12 @@ export class UserFeedMongooseRepository
           ) || [],
       },
       user: {
-        id: this.objectIdToString(doc.user.id),
+        id: this.objectIdToString(doc.user.id as any),
         discordUserId: doc.user.discordUserId,
       },
-      workspaceId: this.objectIdToString(doc.workspaceId),
-      formatOptions: doc.formatOptions,
-      dateCheckOptions: doc.dateCheckOptions,
+      workspaceId: doc.workspaceId ? this.objectIdToString(doc.workspaceId) : undefined,
+      formatOptions: (doc.formatOptions as any) ?? undefined,
+      dateCheckOptions: (doc.dateCheckOptions as any) ?? undefined,
       shareManageOptions: doc.shareManageOptions
         ? {
             invites: (
@@ -315,14 +315,14 @@ export class UserFeedMongooseRepository
             })),
           }
         : undefined,
-      legacyFeedId: this.objectIdToString(doc.legacyFeedId),
-      refreshRateSeconds: doc.refreshRateSeconds,
-      maxDailyArticles: doc.maxDailyArticles,
-      userRefreshRateSeconds: doc.userRefreshRateSeconds,
-      slotOffsetMs: doc.slotOffsetMs,
-      debug: doc.debug,
-      feedRequestLookupKey: doc.feedRequestLookupKey,
-      lastManualRequestAt: doc.lastManualRequestAt,
+      legacyFeedId: doc.legacyFeedId ? this.objectIdToString(doc.legacyFeedId) : undefined,
+      refreshRateSeconds: doc.refreshRateSeconds ?? undefined,
+      maxDailyArticles: doc.maxDailyArticles ?? undefined,
+      userRefreshRateSeconds: doc.userRefreshRateSeconds ?? undefined,
+      slotOffsetMs: doc.slotOffsetMs ?? undefined,
+      debug: doc.debug ?? undefined,
+      feedRequestLookupKey: doc.feedRequestLookupKey ?? undefined,
+      lastManualRequestAt: doc.lastManualRequestAt ?? undefined,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
     };
@@ -379,10 +379,10 @@ export class UserFeedMongooseRepository
         title: docWithId.title,
         url: docWithId.url,
         user: {
-          id: this.objectIdToString(docWithId.user.id),
+          id: this.objectIdToString(docWithId.user.id as any),
           discordUserId: docWithId.user.discordUserId,
         },
-        workspaceId: this.objectIdToString(docWithId.workspaceId),
+        workspaceId: docWithId.workspaceId ? this.objectIdToString(docWithId.workspaceId) : undefined,
         shareManageOptions: docWithId.shareManageOptions
           ? {
               invites: (
@@ -1946,8 +1946,8 @@ export class UserFeedMongooseRepository
       yield {
         id: this.objectIdToString((doc as { _id: Types.ObjectId })._id),
         url: doc.url,
-        refreshRateSeconds: doc.refreshRateSeconds,
-        userRefreshRateSeconds: doc.userRefreshRateSeconds,
+        refreshRateSeconds: doc.refreshRateSeconds ?? undefined,
+        userRefreshRateSeconds: doc.userRefreshRateSeconds ?? undefined,
       };
     }
   }

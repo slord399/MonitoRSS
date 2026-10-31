@@ -39,8 +39,8 @@ export class FailRecordMongooseRepository
   protected toEntity(doc: FailRecordDoc & { _id: string }): IFailRecord {
     return {
       id: doc._id,
-      reason: doc.reason,
-      failedAt: doc.failedAt,
+      reason: doc.reason ?? undefined,
+      failedAt: doc.failedAt ?? undefined,
       alerted: doc.alerted,
     };
   }

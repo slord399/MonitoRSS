@@ -2,8 +2,7 @@ import nodemailer from "nodemailer";
 import type SMTPTransport from "nodemailer/lib/smtp-transport";
 import type { Config } from "../config";
 
-export type SmtpTransport =
-  nodemailer.Transporter<SMTPTransport.SentMessageInfo> | null;
+export type SmtpTransport = ReturnType<typeof nodemailer.createTransport> | null;
 
 export function createSmtpTransport(config: Config): SmtpTransport {
   const host = config.BACKEND_API_SMTP_HOST;

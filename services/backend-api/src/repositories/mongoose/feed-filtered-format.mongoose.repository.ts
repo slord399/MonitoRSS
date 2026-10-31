@@ -44,10 +44,10 @@ export class FeedFilteredFormatMongooseRepository
   ): IFeedFilteredFormat {
     return {
       id: this.objectIdToString(doc._id),
-      text: doc.text,
-      embeds: doc.embeds,
+      text: doc.text ?? undefined,
+      embeds: (doc.embeds as any) ?? undefined,
       feedId: this.objectIdToString(doc.feed),
-      priority: doc.priority,
+      priority: doc.priority ?? undefined,
       filters: doc.filters ? Object.fromEntries(doc.filters) : undefined,
     };
   }
