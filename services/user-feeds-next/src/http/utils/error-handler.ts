@@ -44,7 +44,7 @@ export function handleError(err: unknown): Response {
   if (err instanceof z.ZodError) {
     return jsonResponse(
       {
-        message: err.issues.map((issue: z.core.$ZodIssue) => ({
+        message: err.issues.map((issue: z.ZodIssue) => ({
           path: issue.path,
           message: issue.message,
         })),

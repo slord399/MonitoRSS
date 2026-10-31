@@ -232,7 +232,7 @@ export async function handleDeliveryPreview(
       // Handle Zod validation errors
       if (err instanceof z.ZodError) {
         return jsonResponse(
-          err.issues.map((issue: z.core.$ZodIssue) => ({
+          err.issues.map((issue: z.ZodIssue) => ({
             path: issue.path,
             message: issue.message,
           })),

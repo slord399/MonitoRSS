@@ -106,7 +106,7 @@ export async function handleTest(
         feed,
       } = z
         .object({
-          type: z.enum(TestDeliveryMedium),
+          type: z.nativeEnum(TestDeliveryMedium),
           feed: z.object({
             url: z.string(),
             formatOptions: feedV2EventSchemaFormatOptions
@@ -369,7 +369,7 @@ export async function handleTest(
       // Handle Zod validation errors
       if (err instanceof z.ZodError) {
         return jsonResponse(
-          err.issues.map((issue: z.core.$ZodIssue) => ({
+          err.issues.map((issue: z.ZodIssue) => ({
             path: issue.path,
             message: issue.message,
           })),
