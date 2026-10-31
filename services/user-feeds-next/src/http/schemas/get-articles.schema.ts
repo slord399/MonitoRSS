@@ -95,7 +95,7 @@ const formatterSchema = z.object({
  * Filters schema.
  */
 const filtersSchema = z.object({
-  returnType: z.enum(GetUserFeedArticlesFilterReturnType).optional(),
+  returnType: z.nativeEnum(GetUserFeedArticlesFilterReturnType).optional(),
   expression: z.record(z.string(), z.unknown()).optional(),
   articleId: z.string().optional(),
   articleIdHashes: z.array(z.string()).optional(),

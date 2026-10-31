@@ -9,10 +9,10 @@ import {
 // Shared Schemas
 // ============================================================================
 
-const mediumKeySchema = z.enum(MediumKey);
+const mediumKeySchema = z.nativeEnum(MediumKey);
 
 const mediumFiltersSchema = z.object({
-  expression: z.looseObject({}),
+  expression: z.object({}).passthrough(),
 });
 
 const mediumRateLimitSchema = z.object({
@@ -136,7 +136,7 @@ const componentV2Schema = z.discriminatedUnion("type", [
 const forumTagSchema = z.object({
   id: z.string(),
   filters: z
-    .object({ expression: z.looseObject({}) })
+    .object({ expression: z.object({}).passthrough() })
     .optional()
     .nullable()
     .default(null),
@@ -291,7 +291,7 @@ const discordMediumPayloadDetailsSchema = z.object({
       formatTables: z.boolean().optional().default(false),
       disableImageLinkPreviews: z.boolean().optional().default(false),
       ignoreNewLines: z.boolean().optional().default(true),
-      connectionCreatedAt: z.iso.datetime().optional(),
+      connectionCreatedAt: z.string().datetime().optional(),
     })
     .optional(),
   splitOptions: z
@@ -321,7 +321,7 @@ const discordMediumPayloadDetailsSchema = z.object({
 
 const baseMediumPayloadSchema = z.object({
   key: mediumKeySchema,
-  details: z.looseObject({}),
+  details: z.object({}).passthrough(),
 });
 
 const mediumPayloadSchema = baseMediumPayloadSchema.extend({
