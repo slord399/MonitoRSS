@@ -23,11 +23,11 @@ services:
       - rabbitmq-data:/var/lib/rabbitmq
 
   mongo:
-    restart: on-failure:5
+    restart: always
     command: mongod --port 27017
     logging:
       driver: none
-    image: mongo:8.0
+    image: mongo:7.0
     volumes:
       - "mongodb-data:/data/db"
     networks:
