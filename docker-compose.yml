@@ -33,6 +33,8 @@ services:
     extends:
       file: ./docker-compose.base.yml
       service: mongo
+    image: mongo:7.0
+    restart: always
 
   feed-requests-postgres-db:
     extends:
