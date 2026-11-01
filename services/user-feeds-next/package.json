@@ -12,7 +12,7 @@
     "dotenv": "^17.2.3",
     "fast-uri": "^3.1.9",
     "fast-xml-parser": "^5.10.0",
-    "fastify": "^5.12.5",
+    "fastify": "^5.12.7",
     "feedparser": "^2.2.10",
     "flat": "^6.0.1",
     "html-to-text": "^10.0.1",
@@ -30,7 +30,7 @@
   "overrides": {
     "deepmerge": "npm:@stackline/deepmerge@^1.1.0",
     "eslint": "$eslint",
-    "glob": "^12.0.0",
+    "glob": "^14.0.3",
     "inflight": {
       "once": "^1.4.0"
     },
@@ -51,7 +51,7 @@
     "@tootallnate/once": "^2.0.1",
     "braces": "^3.0.3",
     "flatted": "^3.4.2",
-    "minimatch": "^10.2.5",
+    "minimatch": "^11.0.3",
     "picomatch": "^4.0.5",
     "@synzen/discord-rest": {
       "undici": "^6.28.0"
@@ -59,7 +59,8 @@
     "handlebars": "^4.7.10",
     "proxy-addr": "^2.0.8",
     "zod": "^4.6.7",
-    "body-parser": "^2.4.0"
+    "body-parser": "^2.4.0",
+    "fastify": "^5.12.7"
   },
   "scripts": {
     "build": "tsc",
