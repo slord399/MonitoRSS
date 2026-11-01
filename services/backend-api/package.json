@@ -18,14 +18,14 @@
     "dayjs": "^1.11.19",
     "dotenv": "^17.2.3",
     "fast-uri": "^3.1.9",
-    "fastify": "^5.12.5",
+    "fastify": "^5.12.7",
     "feedparser": "^2.2.10",
     "handlebars": "^4.7.10",
     "html-to-text": "^10.0.1",
     "lodash": "^4.18.1",
     "moment-timezone": "^0.6.5",
     "mongoose": "^7.6.2",
-    "nodemailer": "^6.9.16",
+    "nodemailer": "^10.3.1",
     "qs": "^6.16.1",
     "rabbitmq-client": "^5.0.8",
     "undici": "^6.29.1",
@@ -55,7 +55,7 @@
     "@playwright/test": "^1.52.0",
     "@types/feedparser": "^2.3.0",
     "@types/node": "^26.6.5",
-    "@types/nodemailer": "^8.0.1",
+    "@types/nodemailer": "^8.0.2",
     "@types/qs": "^6.15.1",
     "prettier": "^3.9.10",
     "tsx": "^4.23.15",
@@ -70,7 +70,7 @@
   },
   "overrides": {
     "deepmerge": "npm:@stackline/deepmerge@^1.1.0",
-    "glob": "^12.0.0",
+    "glob": "^14.0.3",
     "inflight": {
       "once": "^1.4.0"
     },
@@ -98,7 +98,7 @@
     "@tootallnate/once": "^2.0.1",
     "braces": "^3.0.3",
     "flatted": "^3.4.2",
-    "minimatch": "^10.2.5",
+    "minimatch": "^11.0.3",
     "picomatch": "^4.0.5",
     "@synzen/discord-rest": {
       "undici": "^6.28.0"
@@ -106,6 +106,6 @@
     "handlebars": "^4.7.10",
     "zod": "^4.6.7",
     "mongoose": "^7.6.2",
-    "nodemailer": "^6.9.16"
+    "nodemailer": "^10.3.1"
   }
 }
