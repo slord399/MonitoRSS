@@ -23,7 +23,7 @@ Delivers highly-customized news feeds to Discord!
 - Check [Releases page](../../releases) for latest version of it's local build.
   
 - This repo use mongo v9 to cope with Ubuntu v26.4 (aka [Linux kernel 6.19](https://jira.mongodb.org/browse/SERVER-121912)) issue.
-- If you using mongo v7 (which origin repo use), update 1 by 1 by v7 > v8 > v9 if you're updating then fresh install.
+- If you using mongo v7 (which origin repo use), update 1 by 1 by v7 > v8 > v9 if you're updating than fresh install.
 
 ## Get Started
 
