@@ -98,7 +98,7 @@
     "undici": "^6.29.1"
   },
   "devDependencies": {
-    "@mikro-orm/cli": "^6.6.16",
+    "@mikro-orm/cli": "^7.2.6",
     "@mikro-orm/migrations": "^6.6.16",
     "@nestjs/cli": "^11.0.23",
     "@nestjs/platform-express": "^11.1.28",
