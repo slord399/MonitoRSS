@@ -70,7 +70,7 @@
     "@mikro-orm/core": "^7.2.6",
     "@mikro-orm/knex": "^6.6.16",
     "@mikro-orm/nestjs": "^6.1.2",
-    "@mikro-orm/postgresql": "^6.6.16",
+    "@mikro-orm/postgresql": "^7.2.6",
     "@monitorss/logger": "^1.1.2",
     "@nestjs/common": "^11.1.27",
     "@nestjs/config": "^12.0.1",
