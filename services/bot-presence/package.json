@@ -22,7 +22,7 @@
     "@discordjs/ws": "^2.0.4",
     "@monitorss/logger": "^1.1.2",
     "amqp-connection-manager": "^5.0.1",
-    "amqplib": "^2.2.0",
+    "amqplib": "^2.2.1",
     "bufferutil": "^4.0.8",
     "undici": "^6.29.1",
     "utf-8-validate": "^6.0.3"
