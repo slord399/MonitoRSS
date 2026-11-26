@@ -115,7 +115,7 @@
     "eslint-plugin-prettier": "^5.5.7",
     "eslint-plugin-unused-imports": "^4.4.1",
     "jest": "^30.5.2",
-    "mongodb-memory-server": "^11.2.0",
+    "mongodb-memory-server": "^11.4.0",
     "nock": "^15.0.6",
     "prettier": "^3.10.1",
     "rimraf": "^5.0.5",
