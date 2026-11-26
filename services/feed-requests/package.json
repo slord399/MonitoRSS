@@ -73,7 +73,7 @@
     "@mikro-orm/postgresql": "^7.2.6",
     "@monitorss/logger": "^1.1.2",
     "@nestjs/common": "^11.1.27",
-    "@nestjs/config": "^12.0.1",
+    "@nestjs/config": "^12.1.1",
     "@nestjs/core": "^11.1.27",
     "@nestjs/event-emitter": "^12.0.3",
     "@nestjs/microservices": "^11.2.5",
