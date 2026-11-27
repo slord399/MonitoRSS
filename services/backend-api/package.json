@@ -24,7 +24,7 @@
     "html-to-text": "^10.0.1",
     "lodash": "^4.18.1",
     "moment-timezone": "^0.6.5",
-    "mongoose": "^7.6.2",
+    "mongoose": "^9.12.3",
     "nodemailer": "^10.6.0",
     "qs": "^6.16.1",
     "rabbitmq-client": "^5.0.8",
@@ -105,7 +105,7 @@
     },
     "handlebars": "^4.7.10",
     "zod": "^4.6.7",
-    "mongoose": "^7.6.2",
+    "mongoose": "^9.12.3",
     "nodemailer": "^10.3.1"
   }
 }
