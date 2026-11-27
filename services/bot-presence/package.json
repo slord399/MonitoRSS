@@ -60,7 +60,7 @@
   "devDependencies": {
     "@types/node": "^26.6.5",
     "@typescript-eslint/eslint-plugin": "^8.72.1",
-    "@typescript-eslint/parser": "^8.63.0",
+    "@typescript-eslint/parser": "^8.74.0",
     "eslint": "^10.15.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-prettier": "^5.5.7",
